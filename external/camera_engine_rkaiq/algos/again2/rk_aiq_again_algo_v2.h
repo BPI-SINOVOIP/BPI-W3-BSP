@@ -56,6 +56,12 @@ Again_result_V2_t Again_Process_V2(Again_Context_V2_t *pAgainCtx, Again_ExpInfo_
 //anr get result
 Again_result_V2_t Again_GetProcResult_V2(Again_Context_V2_t *pAgainCtx, Again_ProcResult_V2_t* pANRResult);
 
+Again_result_V2_t Again_update_iqfile(Again_Context_V2_t *pAgainCtx, CalibDbV2_Bayer2dnr_V2_t * pcalibdbV2_bayernr_v2);
+
+Again_result_V2_t Again_ConfigSettingParam_V2(Again_Context_V2_t *pAgainCtx, Again_ParamMode_V2_t eParamMode, int snr_mode);
+
+Again_result_V2_t Again_ParamModeProcess_V2(Again_Context_V2_t *pAgainCtx, Again_ExpInfo_V2_t *pExpInfo, Again_ParamMode_V2_t *mode);
+
 
 
 RKAIQ_END_DECLARE

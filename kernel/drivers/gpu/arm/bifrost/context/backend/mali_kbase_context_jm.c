@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2019-2021 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2019-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -36,11 +36,13 @@
 
 #if IS_ENABLED(CONFIG_DEBUG_FS)
 #include <mali_kbase_debug_mem_view.h>
+#include <mali_kbase_debug_mem_zones.h>
 #include <mali_kbase_mem_pool_debugfs.h>
 
 void kbase_context_debugfs_init(struct kbase_context *const kctx)
 {
 	kbase_debug_mem_view_init(kctx);
+	kbase_debug_mem_zones_init(kctx);
 	kbase_mem_pool_debugfs_init(kctx->kctx_dentry, kctx);
 	kbase_jit_debugfs_init(kctx);
 	kbasep_jd_debugfs_ctx_init(kctx);
@@ -110,6 +112,11 @@ static void kbase_context_flush_jobs(struct kbase_context *kctx)
 	flush_workqueue(kctx->jctx.job_done_wq);
 }
 
+/**
+ * kbase_context_free - Free kcontext at its destruction
+ *
+ * @kctx: kcontext to be freed
+ */
 static void kbase_context_free(struct kbase_context *kctx)
 {
 	kbase_timeline_post_kbase_context_destroy(kctx);

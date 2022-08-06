@@ -1,7 +1,0 @@
-config BR2_PACKAGE_PYTHON_LLVMLITE
-	bool "python-llvmlite"
-	select BR2_PACKAGE_LLVM
-	help
-	  A Lightweight LLVM Python Binding for Writing JIT Compilers.
-
-	  http://llvmlite.pydata.org/

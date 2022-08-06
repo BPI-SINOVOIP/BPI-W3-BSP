@@ -19,9 +19,9 @@
 #include "rk_vdec_cfg.h"
 
 #include "mpp_env.h"
-#include "mpp_log.h"
 #include "mpp_mem.h"
 #include "mpp_time.h"
+#include "mpp_debug.h"
 #include "mpp_common.h"
 #include "mpp_thread.h"
 
@@ -162,6 +162,7 @@ static const char *dec_cfg_func_names[] = {
     ENTRY(base, sort_pts,       U32, RK_U32,            MPP_DEC_CFG_CHANGE_SORT_PTS,        base, sort_pts) \
     ENTRY(base, disable_error,  U32, RK_U32,            MPP_DEC_CFG_CHANGE_DISABLE_ERROR,   base, disable_error) \
     ENTRY(base, enable_vproc,   U32, RK_U32,            MPP_DEC_CFG_CHANGE_ENABLE_VPROC,    base, enable_vproc) \
+    ENTRY(base, enable_fast_play, U32, RK_U32,          MPP_DEC_CFG_CHANGE_ENABLE_FAST_PLAY, base, enable_fast_play) \
     ENTRY(cb, pkt_rdy_cb,       PTR, MppExtCbFunc,      MPP_DEC_CB_CFG_CHANGE_PKT_RDY,      cb, pkt_rdy_cb) \
     ENTRY(cb, pkt_rdy_ctx,      PTR, MppExtCbCtx,       MPP_DEC_CB_CFG_CHANGE_PKT_RDY,      cb, pkt_rdy_ctx) \
     ENTRY(cb, pkt_rdy_cmd,      S32, RK_S32,            MPP_DEC_CB_CFG_CHANGE_PKT_RDY,      cb, pkt_rdy_cmd) \
@@ -242,6 +243,7 @@ void mpp_dec_cfg_set_default(MppDecCfgSet *cfg)
     cfg->base.type = MPP_CTX_BUTT;
     cfg->base.coding = MPP_VIDEO_CodingUnused;
     cfg->base.hw_type = -1;
+    cfg->base.fast_parse = 1;
 }
 
 MPP_RET mpp_dec_cfg_init(MppDecCfg *cfg)

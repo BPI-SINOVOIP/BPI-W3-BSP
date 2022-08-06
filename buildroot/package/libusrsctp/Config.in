@@ -1,6 +1,0 @@
-config BR2_PACKAGE_LIBUSRSCTP
-	bool "userland SCTP stack"
-	help
-	  A portable SCTP userland stack
-
-	  https://github.com/sctplab/usrsctp

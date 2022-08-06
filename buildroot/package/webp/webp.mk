@@ -4,11 +4,13 @@
 #
 ################################################################################
 
-WEBP_VERSION = 0.6.1
+WEBP_VERSION = 1.2.1
 WEBP_SOURCE = libwebp-$(WEBP_VERSION).tar.gz
 WEBP_SITE = http://downloads.webmproject.org/releases/webp
 WEBP_LICENSE = BSD-3-Clause
 WEBP_LICENSE_FILES = COPYING
+WEBP_CPE_ID_VENDOR = webmproject
+WEBP_CPE_ID_PRODUCT = libwebp
 WEBP_INSTALL_STAGING = YES
 
 WEBP_CONF_OPTS += \
@@ -16,6 +18,8 @@ WEBP_CONF_OPTS += \
 	--with-jpeglibdir=$(STAGING_DIR)/usr/lib \
 	--with-tiffincludedir=$(STAGING_DIR)/usr/include \
 	--with-tifflibdir=$(STAGING_DIR)/usr/lib
+
+HOST_WEBP_CONF_OPTS += --enable-libwebpdemux --enable-libwebpmux
 
 ifeq ($(BR2_PACKAGE_WEBP_DEMUX),y)
 WEBP_CONF_OPTS += --enable-libwebpdemux
@@ -54,3 +58,4 @@ WEBP_DEPENDENCIES += $(if $(BR2_PACKAGE_JPEG),jpeg)
 WEBP_DEPENDENCIES += $(if $(BR2_PACKAGE_TIFF),tiff)
 
 $(eval $(autotools-package))
+$(eval $(host-autotools-package))

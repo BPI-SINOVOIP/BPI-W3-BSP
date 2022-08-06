@@ -13,8 +13,14 @@ DMALLOC_LICENSE = MIT-like
 DMALLOC_LICENSE_FILES = dmalloc.h.1
 
 DMALLOC_INSTALL_STAGING = YES
-DMALLOC_CONF_OPTS = --enable-shlib
 DMALLOC_CFLAGS = $(TARGET_CFLAGS)
+
+ifeq ($(BR2_STATIC_LIBS),y)
+DMALLOC_CONF_OPTS += --disable-shlib
+else
+DMALLOC_CONF_OPTS += --enable-shlib
+DMALLOC_CFLAGS += -fPIC
+endif
 
 ifeq ($(BR2_INSTALL_LIBSTDCPP),y)
 DMALLOC_CONF_OPTS += --enable-cxx
@@ -33,6 +39,10 @@ endif
 # so, we desactivate thumb mode
 ifeq ($(BR2_ARM_INSTRUCTIONS_THUMB),y)
 DMALLOC_CFLAGS += -marm
+endif
+
+ifeq ($(BR2_TOOLCHAIN_HAS_GCC_BUG_63261),y)
+DMALLOC_CFLAGS += -O0
 endif
 
 DMALLOC_CONF_ENV = CFLAGS="$(DMALLOC_CFLAGS)"

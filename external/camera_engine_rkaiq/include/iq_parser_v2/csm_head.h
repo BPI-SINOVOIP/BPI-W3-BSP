@@ -24,25 +24,19 @@
 
 RKAIQ_BEGIN_DECLARE
 
-// #define M4_BOOL_DESC(ALIAS, DEFAULT, HIDE)
-
-// #define M4_ARRAY_DESC(ALIAS, TYPE, SIZE, RANGE, DEFAULT,DIGIT,DYNAMIC, HIDE)
-
-// #define M4_NUMBER_DESC(ALIAS, TYPE, RANGE, DEFAULT,DIGIT, HIDE)
-
 #define RK_AIQ_CSM_COEFF_NUM 9
 
 typedef struct __csm_param {
-    // M4_BOOL_DESC("op_mode", "RKAiqOPMode_t", "RK_AIQ_OP_MODE_AUTO")
+    // M4_ENUM_DESC("op_mode", "RKAiqOPMode_t", "RK_AIQ_OP_MODE_AUTO")
     RKAiqOPMode_t op_mode;
-    // M4_NUMBER_DESC("full_range", "u8", M4_RANGE(0,1), "1", M4_DIGIT(0), 0)
+    // M4_BOOL_DESC("full_range", "0")
     bool full_range;
-    // M4_NUMBER_DESC("y_offset", "u16", M4_RANGE(0,63), "0", M4_DIGIT(0), 0)
-    unsigned short y_offset;
-    // M4_NUMBER_DESC("y_offset", "u16", M4_RANGE(0,255), "0", M4_DIGIT(0), 0)
-    unsigned short c_offset;
-    // M4_ARRAY_DESC("coeff", "u32", M4_SIZE(3,3), M4_RANGE(0,511), "0", M4_DIGIT(4), M4_DYNAMIC(0))
-    unsigned int coeff[RK_AIQ_CSM_COEFF_NUM];
+    // M4_NUMBER_DESC("y_offset", "u8", M4_RANGE(0,63), "0", M4_DIGIT(0))
+    uint8_t y_offset;
+    // M4_NUMBER_DESC("c_offset", "u8", M4_RANGE(0,255), "0", M4_DIGIT(0))
+    uint8_t c_offset;
+    // M4_ARRAY_DESC("coeff", "f32", M4_SIZE(3,3), M4_RANGE(-2, 1.992), "0", M4_DIGIT(4), M4_DYNAMIC(0))
+    float coeff[RK_AIQ_CSM_COEFF_NUM];
 } Csm_Param_t;
 
 typedef struct __csm {

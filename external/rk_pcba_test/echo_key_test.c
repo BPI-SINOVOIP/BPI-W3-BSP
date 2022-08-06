@@ -161,7 +161,12 @@ KEY_st gkey_test[KEY_VALID_NUM] = {
 
 #ifdef PCBA_3588
 //TODO:According to 3588 real board to add test code.
-#define KEY_VALID_NUM       0
+#define KEY_VALID_NUM       2
+
+KEY_st gkey_test[KEY_VALID_NUM] = {
+    {"VOL+",    KEY_VOLUMEUP,    0},
+    {"VOL-",    KEY_VOLUMEDOWN,    0},
+};
 #endif
 
 static char result[COMMAND_VALUESIZE] = RESULT_FAIL;

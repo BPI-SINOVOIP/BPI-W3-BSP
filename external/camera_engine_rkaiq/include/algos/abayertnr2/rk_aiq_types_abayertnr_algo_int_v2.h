@@ -27,6 +27,8 @@
 #include "RkAiqCalibDbTypes.h"
 #include "abayertnr2/rk_aiq_types_abayertnr_algo_v2.h"
 #include "bayertnr_head_v2.h"
+#include "bayertnr_uapi_head_v2.h"
+
 
 //RKAIQ_BEGIN_DECLARE
 
@@ -116,7 +118,7 @@ typedef struct RK_Bayertnr_Params_V2_s
     float hidif_th[RK_BAYERNR_V2_MAX_ISO_NUM];
 } RK_Bayertnr_Params_V2_t;
 
-
+#if 0
 typedef struct RK_Bayertnr_Params_V2_Select_s
 {
     int enable;
@@ -148,11 +150,10 @@ typedef struct RK_Bayertnr_Params_V2_Select_s
     float hi_wgt_comp;
     float hidif_th;
 } RK_Bayertnr_Params_V2_Select_t;
-
+#endif
 
 typedef struct Abayertnr_Manual_Attr_V2_s
 {
-    int bayernr3DEn;
     RK_Bayertnr_Params_V2_Select_t st3DSelect;
 
     RK_Bayertnr_Fix_V2_t st3DFix;
@@ -161,7 +162,6 @@ typedef struct Abayertnr_Manual_Attr_V2_s
 typedef struct Abayertnr_Auto_Attr_V2_s
 {
     //all ISO params and select param
-    int bayernr3DEn;
 
     RK_Bayertnr_Params_V2_t st3DParams;
     RK_Bayertnr_Params_V2_Select_t st3DSelect;
@@ -169,7 +169,6 @@ typedef struct Abayertnr_Auto_Attr_V2_s
 } Abayertnr_Auto_Attr_V2_t;
 
 typedef struct Abayertnr_ProcResult_V2_s {
-    int bayernr3DEn;
 
     //for sw simultaion
     RK_Bayertnr_Params_V2_Select_t st3DSelect;
@@ -198,6 +197,7 @@ typedef struct rk_aiq_bayertnr_attrib_v2_s {
 typedef struct rk_aiq_bayertnr_strength_v2_s {
     rk_aiq_uapi_sync_t sync;
     float percent;
+    bool strength_enable;
 } rk_aiq_bayertnr_strength_v2_t;
 
 

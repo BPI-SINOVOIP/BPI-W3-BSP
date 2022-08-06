@@ -37,10 +37,10 @@ typedef struct Aynr_Context_V3_s {
 
     Aynr_Auto_Attr_V3_t stAuto;
     Aynr_Manual_Attr_V3_t stManual;
-
+    Aynr_ProcResult_V3_t stProcResult;
     //struct list_head* list_ynr_v3;
 
-    float fYnr_SF_Strength;
+    rk_aiq_ynr_strength_v3_t stStrength;
 
     bool isIQParaUpdate;
     bool isGrayMode;

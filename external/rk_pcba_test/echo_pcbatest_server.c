@@ -97,7 +97,7 @@ static int disable_wdt(void)
 {
     int fd = 0;
 
-    fd = open(DEV_WDT_NAME, O_WRONLY);
+    fd = open(DEV_WDT_NAME, O_WRONLY, 0777);
     if (fd == -1) {
         log_err ("%s open error\n", DEV_WDT_NAME);
     } else {
@@ -204,10 +204,10 @@ static int pcba_test_result_rw(PCBA_SINGLE_PARA *recv_paras, char *w_buf, char *
         recv_paras[INDEX_TEST_ITEM].valuestr);
 
     if (rw) {
-        log_info("=================fucntion: %s================\n",__func__);
+        log_info("=================function: %s================\n",__func__);
         log_info("write result ** pcbatest_result_filename is :%s\n",pcbatest_result_filename);
         if(w_buf[0]!='\0'){
-            fd = open(pcbatest_result_filename, O_CREAT | O_WRONLY  | O_TRUNC);
+            fd = open(pcbatest_result_filename, O_CREAT | O_WRONLY  | O_TRUNC, 0777);
             if (fd < 0) {
                 log_err("open %s fail, errno = %d\n", pcbatest_result_filename, errno);
                 return errno;
@@ -223,7 +223,7 @@ static int pcba_test_result_rw(PCBA_SINGLE_PARA *recv_paras, char *w_buf, char *
             log_info("w_buf is NUll, do nothing\n");
         }
     } else {
-        fd = open(pcbatest_result_filename, O_RDWR);
+        fd = open(pcbatest_result_filename, O_RDWR, 0777);
         if (fd < 0) {
             log_info("can't open %s, errno = %d\n", pcbatest_result_filename, errno);
             return 1;
@@ -517,7 +517,7 @@ static int stop_pcba_test(PCBA_SINGLE_PARA *recv_paras)
 
        strncpy(buf,recv_paras[INDEX_MSG].valuestr,sizeof(buf));
 
-       fd = open(result_filename, O_CREAT | O_WRONLY | O_TRUNC);
+       fd = open(result_filename, O_CREAT | O_WRONLY | O_TRUNC, 0777);
        if (fd < 0) {
            log_err("open %s fail, errno = %d\n", result_filename, errno);
            //ret = errno;
@@ -1004,6 +1004,8 @@ int main(int argc, char **argv)
     log_info("***         Rockchip.Co.Ld.           ***\n");
     log_info("*****************************************\n");
     log_info("pcba test version: v%s\n", PCBA_VERSION);
+    log_info("pcba test git version: %s\n", BUILD_LOG_VERSION);
+    log_info("pcba test build date: %s\n", BUILD_DATE);
 
     while(1) {
     //{

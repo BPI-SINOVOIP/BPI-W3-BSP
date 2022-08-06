@@ -7,7 +7,8 @@
 #include "qtkeyboard.h"
 #include "qtinputdialog.h"
 #include "qtwifi.h"
-
+#include "Rk_softap.h"
+#include "Rk_softap.h"
 qtWifi* qtWifi::_instance = nullptr;
 
 qtWifi::qtWifi(QWidget *parent, QLabel *label, QPushButton *btn, bool on)
@@ -167,6 +168,7 @@ int qtWifi::wifi_callback(RK_WIFI_RUNNING_State_e state,
                 line = QString(str);
                 free(str);
             }
+            list.removeAll("NULL");
             list << line;
             cnt += tmp + 6;
         }

@@ -88,8 +88,19 @@ drm_dep = dependency('libdrm', required : get_option('rkximage'))
 mpp_dep = dependency('rockchip_mpp', required : get_option('rockchipmpp'))
 rga_dep = dependency('librga', required : get_option('rga'))
 
-if rga_dep.found()
+if rga_dep.found() and not get_option('rga').disabled()
   cdata.set10('HAVE_RGA', 1)
+endif
+
+if not get_option('vpxalphadec').auto()
+  vpxalphadec = get_option('vpxalphadec').enabled()
+else
+  # Both codecalphademux and alphacombine elements were added in 1.19
+  vpxalphadec = gst_dep.version().version_compare('>=1.19')
+endif
+
+if vpxalphadec
+  cdata.set10('USE_VPXALPHADEC', 1)
 endif
 
 if cc.has_header_symbol('gst/video/video-format.h', 'GST_VIDEO_FORMAT_NV12_10LE40', dependencies : gstvideo_dep)

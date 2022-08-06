@@ -1,4 +1,0 @@
-menu "Flutter"
-	source "package/flutter/flutter-engine/Config.in"
-	source "package/flutter/flutter-wayland/Config.in"
-endmenu

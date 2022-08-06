@@ -22,6 +22,7 @@
 #include "mpp_env.h"
 #include "mpp_mem.h"
 #include "mpp_soc.h"
+#include "mpp_debug.h"
 #include "mpp_bitread.h"
 #include "mpp_packet_impl.h"
 
@@ -145,10 +146,14 @@ static MPP_RET jpeg_judge_yuv_mode(JpegdCtx *ctx)
             ret = MPP_ERR_STREAM;
         }
     } else if (s->nb_components == 1) {
-        if ((s->h_count[0] == 1) || (s->v_count[0] == 1)) {
+        if (s->h_count[0] == s->v_count[0] && s->h_count[0] != 0) {
             s->yuv_mode = JPEGDEC_YUV400;
             s->output_fmt = MPP_FMT_YUV400;
-
+            if (s->output_fmt != ctx->output_fmt) {
+                mpp_err_f("unsupported upsampling(%d*%d)\n", s->output_fmt,
+                          ctx->output_fmt);
+                ret = MPP_ERR_STREAM;
+            }
             /* check if fill needed */
             if ((s->width & 0xf) && ((s->width & 0xf) <= 8)) {
                 s->fill_right = 1;
@@ -993,7 +998,7 @@ static MPP_RET jpegd_prepare(void *ctx, MppPacket pkt, HalDecTask *task)
         static FILE *jpg_file;
         static char name[32];
 
-        snprintf(name, sizeof(name), "/data/input%02d.jpg",
+        snprintf(name, sizeof(name) - 1, "/data/input%02d.jpg",
                  JpegCtx->input_jpeg_count);
         jpg_file = fopen(name, "wb+");
         if (jpg_file) {

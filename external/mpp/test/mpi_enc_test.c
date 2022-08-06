@@ -25,8 +25,8 @@
 
 #include "mpp_env.h"
 #include "mpp_mem.h"
-#include "mpp_log.h"
 #include "mpp_time.h"
+#include "mpp_debug.h"
 #include "mpp_common.h"
 
 #include "utils.h"
@@ -53,6 +53,7 @@ typedef struct {
     // src and dst
     FILE *fp_input;
     FILE *fp_output;
+    FILE *fp_verify;
 
     /* encoder config set */
     MppEncCfg       cfg;
@@ -70,6 +71,7 @@ typedef struct {
     MppBufferGroup buf_grp;
     MppBuffer frm_buf;
     MppBuffer pkt_buf;
+    MppBuffer md_info;
     MppEncSeiMode sei_mode;
     MppEncHeaderMode header_mode;
 
@@ -87,6 +89,7 @@ typedef struct {
     // resources
     size_t header_size;
     size_t frame_size;
+    size_t mdinfo_size;
     /* NOTE: packet buffer may overflow */
     size_t packet_size;
 
@@ -94,6 +97,7 @@ typedef struct {
     RK_U32 osd_mode;
     RK_U32 split_mode;
     RK_U32 split_arg;
+    RK_U32 split_out;
 
     RK_U32 user_data_enable;
     RK_U32 roi_enable;
@@ -171,6 +175,11 @@ MPP_RET test_ctx_init(MpiEncMultiCtxInfo *info)
     p->fps_out_flex = cmd->fps_out_flex;
     p->fps_out_den  = cmd->fps_out_den;
     p->fps_out_num  = cmd->fps_out_num;
+    p->mdinfo_size  = (MPP_VIDEO_CodingHEVC == cmd->type) ?
+                      (MPP_ALIGN(p->hor_stride, 64) >> 6) *
+                      (MPP_ALIGN(p->ver_stride, 64) >> 6) * 32 :
+                      (MPP_ALIGN(p->hor_stride, 64) >> 6) *
+                      (MPP_ALIGN(p->ver_stride, 16) >> 4) * 8;
 
     if (cmd->file_input) {
         if (!strncmp(cmd->file_input, "/dev/video", 10)) {
@@ -194,6 +203,12 @@ MPP_RET test_ctx_init(MpiEncMultiCtxInfo *info)
             mpp_err("failed to open output file %s\n", cmd->file_output);
             ret = MPP_ERR_OPEN_FILE;
         }
+    }
+
+    if (cmd->file_slt) {
+        p->fp_verify = fopen(cmd->file_slt, "wt");
+        if (!p->fp_verify)
+            mpp_err("failed to open verify file %s\n", cmd->file_slt);
     }
 
     // update resource parameter
@@ -233,10 +248,14 @@ MPP_RET test_ctx_init(MpiEncMultiCtxInfo *info)
     } break;
     }
 
-    if (MPP_FRAME_FMT_IS_FBC(p->fmt))
-        p->header_size = MPP_ALIGN(MPP_ALIGN(p->width, 16) * MPP_ALIGN(p->height, 16) / 16, SZ_4K);
-    else
+    if (MPP_FRAME_FMT_IS_FBC(p->fmt)) {
+        if ((p->fmt & MPP_FRAME_FBC_MASK) == MPP_FRAME_FBC_AFBC_V1)
+            p->header_size = MPP_ALIGN(MPP_ALIGN(p->width, 16) * MPP_ALIGN(p->height, 16) / 16, SZ_4K);
+        else
+            p->header_size = MPP_ALIGN(p->width, 16) * MPP_ALIGN(p->height, 16) / 16;
+    } else {
         p->header_size = 0;
+    }
 
     return ret;
 }
@@ -255,6 +274,10 @@ MPP_RET test_ctx_deinit(MpiEncTestData *p)
         if (p->fp_output) {
             fclose(p->fp_output);
             p->fp_output = NULL;
+        }
+        if (p->fp_verify) {
+            fclose(p->fp_verify);
+            p->fp_verify = NULL;
         }
     }
     return MPP_OK;
@@ -335,17 +358,19 @@ MPP_RET test_mpp_enc_cfg_setup(MpiEncMultiCtxInfo *info)
     case MPP_VIDEO_CodingHEVC : {
         switch (p->rc_mode) {
         case MPP_ENC_RC_MODE_FIXQP : {
-            mpp_enc_cfg_set_s32(cfg, "rc:qp_init", 20);
-            mpp_enc_cfg_set_s32(cfg, "rc:qp_max", 20);
-            mpp_enc_cfg_set_s32(cfg, "rc:qp_min", 20);
-            mpp_enc_cfg_set_s32(cfg, "rc:qp_max_i", 20);
-            mpp_enc_cfg_set_s32(cfg, "rc:qp_min_i", 20);
-            mpp_enc_cfg_set_s32(cfg, "rc:qp_ip", 2);
+            RK_S32 fix_qp = cmd->qp_init;
+
+            mpp_enc_cfg_set_s32(cfg, "rc:qp_init", fix_qp);
+            mpp_enc_cfg_set_s32(cfg, "rc:qp_max", fix_qp);
+            mpp_enc_cfg_set_s32(cfg, "rc:qp_min", fix_qp);
+            mpp_enc_cfg_set_s32(cfg, "rc:qp_max_i", fix_qp);
+            mpp_enc_cfg_set_s32(cfg, "rc:qp_min_i", fix_qp);
+            mpp_enc_cfg_set_s32(cfg, "rc:qp_ip", 0);
         } break;
         case MPP_ENC_RC_MODE_CBR :
         case MPP_ENC_RC_MODE_VBR :
         case MPP_ENC_RC_MODE_AVBR : {
-            mpp_enc_cfg_set_s32(cfg, "rc:qp_init", 26);
+            mpp_enc_cfg_set_s32(cfg, "rc:qp_init", -1);
             mpp_enc_cfg_set_s32(cfg, "rc:qp_max", 51);
             mpp_enc_cfg_set_s32(cfg, "rc:qp_min", 10);
             mpp_enc_cfg_set_s32(cfg, "rc:qp_max_i", 51);
@@ -411,14 +436,18 @@ MPP_RET test_mpp_enc_cfg_setup(MpiEncMultiCtxInfo *info)
 
     p->split_mode = 0;
     p->split_arg = 0;
+    p->split_out = 0;
 
     mpp_env_get_u32("split_mode", &p->split_mode, MPP_ENC_SPLIT_NONE);
     mpp_env_get_u32("split_arg", &p->split_arg, 0);
+    mpp_env_get_u32("split_out", &p->split_out, 0);
 
     if (p->split_mode) {
-        mpp_log_q(quiet, "%p split_mode %d split_arg %d\n", ctx, p->split_mode, p->split_arg);
+        mpp_log_q(quiet, "%p split mode %d arg %d out %d\n", ctx,
+                  p->split_mode, p->split_arg, p->split_out);
         mpp_enc_cfg_set_s32(cfg, "split:mode", p->split_mode);
         mpp_enc_cfg_set_s32(cfg, "split:arg", p->split_arg);
+        mpp_enc_cfg_set_s32(cfg, "split:out", p->split_out);
     }
 
     ret = mpi->control(ctx, MPP_ENC_SET_CFG, cfg);
@@ -489,7 +518,11 @@ MPP_RET test_mpp_run(MpiEncMultiCtxInfo *info)
     RK_U32 quiet = cmd->quiet;
     RK_S32 chn = info->chn;
     RK_U32 cap_num = 0;
+    DataCrc checkcrc;
     MPP_RET ret = MPP_OK;
+
+    memset(&checkcrc, 0, sizeof(checkcrc));
+    checkcrc.sum = mpp_malloc(RK_ULONG, 512);
 
     if (p->type == MPP_VIDEO_CodingAVC || p->type == MPP_VIDEO_CodingHEVC) {
         MppPacket packet = NULL;
@@ -590,6 +623,7 @@ MPP_RET test_mpp_run(MpiEncMultiCtxInfo *info)
         /* NOTE: It is important to clear output packet length!! */
         mpp_packet_set_length(packet, 0);
         mpp_meta_set_packet(meta, KEY_OUTPUT_PACKET, packet);
+        mpp_meta_set_buffer(meta, KEY_MOTION_INFO, p->md_info);
 
         if (p->osd_enable || p->user_data_enable || p->roi_enable) {
             if (p->user_data_enable) {
@@ -716,6 +750,12 @@ MPP_RET test_mpp_run(MpiEncMultiCtxInfo *info)
                 if (p->fp_output)
                     fwrite(ptr, 1, len, p->fp_output);
 
+                if (p->fp_verify && !p->pkt_eos) {
+                    calc_data_crc((RK_U8 *)ptr, (RK_U32)len, &checkcrc);
+                    mpp_log("p->frame_count=%d, len=%d\n", p->frame_count, len);
+                    write_data_crc(p->fp_verify, &checkcrc);
+                }
+
                 log_len += snprintf(log_buf + log_len, log_size - log_len,
                                     "encoded frame %-4d", p->frame_count);
 
@@ -778,6 +818,8 @@ MPP_RET test_mpp_run(MpiEncMultiCtxInfo *info)
             break;
     }
 RET:
+    MPP_FREE(checkcrc.sum);
+
     return ret;
 }
 
@@ -816,6 +858,12 @@ void *enc_test(void *arg)
     ret = mpp_buffer_get(p->buf_grp, &p->pkt_buf, p->frame_size);
     if (ret) {
         mpp_err_f("failed to get buffer for output packet ret %d\n", ret);
+        goto MPP_TEST_OUT;
+    }
+
+    ret = mpp_buffer_get(p->buf_grp, &p->md_info, p->mdinfo_size);
+    if (ret) {
+        mpp_err_f("failed to get buffer for motion info output packet ret %d\n", ret);
         goto MPP_TEST_OUT;
     }
 
@@ -893,6 +941,11 @@ MPP_TEST_OUT:
     if (p->pkt_buf) {
         mpp_buffer_put(p->pkt_buf);
         p->pkt_buf = NULL;
+    }
+
+    if (p->md_info) {
+        mpp_buffer_put(p->md_info);
+        p->md_info = NULL;
     }
 
     if (p->osd_data.buf) {
@@ -991,4 +1044,3 @@ DONE:
 
     return ret;
 }
-

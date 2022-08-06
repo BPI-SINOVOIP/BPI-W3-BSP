@@ -7,7 +7,14 @@
 [TOC]
 
 ---
-## rk3399_linux_release_v2.7.0_20210520.xml Release Note
+
+## rk3399_linux_release_v2.9.0_20220620.xml Release Note
+
+```
+- Update new SDK
+```
+
+## rk3399_linux_release_v2.8.0_20210520.xml Release Note
 
 ```
 - Update new SDK

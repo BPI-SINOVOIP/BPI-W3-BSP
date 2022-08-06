@@ -163,7 +163,7 @@ static int vendor_storage_read(int cmd, int pr_type, char *output)
 	return 0;
 }
 
-static int vendor_storage_write(int cmd, char *num, int pr_type)
+static int vendor_storage_write(int cmd, char *num, int pr_type, int len)
 {
 	uint32 i;
 	int ret ;
@@ -181,7 +181,7 @@ static int vendor_storage_write(int cmd, char *num, int pr_type)
 	req->tag = VENDOR_REQ_TAG;
 	req->id = cmd;
 
-	req->len = strlen(num);
+	req->len = len;
 	DEBUG("%s: strlen = %d\n", __func__, req->len);
 	memcpy(req->data, num, req->len);
 
@@ -271,12 +271,12 @@ static int hex_string_format(char *str, char *hex_str)
 
 	tmp = strlen(str);
 	if (tmp & 1)
-		return -1;
+		return 0;
 
 	for (i = 0; i < tmp; i++) {
 		if (!is_hex(str[i])) {
 			ERROR("[%s] must be HEX input\n", __func__);
-			return -1;
+			return 0;
 		}
 
 		/* string to hex */
@@ -286,7 +286,7 @@ static int hex_string_format(char *str, char *hex_str)
 	}
 	hex_str[i >> 1] = 0;
 
-	return 0;
+	return i >> 1;
 }
 
 static int vendor_get_custom_id(char *cmd)
@@ -435,13 +435,16 @@ int main(int argc, char **argv)
 			vendor_hex = malloc(size + 1);
 			fread(vendor_hex, 1, size, finput);
 		} else if (pr_type == VENDOR_PR_HEX) {
-			if (hex_string_format(vendor_hex, vendor_hex)) {
+			size = hex_string_format(vendor_hex, vendor_hex);
+			if (!size) {
 				ERROR("input is not hex form\n");
 				goto error;
 			}
+		} else if (pr_type == VENDOR_PR_STRING) {
+			size = strlen(vendor_hex);
 		}
 
-		vendor_storage_write(id, vendor_hex, pr_type);
+		vendor_storage_write(id, vendor_hex, pr_type, size);
 	}
 
 	if (finput)

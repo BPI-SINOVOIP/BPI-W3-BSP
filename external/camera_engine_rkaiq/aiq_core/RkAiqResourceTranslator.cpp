@@ -638,7 +638,7 @@ RkAiqResourceTranslator::translatePdafStats (const SmartPtr<VideoBuffer> &from, 
 
     pdMean = 0;
     pixelperline = 2 * pdaf->pdWidth;
-    if (pdMirrorInCalib != sns_mirror) {
+    if (pdMirrorInCalib) {
         for (j = 0; j < pdaf->pdHeight; j++) {
             for (i = 0; i < pixelperline; i+=2) {
                 pdMean += pdData[j * pixelperline + (pixelperline - 1 - i)];

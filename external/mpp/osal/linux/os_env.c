@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#if defined(__gnu_linux__)
+#if defined(linux) && !defined(__ANDROID__)
 #include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>
@@ -52,7 +52,7 @@ RK_S32 os_get_env_str(const char *name, const char **value, const char *default_
 RK_S32 os_set_env_u32(const char *name, RK_U32 value)
 {
     char buf[ENV_BUF_SIZE_LINUX];
-    snprintf(buf, sizeof(buf), "%u", value);
+    snprintf(buf, sizeof(buf) - 1, "%u", value);
     return setenv(name, buf, 1);
 }
 

@@ -1,6 +1,0 @@
-config BR2_PACKAGE_ANGLES
-    bool "angles"
-    depends on BR2_PACKAGE_HOST_CATKIN
-    help
-        This package provides a set of simple math utilities
-        to work with angles

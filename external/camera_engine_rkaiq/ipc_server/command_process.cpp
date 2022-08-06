@@ -5,7 +5,7 @@
 #endif
 #define LOG_TAG "socket_server.cpp"
 
-int ProcessCommand(rk_aiq_sys_ctx_t* ctx, RkAiqSocketData *dataRecv, RkAiqSocketData *dataReply) {
+int ProcessCommand(rk_aiq_sys_ctx_t* ctx, RkAiqSocketPacket *dataRecv, RkAiqSocketPacket *dataReply) {
     switch(dataRecv->commandID) {
     case ENUM_ID_AE_SETEXPSWATTR:
         dataReply->commandResult = setExpSwAttr(ctx, dataRecv->data);
@@ -405,7 +405,8 @@ int ProcessCommand(rk_aiq_sys_ctx_t* ctx, RkAiqSocketData *dataRecv, RkAiqSocket
 
     dataReply->commandID = dataRecv->commandID;
     if (dataReply->dataSize != 0 ) {
-        dataReply->dataHash = MurMurHash(dataReply->data, dataReply->dataSize);
+        dataReply->dataHash = RkMSG::MessageParser::MurMurHash(dataReply->data,
+                                                               dataReply->dataSize);
     }
     else {
         dataReply->dataHash = 0;

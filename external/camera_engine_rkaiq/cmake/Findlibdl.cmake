@@ -9,7 +9,10 @@ find_path(LIBDL_INCLUDE_DIR
     include
 )
 find_library(LIBDL_LIBRARY
-    dl
+	dl
+	PATH_SUFFIXES
+	lib64
+	lib
 )
 find_package_handle_standard_args(LIBDL
     DEFAULT_MSGS

@@ -4,7 +4,7 @@
 #
 ################################################################################
 
-BIND_VERSION = 9.11.31
+BIND_VERSION = 9.11.36
 BIND_SITE = https://ftp.isc.org/isc/bind9/$(BIND_VERSION)
 # bind does not support parallel builds.
 BIND_MAKE = $(MAKE1)
@@ -126,5 +126,9 @@ endif
 ifeq ($(BR2_PACKAGE_BIND_TOOLS),)
 BIND_POST_INSTALL_TARGET_HOOKS += BIND_TARGET_REMOVE_TOOLS
 endif
+
+define BIND_USERS
+	named -1 named -1 * /etc/bind - - BIND daemon
+endef
 
 $(eval $(autotools-package))

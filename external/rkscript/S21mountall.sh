@@ -200,10 +200,13 @@ resize_vfat()
 {
 	check_tool fatresize BR2_PACKAGE_FATRESIZE || return 1
 
+	# Make sure unmounted
+	umount $MOUNT_POINT &>/dev/null
+
 	SIZE=$(fatresize -i $DEV | grep "Size:" | grep -o "[0-9]*$")
 
 	# Somehow fatresize only works for 256M+ fat
-	[ $SIZE -gt $((256 * 1024 * 1024)) ] && return 1
+	[ "$SIZE" -gt $((256 * 1024 * 1024)) ] && return 1
 
 	MAX_SIZE=$(( $(cat ${SYS_PATH}/size) * 512))
 	MIN_SIZE=$(($MAX_SIZE - 16 * 1024 * 1024))
@@ -400,11 +403,14 @@ do_part()
 	# Ignore comments
 	echo $1 |grep -q "^#" && return
 
-	DEV=$1
+	DEV=$(echo $1 | sed "s#PARTLABEL=#/dev/block/by-name/#")
 	MOUNT_POINT=$2
 	FSTYPE=$3
 	OPTS=$4
 	PASS=$6 # Skip fsck when pass is 0
+
+	# Ignore external storages
+	echo $MOUNT_POINT | grep -q "^\/mnt\/" && return
 
 	IS_ROOTDEV=$(echo $MOUNT_POINT | grep -w '/')
 
@@ -445,7 +451,7 @@ do_part()
 			FSGROUP=ntfs
 			FSCK_CONFIG=BR2_PACKAGE_NTFS_3G_NTFSPROGS
 			;;
-		ubifs)
+		ubi|ubifs)
 			FSGROUP=ubifs
 			# No fsck for ubifs
 			unset FSCK_CONFIG

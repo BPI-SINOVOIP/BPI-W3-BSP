@@ -11,5 +11,4 @@ PYTHON_PYPARSING_LICENSE = MIT
 PYTHON_PYPARSING_LICENSE_FILES = LICENSE
 PYTHON_PYPARSING_SETUP_TYPE = setuptools
 
-$(eval $(host-python-package))
 $(eval $(python-package))

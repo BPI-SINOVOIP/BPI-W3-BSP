@@ -72,11 +72,13 @@ BUSYBOX_DEPENDENCIES = \
 # Link against libtirpc if available so that we can leverage its RPC
 # support for NFS mounting with BusyBox
 ifeq ($(BR2_PACKAGE_LIBTIRPC),y)
+ifneq ($(BR2_STATIC_LIBS)$(BR2_PACKAGE_BUSYBOX_STATIC),y)
 BUSYBOX_DEPENDENCIES += libtirpc host-pkgconf
 BUSYBOX_CFLAGS += "`$(PKG_CONFIG_HOST_BINARY) --cflags libtirpc`"
 # Don't use LDFLAGS for -ltirpc, because LDFLAGS is used for
 # the non-final link of modules as well.
 BUSYBOX_CFLAGS_busybox += "`$(PKG_CONFIG_HOST_BINARY) --libs libtirpc`"
+endif
 endif
 
 # Allows the build system to tweak CFLAGS
@@ -91,9 +93,6 @@ BUSYBOX_MAKE_ENV += \
 endif
 
 BUSYBOX_MAKE_OPTS = \
-	AR="$(TARGET_AR)" \
-	NM="$(TARGET_NM)" \
-	RANLIB="$(TARGET_RANLIB)" \
 	CC="$(TARGET_CC)" \
 	ARCH=$(KERNEL_ARCH) \
 	PREFIX="$(TARGET_DIR)" \
@@ -195,11 +194,11 @@ endif
 
 ifeq ($(BR2_PACKAGE_BUSYBOX_STATIC),y)
 define BUSYBOX_SET_STATIC
-	$(call KCONFIG_ENABLE_OPT,CONFIG_STATIC,$(BUSYBOX_BUILD_CONFIG))
+	$(call KCONFIG_ENABLE_OPT,CONFIG_STATIC)
 endef
 else
 define BUSYBOX_SET_STATIC
-	$(call KCONFIG_DISABLE_OPT,CONFIG_STATIC,$(BUSYBOX_BUILD_CONFIG))
+	$(call KCONFIG_DISABLE_OPT,CONFIG_STATIC)
 endef
 endif
 
@@ -225,16 +224,24 @@ define BUSYBOX_SET_INIT
 	$(call KCONFIG_ENABLE_OPT,CONFIG_INIT)
 endef
 
-ifeq ($(BR2_TARGET_GENERIC_GETTY),y)
+ifeq ($(BR2_TARGET_SERIAL_SHELL_GETTY),y)
+BUSYBOX_SERIAL_SHELL = "$(SYSTEM_GETTY_PORT)::respawn:/sbin/getty -L $(SYSTEM_GETTY_OPTIONS) $(SYSTEM_GETTY_PORT) $(SYSTEM_GETTY_BAUDRATE) $(SYSTEM_GETTY_TERM)"
+else
+ifeq ($(BR2_TARGET_SERIAL_SHELL_SH),y)
+BUSYBOX_SERIAL_SHELL = "::respawn:-/bin/sh"
+else ifeq ($(BR2_TARGET_SERIAL_SHELL_LOGIN),y)
+BUSYBOX_SERIAL_SHELL = "::respawn:-/bin/login"
+else
+BUSYBOX_SERIAL_SHELL =
+endif
+
+BUSYBOX_SERIAL_SHELL += " \# ttyS0::respawn:/sbin/getty -L ttyS0 115200 vt100"
+endif # BR2_TARGET_GENERIC_GETTY
+
 define BUSYBOX_SET_GETTY
-	$(SED) '/# GENERIC_SERIAL$$/s~^.*#~$(SYSTEM_GETTY_PORT)::respawn:/sbin/getty -L $(SYSTEM_GETTY_OPTIONS) $(SYSTEM_GETTY_PORT) $(SYSTEM_GETTY_BAUDRATE) $(SYSTEM_GETTY_TERM) #~' \
+	$(SED) '/# GENERIC_SERIAL$$/s~^.*#~$(call qstrip,$(BUSYBOX_SERIAL_SHELL)) #~' \
 		$(TARGET_DIR)/etc/inittab
 endef
-else
-define BUSYBOX_SET_GETTY
-	$(SED) '/# GENERIC_SERIAL$$/s~^.*#~#ttyS0::respawn:/sbin/getty -L ttyS0 115200 vt100 #~' $(TARGET_DIR)/etc/inittab
-endef
-endif # BR2_TARGET_GENERIC_GETTY
 BUSYBOX_TARGET_FINALIZE_HOOKS += BUSYBOX_SET_GETTY
 
 BUSYBOX_TARGET_FINALIZE_HOOKS += SYSTEM_REMOUNT_ROOT_INITTAB

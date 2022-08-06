@@ -1,4 +1,4 @@
-set(CMAKE_CXX_FLAGS                "-Wall -std=c++11 -fPIC")
+set(CMAKE_CXX_FLAGS                "${CMAKE_CXX_FLAGS} -Wall -std=c++11 -fPIC")
 set(CMAKE_CXX_FLAGS_DEBUG          "-O0 -g -gdwarf")
 set(CMAKE_CXX_FLAGS_MINSIZEREL     "-Os -DNDEBUG")
 set(CMAKE_CXX_FLAGS_RELEASE        "-O4 -DNDEBUG")

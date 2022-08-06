@@ -1,7 +1,5 @@
 /*
- * rk_aiq_algo_types.h
- *
- *  Copyright (c) 2019 Rockchip Corporation
+ * Copyright (c) 2019-2022 Rockchip Eletronics Co., Ltd.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,9 +12,7 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
-
 #ifndef _RK_AIQ_ALGO_TYPES_H_
 #define _RK_AIQ_ALGO_TYPES_H_
 
@@ -873,6 +869,7 @@ typedef struct _RkAiqAlgoProcAgic {
     RkAiqAlgoCom com;
     int hdr_mode;
     uint8_t raw_bits;
+    uint32_t iso;
 } RkAiqAlgoProcAgic;
 
 typedef struct _RkAiqAlgoProcResAgic {

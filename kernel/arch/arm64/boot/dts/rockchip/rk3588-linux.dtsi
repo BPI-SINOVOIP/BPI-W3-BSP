@@ -5,6 +5,12 @@
  */
 
 / {
+	aliases {
+		mmc0 = &sdhci;
+		mmc1 = &sdio;
+		mmc2 = &sdmmc;
+	};
+
 	chosen: chosen {
 		bootargs = "earlycon=uart8250,mmio32,0xfeb50000 console=ttyFIQ0 irqchip.gicv3_pseudo_nmi=0 root=PARTUUID=614e0000-0000 rw rootwait";
 	};
@@ -44,6 +50,14 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&uart2m0_xfer>;
 		status = "okay";
+	};
+
+	firmware {
+		optee: optee {
+			compatible = "linaro,optee-tz";
+			method = "smc";
+			//status = "disabled";
+		};
 	};
 
 	ramoops: ramoops@110000 {
@@ -86,4 +100,24 @@
 
 &rng {
 	status = "okay";
+};
+
+&rockchip_suspend {
+
+	rockchip,sleep-mode-config = <
+	       (0
+	       | RKPM_SLP_ARMOFF_DDRPD
+	       | RKPM_SLP_PMU_PMUALIVE_32K
+	       | RKPM_SLP_PMU_DIS_OSC
+	       | RKPM_SLP_32K_EXT
+	       | RKPM_SLP_PMU_DBG
+	       )
+	>;
+};
+
+&vdd_log_s0 {
+	regulator-state-mem {
+		regulator-on-in-suspend;
+		regulator-suspend-microvolt = <750000>;
+	};
 };

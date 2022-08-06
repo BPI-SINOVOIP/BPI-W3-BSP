@@ -245,6 +245,7 @@ CamHwIsp3x::setIspConfig()
     LOGD_ANALYZER("----------%s, start config id(%d)'s isp params", __FUNCTION__, frameId);
 
     struct isp3x_isp_params_cfg update_params[2];
+    memset(update_params, 0, sizeof(struct isp3x_isp_params_cfg)*2);
 
     update_params[0].module_en_update = 0;
     update_params[0].module_ens = 0;
@@ -413,12 +414,13 @@ CamHwIsp3x::setIspConfig()
         }
 
         ispModuleEns = _full_active_isp3x_params.module_ens;
-        LOGD_CAMHW_SUBM(ISP20HW_SUBM, "ispparam ens 0x%llx, en_up 0x%llx, cfg_up 0x%llx",
+        LOGD_CAMHW_SUBM(ISP20HW_SUBM, "camId:%d, frameId:%d, ispparam ens 0x%llx, en_up 0x%llx, cfg_up 0x%llx",
+                         mCamPhyId, frameId,
                         _full_active_isp3x_params.module_ens,
                         isp_params->module_en_update,
                         isp_params->module_cfg_update);
 
-        LOGD_CAMHW_SUBM(ISP20HW_SUBM, "device(%s) queue buffer index %d, queue cnt %d, check exit status again[exit: %d]",
+        LOG1_CAMHW_SUBM(ISP20HW_SUBM, "device(%s) queue buffer index %d, queue cnt %d, check exit status again[exit: %d]",
                         XCAM_STR (mIspParamsDev->get_device_name()),
                         buf_index, mIspParamsDev->get_queued_bufcnt(), _is_exit);
         if (_is_exit)

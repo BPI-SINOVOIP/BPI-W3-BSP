@@ -1,6 +1,6 @@
 PROJECT_DIR := $(shell pwd)
-PROM = rkupdate 
-OBJ =   CRC.o \
+PROM = rkupdate
+OBJ =CRC.o \
 	MD5Checksum.o \
 	RKAndroidDevice.o \
 	RKBoot.o \
@@ -14,7 +14,7 @@ OBJ =   CRC.o \
 $(PROM): $(OBJ)
 	$(CXX) -o $(PROM) $(OBJ) $(CFLAGS)
 
-%.o: %.c
+%.o: %.cpp
 	$(CXX) -c $< -o $@ $(CFLAGS)
 
 clean:

@@ -284,48 +284,37 @@ typedef struct RkAiqExpSensorParam_s {
     unsigned int isp_digital_gain;
 } RkAiqExpSensorParam_t;
 
-typedef struct RKAiqExpI2cData_s {
-    // M4_BOOL_DESC("update", "0",M4_HIDE(1))
-    bool    update;
+#define MAX_I2CDATA_LEN 64
+typedef struct RKAiqExpI2cParam_s {
+    // M4_BOOL_DESC("bValid", "0",M4_HIDE(1))
+    bool           bValid;
 
-    // M4_NUMBER_DESC("delay_frm_num", "u8", M4_RANGE(0,255), "0", M4_DIGIT(0),M4_HIDE(1))
-    unsigned char   delay_frm_num;
-    // M4_NUMBER_DESC("dev_addr", "u8", M4_RANGE(0,255), "0", M4_DIGIT(0),M4_HIDE(1))
-    unsigned char   dev_addr;
-    // M4_NUMBER_DESC("reg_addr", "u32", M4_RANGE(0,65535), "0", M4_DIGIT(0),M4_HIDE(1))
-    unsigned int    reg_addr;
-    // M4_NUMBER_DESC("addr_byte_num", "u32", M4_RANGE(0,65535), "0", M4_DIGIT(0),M4_HIDE(1))
-    unsigned int    addr_byte_num;
-    // M4_NUMBER_DESC("data", "u32", M4_RANGE(0,65535), "0", M4_DIGIT(0),M4_HIDE(1))
-    unsigned int    data;
-    // M4_NUMBER_DESC("data_byte_num", "u32", M4_RANGE(0,65535), "0", M4_DIGIT(0),M4_HIDE(1))
-    unsigned int    data_byte_num;
-} RKAiqExpI2cData_t;
+    // M4_NUMBER_DESC("nNumRegs", "u32", M4_RANGE(0,65535), "0", M4_DIGIT(0),M4_HIDE(1))
+    unsigned int   nNumRegs;
 
-typedef struct RKAiqExpI2cDataComb_s {
-    // M4_BOOL_DESC("valid", "0",M4_HIDE(1))
-    bool    valid;
+    // M4_ARRAY_DESC("RegAddr", "u32", M4_SIZE(1,64), M4_RANGE(0,65535), "0", M4_DIGIT(0), M4_DYNAMIC(0),M4_HIDE(1))
+    unsigned int   RegAddr[MAX_I2CDATA_LEN];
 
-    // M4_STRUCT_DESC("integration_time", "normal_ui_style",M4_HIDE(1))
-    RKAiqExpI2cData_t integration_time;
-    // M4_STRUCT_DESC("analog_gain", "normal_ui_style",M4_HIDE(1))
-    RKAiqExpI2cData_t analog_gain;
-    // M4_STRUCT_DESC("digital_gain", "normal_ui_style",M4_HIDE(1))
-    RKAiqExpI2cData_t digital_gain;
-    // M4_STRUCT_DESC("frame_length_lines", "normal_ui_style",M4_HIDE(1))
-    RKAiqExpI2cData_t frame_length_lines;
-} RKAiqExpI2cDataComb_t;
+    // M4_ARRAY_DESC("AddrByteNum", "u32", M4_SIZE(1,64), M4_RANGE(0,65535), "0", M4_DIGIT(0), M4_DYNAMIC(0),M4_HIDE(1))
+    unsigned int   AddrByteNum[MAX_I2CDATA_LEN];
+
+    // M4_ARRAY_DESC("RegValue", "u32", M4_SIZE(1,64), M4_RANGE(0,65535), "0", M4_DIGIT(0), M4_DYNAMIC(0),M4_HIDE(1))
+    unsigned int   RegValue[MAX_I2CDATA_LEN];
+
+    // M4_ARRAY_DESC("ValueByteNum", "u32", M4_SIZE(1,64), M4_RANGE(0,65535), "0", M4_DIGIT(0), M4_DYNAMIC(0),M4_HIDE(1))
+    unsigned int   ValueByteNum[MAX_I2CDATA_LEN];
+
+    // M4_ARRAY_DESC("DelayFrames", "u32", M4_SIZE(1,64), M4_RANGE(0,65535), "0", M4_DIGIT(0), M4_DYNAMIC(0),M4_HIDE(1))
+    unsigned int   DelayFrames[MAX_I2CDATA_LEN];
+
+} RKAiqExpI2cParam_t;
 
 typedef struct {
-
     // M4_STRUCT_DESC("RealPara", "normal_ui_style")
     RkAiqExpRealParam_t exp_real_params; //real value
 
     // M4_STRUCT_DESC("RegPara", "normal_ui_style",M4_HIDE(1))
     RkAiqExpSensorParam_t exp_sensor_params;//reg value
-
-    // M4_STRUCT_DESC("I2cPara", "normal_ui_style",M4_HIDE(1))
-    RKAiqExpI2cDataComb_t exp_i2c_params;
 } RkAiqExpParamComb_t;
 
 typedef struct {
@@ -352,7 +341,6 @@ typedef struct {
 } RkAiqIrisParamComb_t;
 
 typedef struct RKAiqAecExpInfo_s {
-
     // M4_STRUCT_DESC("LinearExp", "normal_ui_style")
     RkAiqExpParamComb_t LinearExp;
 
@@ -373,7 +361,18 @@ typedef struct RKAiqAecExpInfo_s {
 
     // M4_STRUCT_DESC("CISFeature_t", "normal_ui_style",M4_HIDE(1))
     CISFeature_t CISFeature;
+
+    // M4_STRUCT_DESC("I2cPara", "normal_ui_style",M4_HIDE(1))
+    RKAiqExpI2cParam_t exp_i2c_params;
 } RKAiqAecExpInfo_t;
+
+/**
+ * gcc-4.4.7 disallow typedef redefinition
+ * error: redefinition of typedef 'RKAiqAecExpInfo_t' with include/algos/rk_aiq_algo_des.h
+ */
+#ifndef RKAIQAECEXPINFO_T
+#define RKAIQAECEXPINFO_T
+#endif
 
 /*****************************************************************************/
 /**

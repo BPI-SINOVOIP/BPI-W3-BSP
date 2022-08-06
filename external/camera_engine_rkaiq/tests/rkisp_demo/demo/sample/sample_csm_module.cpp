@@ -39,17 +39,42 @@ void sample_print_csm_info(const void *arg)
 
 static int sample_set_csm_manual(const rk_aiq_sys_ctx_t* ctx)
 {
+    XCamReturn ret = XCAM_RETURN_NO_ERROR;
     rk_aiq_uapi_acsm_attrib_t attrib;
-    memset(&attrib, 0, sizeof(attrib)); 
-    //TODO: get attrib first ? 
+    memset(&attrib, 0, sizeof(attrib));
+    // TODO: get attrib first ?
+    ret = rk_aiq_user_api2_acsm_GetAttrib(ctx, &attrib);
+    RKAIQ_SAMPLE_CHECK_RET(ret, "setCsmAttr failed in getting csm attrib!");
     attrib.sync.sync_mode = RK_AIQ_UAPI_MODE_ASYNC;
     /* NOTE: RK_AIQ_OP_MODE_AUTO means default value now */
     attrib.param.op_mode = RK_AIQ_OP_MODE_MANUAL;
-    attrib.param.full_range = true;
+    // limit range param
+    attrib.param.full_range = false;
     attrib.param.y_offset = 0;
     attrib.param.c_offset = 0;
-    for (int i = 0; i < RK_AIQ_CSM_COEFF_NUM; i++)
-        attrib.param.coeff[i] = 256;
+    attrib.param.coeff[0] = 0.257;
+    attrib.param.coeff[1] = 0.504;
+    attrib.param.coeff[2] = 0.098;
+    attrib.param.coeff[3] = -0.148;
+    attrib.param.coeff[4] = -0.291;
+    attrib.param.coeff[5] = 0.439;
+    attrib.param.coeff[6] = 0.439;
+    attrib.param.coeff[7] = -0.368;
+    attrib.param.coeff[8] = -0.071;
+
+    ret = rk_aiq_user_api2_acsm_SetAttrib(ctx, attrib);
+    RKAIQ_SAMPLE_CHECK_RET(ret, "set CSM Attr failed!");
+    return 0;
+}
+
+static int sample_set_csm_auto(const rk_aiq_sys_ctx_t* ctx)
+{
+    rk_aiq_uapi_acsm_attrib_t attrib;
+    memset(&attrib, 0, sizeof(attrib));
+    // TODO: get attrib first ?
+    attrib.sync.sync_mode = RK_AIQ_UAPI_MODE_ASYNC;
+    /* NOTE: RK_AIQ_OP_MODE_AUTO means default value now */
+    attrib.param.op_mode = RK_AIQ_OP_MODE_AUTO;
 
     rk_aiq_user_api2_acsm_SetAttrib(ctx, attrib);
 
@@ -66,7 +91,7 @@ static int sample_get_csm_attrib(const rk_aiq_sys_ctx_t* ctx)
     printf("csm c_offset: %d\n", attrib.param.c_offset);
     printf("csm coeff:\n");
     for (int i = 0; i < 3; i+=3) {
-        printf("[0x%3x 0x%3x 0x%3x]\n",
+        printf("[%f %f %f]\n",
                attrib.param.coeff[i],
                attrib.param.coeff[i + 1],
                attrib.param.coeff[i + 2]);
@@ -103,11 +128,13 @@ XCamReturn sample_csm_module(const void *arg)
                 break;
             case '0':
                 sample_set_csm_manual(ctx);
-                printf("Set CCM MANUAL Mode\n\n");
+                sample_get_csm_attrib(ctx);
+                printf("Set CSM MANUAL Mode\n\n");
                 break;
             case '1':
+                sample_set_csm_auto(ctx);
                 sample_get_csm_attrib(ctx);
-                printf("Set CCM AUTO Mode\n\n");
+                printf("Set CSM AUTO Mode\n\n");
                 break;
             default:
                 break;

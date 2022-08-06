@@ -21,12 +21,12 @@
 #include <stdint.h>
 
 #include "mpp_env.h"
-#include "mpp_log.h"
 #include "mpp_mem.h"
+#include "mpp_debug.h"
 #include "mpp_bitread.h"
 #include "mpp_bitput.h"
 
-#include "hal_task.h"
+#include "hal_dec_task.h"
 #include "jpegd_syntax.h"
 #include "jpegd_api.h"
 #include "hal_jpegd_common.h"

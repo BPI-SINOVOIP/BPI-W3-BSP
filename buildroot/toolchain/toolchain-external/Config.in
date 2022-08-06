@@ -50,6 +50,9 @@ source "toolchain/toolchain-external/toolchain-external-bootlin/Config.in"
 # architecture, but before toolchains from br2-external trees.
 source "toolchain/toolchain-external/toolchain-external-custom/Config.in"
 
+# Toolchains from br2-external trees, if any
+source "$BR2_BASE_DIR/.br2-external.in.toolchains"
+
 endchoice
 
 choice

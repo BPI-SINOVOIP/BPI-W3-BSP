@@ -42,7 +42,7 @@
 #define DWC3_EP0_SETUP_SIZE	512
 #define DWC3_ENDPOINTS_NUM	32
 #define DWC3_XHCI_RESOURCES_NUM	2
-#define DWC3_ISOC_MAX_RETRIES	5
+#define DWC3_ISOC_MAX_RETRIES	50
 
 #define DWC3_SCRATCHBUF_SIZE	4096	/* each buffer is assumed to be 4KiB */
 #define DWC3_EVENT_BUFFERS_SIZE	4096
@@ -324,6 +324,7 @@
 /* Global RX Fifo Size Register */
 #define DWC31_GRXFIFOSIZ_RXFDEP(n)	((n) & 0x7fff)	/* DWC_usb31 only */
 #define DWC3_GRXFIFOSIZ_RXFDEP(n)	((n) & 0xffff)
+#define DWC3_GRXFIFOSIZ_RXFSTADDR(n)	((n) & 0xffff0000)
 
 /* Global Event Size Registers */
 #define DWC3_GEVNTSIZ_INTMASK		BIT(31)
@@ -374,6 +375,7 @@
 #define DWC3_GHWPARAMS6_HNPSUPPORT		BIT(11)
 #define DWC3_GHWPARAMS6_SRPSUPPORT		BIT(10)
 #define DWC3_GHWPARAMS6_EN_FPGA			BIT(7)
+#define DWC3_GHWPARAMS6_RAM0_DEPTH(n)		(((n) >> 16) & 0xffff)
 
 /* DWC_usb32 only */
 #define DWC3_GHWPARAMS6_MDWIDTH(n)		((n) & (0x3 << 8))
@@ -884,6 +886,7 @@ struct dwc3_hwparams {
 
 /* HWPARAMS1 */
 #define DWC3_NUM_INT(n)		(((n) & (0x3f << 15)) >> 15)
+#define DWC3_NUM_RAMS(n)	(((n) & (0x3 << 21)) >> 21)
 
 /* HWPARAMS3 */
 #define DWC3_NUM_IN_EPS_MASK	(0x1f << 18)

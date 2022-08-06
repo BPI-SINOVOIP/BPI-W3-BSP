@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2021 Rockchip Eletronics Co., Ltd.
+ * Copyright (c) 2019-2022 Rockchip Eletronics Co., Ltd.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,9 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#include "RkAiqAfHandle.h"
+
 #include "RkAiqCore.h"
-#include "RkAiqHandle.h"
-#include "RkAiqHandleInt.h"
+#include "RkAiqAeHandle.h"
 
 namespace RkCam {
 
@@ -67,15 +68,21 @@ XCamReturn RkAiqAfHandleInt::setAttrib(rk_aiq_af_attrib_t* att) {
 
     if (sharedCom->snsDes.lens_des.focus_support) {
         mCfgMutex.lock();
-        // TODO
-        // check if there is different between att & mCurAtt
+
+        // check if there is different between att & mCurAtt(sync)/mNewAtt(async)
         // if something changed, set att to mNewAtt, and
         // the new params will be effective later when updateConfig
         // called by RkAiqCore
+        bool isChanged = false;
+        if (att->sync.sync_mode == RK_AIQ_UAPI_MODE_ASYNC && \
+            memcmp(&mNewAtt, att, sizeof(*att)))
+            isChanged = true;
+        else if (att->sync.sync_mode != RK_AIQ_UAPI_MODE_ASYNC && \
+                 memcmp(&mCurAtt, att, sizeof(*att)))
+            isChanged = true;
 
         // if something changed
-        if ((0 != memcmp(&mCurAtt, att, sizeof(rk_aiq_af_attrib_t))) ||
-            (mCurAtt.AfMode == RKAIQ_AF_MODE_AUTO)) {
+        if (isChanged || (mCurAtt.AfMode == RKAIQ_AF_MODE_AUTO)) {
             mNewAtt         = *att;
             updateAtt       = true;
             isUpdateAttDone = false;
@@ -294,6 +301,91 @@ XCamReturn RkAiqAfHandleInt::GetFocusRange(rk_aiq_af_focusrange* range) {
     return ret;
 }
 
+XCamReturn RkAiqAfHandleInt::GetCustomAfRes(rk_tool_customAf_res_t* att) {
+    ENTER_ANALYZER_FUNCTION();
+
+    XCamReturn ret = XCAM_RETURN_NO_ERROR;
+
+    RkAiqAlgoProcResAf* af_com = &mProcResShared->result;
+    RkAiqAlgoProcResAf* af_rk = (RkAiqAlgoProcResAf*)af_com;
+    int i;
+
+    memset(att, 0, sizeof(*att));
+#if defined(ISP_HW_V30)
+    rk_aiq_isp_af_meas_v3x_t* af_param = &af_rk->af_isp_param_v3x;
+
+    att->af_en = af_param->af_en;
+    att->rawaf_sel = af_param->rawaf_sel;
+    att->gamma_en = af_param->gamma_en;
+    att->gaus_en = af_param->gaus_en;
+    att->v1_fir_sel = af_param->v1_fir_sel;
+    att->hiir_en = af_param->hiir_en;
+    att->viir_en = af_param->viir_en;
+    att->v1_fv_outmode = af_param->v1_fv_outmode;
+    att->v2_fv_outmode = af_param->v2_fv_outmode;
+    att->h1_fv_outmode = af_param->h1_fv_outmode;
+    att->h2_fv_outmode = af_param->h2_fv_outmode;
+    att->ldg_en = af_param->ldg_en;
+    att->accu_8bit_mode = af_param->accu_8bit_mode;
+    att->ae_mode = af_param->ae_mode;
+    att->y_mode = af_param->y_mode;
+
+    att->window_num = af_param->window_num;
+    att->wina_h_offs = af_param->wina_h_offs;
+    att->wina_v_offs = af_param->wina_v_offs;
+    att->wina_h_size = af_param->wina_h_size;
+    att->wina_v_size = af_param->wina_v_size;
+    att->winb_h_offs = af_param->winb_h_offs;
+    att->winb_v_offs = af_param->winb_v_offs;
+    att->winb_h_size = af_param->winb_h_size;
+    att->winb_v_size = af_param->winb_v_size;
+
+    for (i = 0; i < RKAIQ_RAWAF_GAMMA_NUM; i++)
+        att->gamma_y[i] = af_param->gamma_y[i];
+
+    att->thres = af_param->thres;
+    att->shift_sum_a = af_param->shift_sum_a;
+    att->shift_sum_b = af_param->shift_sum_b;
+    att->shift_y_a = af_param->shift_y_a;
+    att->shift_y_b = af_param->shift_y_b;
+
+    for (i = 0; i < 9; i++)
+        att->v1_iir_coe[i] = af_param->v1_iir_coe[i] << 2;
+    for (i = 0; i < 3; i++) {
+        att->v1_fir_coe[i] = af_param->v1_fir_coe[i];
+        att->v2_iir_coe[i] = af_param->v2_iir_coe[i];
+        att->v2_fir_coe[i] = af_param->v2_fir_coe[i];
+    }
+
+    for (i = 0; i < 6; i++) {
+        att->h1_iir1_coe[i] = af_param->h1_iir1_coe[i];
+        att->h2_iir1_coe[i] = af_param->h2_iir1_coe[i];
+        att->h1_iir2_coe[i] = af_param->h1_iir2_coe[i];
+        att->h2_iir2_coe[i] = af_param->h2_iir2_coe[i];
+    }
+
+    for (i = 0; i < 2; i++) {
+        att->h_ldg_lumth[i] = af_param->h_ldg_lumth[i];
+        att->h_ldg_gain[i] = af_param->h_ldg_gain[i];
+        att->h_ldg_gslp[i] = af_param->h_ldg_gslp[i];
+        att->v_ldg_lumth[i] = af_param->v_ldg_lumth[i];
+        att->v_ldg_gain[i] = af_param->v_ldg_gain[i];
+        att->v_ldg_gslp[i] = af_param->v_ldg_gslp[i];
+    }
+
+    att->v_fv_thresh = af_param->v_fv_thresh;
+    att->h_fv_thresh = af_param->h_fv_thresh;
+    att->v1_fv_shift = af_param->v1_fv_shift;
+    att->v2_fv_shift = af_param->v2_fv_shift;
+    att->h1_fv_shift = af_param->h1_fv_shift;
+    att->h2_fv_shift = af_param->h2_fv_shift;
+    att->highlit_thresh = af_param->highlit_thresh;
+#endif
+
+    EXIT_ANALYZER_FUNCTION();
+    return ret;
+}
+
 XCamReturn RkAiqAfHandleInt::prepare() {
     ENTER_ANALYZER_FUNCTION();
 
@@ -415,7 +507,7 @@ XCamReturn RkAiqAfHandleInt::processing() {
 #ifdef ZOOM_MOVE_DEBUG
     int zoom_index = 0;
 
-    if (getValueFromFile("/tmp/.zoom_pos", &zoom_index) == true) {
+    if (getValueFromFile("/data/.zoom_pos", &zoom_index) == true) {
         if (mLastZoomIndex != zoom_index) {
             setZoomIndex(zoom_index);
             endZoomChg();
@@ -439,6 +531,7 @@ XCamReturn RkAiqAfHandleInt::processing() {
 
     if ((!xAfStats || !xAfStats->af_stats_valid) && !sharedCom->init) {
         LOGW("no af stats, ignore!");
+        mProcResShared.release();
         return XCAM_RETURN_BYPASS;
     }
 
@@ -524,6 +617,10 @@ XCamReturn RkAiqAfHandleInt::genIspResult(RkAiqFullParams* params, RkAiqFullPara
     RkAiqCore::RkAiqAlgosGroupShared_t* shared =
         (RkAiqCore::RkAiqAlgosGroupShared_t*)(getGroupShared());
     RkAiqCore::RkAiqAlgosComShared_t* sharedCom = &mAiqCore->mAlogsComSharedParams;
+
+    if (!mProcResShared.ptr())
+        return XCAM_RETURN_NO_ERROR;
+
     RkAiqAlgoProcResAf* af_com                  = &mProcResShared->result;
 
 #if defined(ISP_HW_V30)
@@ -594,7 +691,7 @@ XCamReturn RkAiqAfHandleInt::genIspResult(RkAiqFullParams* params, RkAiqFullPara
         p_focus_param->vcm_end_ma       = af_rk->af_focus_param.vcm_end_ma;
         p_focus_param->vcm_config_valid = af_rk->af_focus_param.vcm_config_valid;
 
-#if defined(ISP_HW_V30)
+#if defined(ISP_HW_V30) || defined(ISP_HW_V21)
         SmartPtr<RkAiqHandle>* ae_handle = mAiqCore->getCurAlgoTypeHandle(RK_AIQ_ALGO_TYPE_AE);
         int algo_id                      = (*ae_handle)->getAlgoId();
 

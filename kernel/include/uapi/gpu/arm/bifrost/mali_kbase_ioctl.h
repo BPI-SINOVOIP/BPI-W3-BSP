@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2017-2021 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2017-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -515,7 +515,7 @@ struct kbase_ioctl_sticky_resource_map {
 	_IOW(KBASE_IOCTL_TYPE, 29, struct kbase_ioctl_sticky_resource_map)
 
 /**
- * struct kbase_ioctl_sticky_resource_map - Unmap a resource mapped which was
+ * struct kbase_ioctl_sticky_resource_unmap - Unmap a resource mapped which was
  *                                          previously permanently mapped
  * @count: Number of resources
  * @address: Array of __u64 GPU addresses of the external resources to unmap
@@ -563,7 +563,8 @@ union kbase_ioctl_mem_find_gpu_start_and_offset {
 	_IO(KBASE_IOCTL_TYPE, 34)
 
 /**
- * union kbase_ioctl_gwt_dump - Used to collect all GPU write fault addresses.
+ * union kbase_ioctl_cinstr_gwt_dump - Used to collect all GPU write fault
+ *                                     addresses.
  * @in: Input parameters
  * @in.addr_buffer: Address of buffer to hold addresses of gpu modified areas.
  * @in.size_buffer: Address of buffer to hold size of modified areas (in pages)
@@ -683,7 +684,7 @@ struct kbase_ioctl_kinstr_prfcnt_enum_info {
 	_IOWR(KBASE_IOCTL_TYPE, 56, struct kbase_ioctl_kinstr_prfcnt_enum_info)
 
 /**
- * struct kbase_ioctl_hwcnt_reader_setup - Setup HWC dumper/reader
+ * struct kbase_ioctl_kinstr_prfcnt_setup - Setup HWC dumper/reader
  * @in: input parameters.
  * @in.request_item_count: Number of requests in the requests array.
  * @in.request_item_size:  Size in bytes of each request in the requests array.

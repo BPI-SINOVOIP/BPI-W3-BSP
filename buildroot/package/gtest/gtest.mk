@@ -4,12 +4,14 @@
 #
 ################################################################################
 
-GTEST_VERSION = release-1.8.0
-GTEST_SITE = $(call github,google,googletest,$(GTEST_VERSION))
+GTEST_VERSION = 1.11.0
+GTEST_SITE = $(call github,google,googletest,release-$(GTEST_VERSION))
 GTEST_INSTALL_STAGING = YES
 GTEST_INSTALL_TARGET = NO
 GTEST_LICENSE = BSD-3-Clause
-GTEST_LICENSE_FILES = googletest/LICENSE
+GTEST_LICENSE_FILES = LICENSE
+GTEST_CPE_ID_VENDOR = google
+GTEST_CPE_ID_PRODUCT = google_test
 
 ifeq ($(BR2_PACKAGE_GTEST_GMOCK),y)
 GTEST_DEPENDENCIES += host-gtest
@@ -44,42 +46,10 @@ ifeq ($(BR2_STATIC_LIBS),)
 GTEST_CONF_OPTS += -DCMAKE_POSITION_INDEPENDENT_CODE=ON
 endif
 
-GTEST_CONF_OPTS += -DBUILD_GTEST=ON
-
 ifeq ($(BR2_PACKAGE_GTEST_GMOCK),y)
 GTEST_CONF_OPTS += -DBUILD_GMOCK=ON
 else
 GTEST_CONF_OPTS += -DBUILD_GMOCK=OFF
-endif
-
-define GTEST_INSTALL_MISSING_FILES
-	$(INSTALL) -D -m 0644 package/gtest/gtest.pc \
-		$(STAGING_DIR)/usr/lib/pkgconfig/gtest.pc
-	# Generate the gtest-config script manually, since the CMake
-	# build system is not doing it.
-	sed 's%@PACKAGE_TARNAME@%gtest%;\
-		s%@PACKAGE_VERSION@%$(GTEST_VERSION)%;\
-		s%@prefix@%$(STAGING_DIR)/usr%;\
-		s%@exec_prefix@%$(STAGING_DIR)/usr%;\
-		s%@libdir@%$(STAGING_DIR)/usr/lib%;\
-		s%@includedir@%$(STAGING_DIR)/usr/include%;\
-		s%@bindir@%$(STAGING_DIR)/usr/bin%;\
-		s%@PTHREAD_CFLAGS@%%;\
-		s%@PTHREAD_LIBS@%-lpthread%;' \
-		$(@D)/googletest/scripts/gtest-config.in \
-		> $(STAGING_DIR)/usr/bin/gtest-config
-	chmod +x $(STAGING_DIR)/usr/bin/gtest-config
-endef
-
-GTEST_POST_INSTALL_STAGING_HOOKS = GTEST_INSTALL_MISSING_FILES
-
-ifeq ($(BR2_PACKAGE_GTEST_GMOCK),y)
-define GTEST_GMOCK_INSTALL_MISSING_FILE
-	$(INSTALL) -D -m 0644 package/gtest/gmock.pc \
-		$(STAGING_DIR)/usr/lib/pkgconfig/gmock.pc
-endef
-
-GTEST_POST_INSTALL_STAGING_HOOKS += GTEST_GMOCK_INSTALL_MISSING_FILE
 endif
 
 define HOST_GTEST_INSTALL_CMDS

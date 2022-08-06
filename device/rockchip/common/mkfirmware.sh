@@ -2,350 +2,287 @@
 
 set -e
 
+if ! which fakeroot; then
+    echo "fakeroot not found! (sudo apt-get install fakeroot)"
+    exit -1
+fi
+
 SCRIPT_DIR=$(dirname $(realpath $BASH_SOURCE))
 TOP_DIR=$(realpath $SCRIPT_DIR/../../..)
 cd $TOP_DIR
 
+DEV_DIR="$TOP_DIR/device/rockchip"
+OUT_DIR="$TOP_DIR/buildroot/output"
+IMG_DIR="$OUT_DIR/$RK_CFG_BUILDROOT/images"
+
 function unset_board_config_all()
 {
-	local tmp_file=`mktemp`
-	grep -o "^export.*RK_.*=" `find $TOP_DIR/device/rockchip -name "Board*.mk" -type f` -h | sort | uniq > $tmp_file
-	source $tmp_file
-	rm -f $tmp_file
+    local tmp_file=`mktemp`
+    grep -o "^export.*RK_.*=" `find $DEV_DIR -name "Board*.mk" -type f` -h \
+        | sort | uniq > $tmp_file
+    source $tmp_file
+    rm -f $tmp_file
 }
 unset_board_config_all
 
-source $TOP_DIR/device/rockchip/.BoardConfig.mk
+source $DEV_DIR/.BoardConfig.mk
 ROCKDEV=$TOP_DIR/rockdev
-PARAMETER=$TOP_DIR/device/rockchip/$RK_TARGET_PRODUCT/$RK_PARAMETER
-if [ "${RK_OEM_DIR}x" != "x" ];then
-	OEM_DIR=$TOP_DIR/device/rockchip/oem/$RK_OEM_DIR
+PARAMETER=$DEV_DIR/$RK_TARGET_PRODUCT/$RK_PARAMETER
+MISC_IMG=$DEV_DIR/rockimg/$RK_MISC
+if [ "$RK_RAMDISK_SECURITY_BOOTUP" = "true" ];then
+	ROOTFS_IMG=$IMG_DIR/security-system.img
 else
-	OEM_DIR=
+	ROOTFS_IMG=$TOP_DIR/$RK_ROOTFS_IMG
 fi
-USER_DATA_DIR=$TOP_DIR/device/rockchip/userdata/$RK_USERDATA_DIR
-MISC_IMG=$TOP_DIR/device/rockchip/rockimg/$RK_MISC
-ROOTFS_IMG=$TOP_DIR/$RK_ROOTFS_IMG
-ROOTFS_IMG_SOURCE=$TOP_DIR/buildroot/output/$RK_CFG_BUILDROOT/images/rootfs.$RK_ROOTFS_TYPE
-RAMBOOT_IMG=$TOP_DIR/buildroot/output/$RK_CFG_RAMBOOT/images/ramboot.img
-RECOVERY_IMG=$TOP_DIR/buildroot/output/$RK_CFG_RECOVERY/images/recovery.img
-if which fakeroot; then
-FAKEROOT_TOOL="`which fakeroot`"
-else
-	echo -e "Install fakeroot First."
-	echo -e "  sudo apt-get install fakeroot"
-	exit -1
-fi
-OEM_FAKEROOT_SCRIPT=$ROCKDEV/oem.fs
-USERDATA_FAKEROOT_SCRIPT=$ROCKDEV/userdata.fs
+
+ROOTFS_IMG_SOURCE=$IMG_DIR/rootfs.$RK_ROOTFS_TYPE
+RAMBOOT_IMG=$OUT_DIR/$RK_CFG_RAMBOOT/images/ramboot.img
+RECOVERY_IMG=$OUT_DIR/$RK_CFG_RECOVERY/images/recovery.img
 TRUST_IMG=$TOP_DIR/u-boot/trust.img
 UBOOT_IMG=$TOP_DIR/u-boot/uboot.img
 BOOT_IMG=$TOP_DIR/kernel/$RK_BOOT_IMG
-LOADER=$TOP_DIR/u-boot/*_loader_v*.bin
-SPL=$TOP_DIR/u-boot/*_loader_spl.bin
-#SPINOR_LOADER=$TOP_DIR/u-boot/*_loader_spinor_v*.bin
+LOADER=$(echo $TOP_DIR/u-boot/*_loader_*v*.bin | head -1)
+SPL=$(echo $TOP_DIR/u-boot/*_loader_spl.bin | head -1)
 MKIMAGE=$SCRIPT_DIR/mk-image.sh
+
+message() {
+    echo -e "\e[36m $@ \e[0m"
+}
+
+fatal() {
+    echo -e "\e[31m $@ \e[0m"
+    exit -1
+}
+
 mkdir -p $ROCKDEV
 
 # Require buildroot host tools to do image packing.
 if [ ! -d "$TARGET_OUTPUT_DIR" ]; then
-    echo "Source buildroot/build/envsetup.sh"
-	if [ "${RK_CFG_RAMBOOT}x" != "x" ];then
-		source $TOP_DIR/buildroot/build/envsetup.sh $RK_CFG_RAMBOOT
-	fi
-	if [ "${RK_CFG_BUILDROOT}x" != "x" ];then
-		source $TOP_DIR/buildroot/build/envsetup.sh $RK_CFG_BUILDROOT
-	fi
+    message "Source buildroot/build/envsetup.sh"
+    if [ "${RK_CFG_RAMBOOT}" ];then
+        source $TOP_DIR/buildroot/build/envsetup.sh $RK_CFG_RAMBOOT
+    fi
+    if [ "${RK_CFG_BUILDROOT}" ];then
+        source $TOP_DIR/buildroot/build/envsetup.sh $RK_CFG_BUILDROOT
+    fi
 fi
 
-# NOT support the grow partition
-get_partition_size() {
-	echo $PARAMETER
-
-	PARTITIONS_PREFIX=`echo -n "CMDLINE: mtdparts=rk29xxnand:"`
-	while read line
-	do
-		if [[ $line =~ $PARTITIONS_PREFIX ]]
-		then
-			partitions=`echo $line | sed "s/$PARTITIONS_PREFIX//g"`
-			echo $partitions
-			break
-		fi
-	done < $PARAMETER
-
-	if [ -z $partitions ]
-	then
-		echo -e "\e[31m $PARAMETER parse no find string \"$PARTITIONS_PREFIX\" or The last line is not empty or other reason\e[0m"
-		return
-	fi
-
-	PART_NAME_NEED_TO_CHECK=""
-	IFS=,
-	for part in $partitions;
-	do
-		part_size=`echo $part | cut -d '@' -f1`
-		part_name=`echo $part | cut -d '(' -f2|cut -d ')' -f1`
-
-		[[ $part_size =~ "-" ]] && continue
-
-		part_size=$(($part_size))
-		part_size_bytes=$[$part_size*512]
-
-		case $part_name in
-			uboot|uboot_[ab])
-				uboot_part_size_bytes=$part_size_bytes
-				PART_NAME_NEED_TO_CHECK="$PART_NAME_NEED_TO_CHECK:$part_name"
-			;;
-			boot|boot_[ab])
-				boot_part_size_bytes=$part_size_bytes
-				PART_NAME_NEED_TO_CHECK="$PART_NAME_NEED_TO_CHECK:$part_name"
-			;;
-			recovery)
-				recovery_part_size_bytes=$part_size_bytes
-				PART_NAME_NEED_TO_CHECK="$PART_NAME_NEED_TO_CHECK:$part_name"
-			;;
-			rootfs|system_[ab])
-				rootfs_part_size_bytes=$part_size_bytes
-				PART_NAME_NEED_TO_CHECK="$PART_NAME_NEED_TO_CHECK:$part_name"
-			;;
-			oem)
-				oem_part_size_bytes=$part_size_bytes
-				PART_NAME_NEED_TO_CHECK="$PART_NAME_NEED_TO_CHECK:$part_name"
-			;;
-		esac
-	done
+# Parse size limit from parameter.txt, 0 means unlimited or not exists.
+partition_size_kb() {
+    PART_NAME=$1
+    PART_STR=$(grep -oE "[^,^:^\(]*\(${PART_NAME}[\)_:][^\)]*\)" $PARAMETER)
+    PART_SIZE=$(echo $PART_STR | grep -oE "^[^@^-]*")
+    echo $(( ${PART_SIZE:-0} / 2 ))
 }
 
-check_partition_size() {
+# Assert the image's size smaller than parameter.txt's limit
+assert_size() {
+    PART_NAME="$1"
+    IMG="$2"
 
-	while true
-	do
-		part_name=${PART_NAME_NEED_TO_CHECK##*:}
-		case $part_name in
-			uboot|uboot_[ab])
-				uboot_img=`realpath $ROCKDEV/uboot.img`
-				if [ $uboot_part_size_bytes -lt `du -b $uboot_img | awk '{print $1}'` ]
-				then
-					echo -e "\e[31m error: uboot image size exceed parameter! \e[0m"
-					return -1
-				fi
-			;;
-			boot|boot_[ab])
-				boot_img=`realpath $ROCKDEV/boot.img`
-				if [ $boot_part_size_bytes -lt `du -b $boot_img | awk '{print $1}'` ]
-				then
-					echo -e "\e[31m error: boot image size exceed parameter! \e[0m"
-					return -1
-				fi
-			;;
-			recovery)
-				if [ -f $RECOVERY_IMG ]
-				then
-					if [ $recovery_part_size_bytes -lt `du -b $RECOVERY_IMG | awk '{print $1}'` ]
-					then
-						echo -e "\e[31m error: recovery image size exceed parameter! \e[0m"
-						return -1
-					fi
-				fi
-			;;
-			rootfs|system_[ab])
-				rootfs_img=`realpath $ROCKDEV/rootfs.img`
-				if [ -f $rootfs_img ]
-				then
-					if [ $rootfs_part_size_bytes -lt `du -bD $rootfs_img | awk '{print $1}'` ]
-					then
-						echo -e "\e[31m error: rootfs image size exceed parameter! \e[0m"
-						return -1
-					fi
-				fi
-			;;
-		esac
-		PART_NAME_NEED_TO_CHECK=${PART_NAME_NEED_TO_CHECK%:*}
-		if [ -z "$PART_NAME_NEED_TO_CHECK" ]; then
-			break
-		fi
-	done
+    PART_SIZE=$(partition_size_kb $PART_NAME)
+    [ "$PART_SIZE" -gt 0 ] || return 0
+
+    IMG_SIZE=$(stat -c "%s" "$IMG")
+
+    if [ $PART_SIZE -lt $(( "$IMG_SIZE" / 1024 )) ]; then
+        fatal "error: $IMG's size exceed parameter.txt's limit!"
+    fi
 }
 
-if [ $RK_ROOTFS_IMG ]
-then
-	if [ -f $ROOTFS_IMG ]
-	then
-		echo -n "create rootfs.img..."
-		ln -rsf $ROOTFS_IMG $ROCKDEV/rootfs.img
-		echo "done."
-	else
-		echo "warning: $ROOTFS_IMG not found!"
-		if [ -f $ROOTFS_IMG_SOURCE ];then
-			echo "Fallback to $ROOTFS_IMG_SOURCE"
-			ln -rsf $ROOTFS_IMG_SOURCE $ROCKDEV/rootfs.img
-		fi
-	fi
+link_image() {
+    SRC="$1"
+    DST="$2"
+    FALLBACK="$3"
+
+    message "Linking $DST from $SRC..."
+
+    if [ ! -e "$SRC" ]; then
+        if [ -e "$FALLBACK" ]; then
+            SRC="$FALLBACK"
+            message "Fallback to $SRC"
+        else
+            message "warning: $SRC not found!"
+        fi
+    fi
+
+    ln -rsf "$SRC" "$ROCKDEV/$DST"
+    assert_size "${DST%.img}" "$SRC"
+
+    message "Done linking $DST"
+}
+
+link_image_optional() {
+    link_image "$@" || true
+}
+
+pack_image() {
+    SRC="$1"
+    DST="$2"
+    FS_TYPE="$3"
+    SIZE="${4:-$(partition_size_kb "${DST%.img}")}"
+    LABEL="$5"
+    EXTRA_CMD="$6"
+
+    FAKEROOT_SCRIPT="$ROCKDEV/${DST%.img}.fs"
+
+    message "Packing $DST from $SRC..."
+
+    if [ ! -d "$SRC" ]; then
+        message "warning: $SRC not found!"
+        return 0
+    fi
+
+    cat << EOF > $FAKEROOT_SCRIPT
+#!/bin/sh -e
+$EXTRA_CMD
+$MKIMAGE "$SRC" "$ROCKDEV/$DST" "$FS_TYPE" "$SIZE" "$LABEL"
+EOF
+
+    chmod a+x "$FAKEROOT_SCRIPT"
+    fakeroot -- "$FAKEROOT_SCRIPT"
+    rm -f "$FAKEROOT_SCRIPT"
+
+    assert_size "${DST%.img}" "$ROCKDEV/$DST"
+
+    message "Done packing $DST"
+}
+
+# Convert legacy partition variables to new style
+legacy_partion() {
+    PART_NAME="$1"
+    SRC="$2"
+    FS_TYPE="$3"
+    SIZE="${4:-0}"
+    MOUNT="/$PART_NAME"
+    OPT=""
+
+    [ "$FS_TYPE" ] || return 0
+    [ "$SRC" ] || return 0
+
+    # Fixed size for ubi
+    if [ "$FS_TYPE" = ubi ]; then
+        OPT="fixed"
+    fi
+
+    case $SIZE in
+        *k|*K)
+            SIZE=${SIZE//k/K}
+            ;;
+        *m|*M)
+            SIZE=${SIZE//m/M}
+            ;;
+        *)
+            SIZE=$(( ${SIZE} / 1024 ))K # default is bytes
+            ;;
+    esac
+
+    echo "$PART_NAME:$MOUNT:$FS_TYPE:defaults:$SRC:${SIZE}:$OPT"
+}
+
+RK_LEGACY_PARTITIONS=" \
+    $(legacy_partion oem "$RK_OEM_DIR" "$RK_OEM_FS_TYPE" "$RK_OEM_PARTITION_SIZE")
+    $(legacy_partion userdata "$RK_USERDATA_DIR" "$RK_USERDATA_FS_TYPE" "$RK_USERDATA_PARTITION_SIZE")
+"
+
+# <dev>:<mount point>:<fs type>:<mount flags>:<source dir>:<image size(M|K|auto)>:[options]
+# for example:
+# RK_EXTRA_PARTITIONS="oem:/oem:ext2:defaults:oem_normal:256M:fixed
+# userdata:/userdata:vfat:errors=remount-ro:userdata_empty:auto"
+RK_EXTRA_PARTITIONS="${RK_EXTRA_PARTITIONS:-${RK_LEGACY_PARTITIONS}}"
+
+partition_arg() {
+    PART="$1"
+    I="$2"
+    DEFAULT="$3"
+
+    ARG=$(echo $PART | cut -d':' -f"$I")
+    echo ${ARG:-$DEFAULT}
+}
+
+pack_extra_partitions() {
+    for part in ${RK_EXTRA_PARTITIONS//@/ }; do
+        DEV="$(partition_arg "$part" 1)"
+
+        # Dev is either <name> or /dev/.../<name>
+        [ "$DEV" ] || continue
+        PART_NAME="${DEV##*/}"
+
+        MOUNT="$(partition_arg "$part" 2 "/$PART_NAME")"
+        FS_TYPE="$(partition_arg "$part" 3)"
+
+        SRC="$(partition_arg "$part" 5)"
+
+        # Src is either none or relative path to device/rockchip/<name>/
+        # or absolute path
+        case "$SRC" in
+            "")
+                continue
+                ;;
+            /*)
+                ;;
+            *)
+                SRC="$DEV_DIR/$PART_NAME/$SRC"
+                ;;
+        esac
+
+        SIZE="$(partition_arg "$part" 6 auto)"
+        OPTS="$(partition_arg "$part" 7)"
+        LABEL=
+        EXTRA_CMD=
+
+        # Special handling for oem
+        if [ "$PART_NAME" = oem ]; then
+            # Skip packing oem when builtin
+            [ "${RK_OEM_BUILDIN_BUILDROOT}" != "YES" ] || continue
+
+            if [ -d "$SRC/www" ]; then
+                EXTRA_CMD="chown -R www-data:www-data $SRC/www"
+            fi
+        fi
+
+        # Skip boot time resize by adding a label
+        if echo $OPTS | grep -wq fixed; then
+            LABEL="$PART_NAME"
+        fi
+
+        pack_image "$SRC" "${PART_NAME}.img" "$FS_TYPE" "$SIZE" "$LABEL" \
+            "$EXTRA_CMD"
+    done
+}
+
+link_image_optional "$PARAMETER" parameter.txt
+
+link_image_optional "$UBOOT_IMG" uboot.img
+
+[ "$RK_UBOOT_FORMAT_TYPE" != "fit" ] && \
+    link_image_optional "$TRUST_IMG" trust.img
+
+link_image_optional "$LOADER" MiniLoaderAll.bin "$SPL"
+
+[ "$RK_BOOT_IMG" ] && link_image_optional "$BOOT_IMG" boot.img
+
+[ $RK_CFG_RAMBOOT ] && link_image_optional "$RAMBOOT_IMG" boot.img
+
+[ "$RK_CFG_RECOVERY" ] && link_image_optional "$RECOVERY_IMG" recovery.img
+
+[ "$RK_MISC" ] && \
+    link_image_optional "$DEV_DIR/rockimg/misc.img" misc.img "$MISC_IMG"
+
+[ "$RK_ROOTFS_IMG" ] && \
+    link_image_optional "$ROOTFS_IMG" rootfs.img "$ROOTFS_IMG_SOURCE"
+
+[ "${RK_OEM_BUILDIN_BUILDROOT}" = "YES" ] && \
+    link_image_optional "$IMG_DIR/oem.img" oem.img
+
+if [ "$RK_RAMDISK_SECURITY_BOOTUP" = "true" ]; then
+    for part in boot recovery rootfs;do
+        test -e $TOP_DIR/u-boot/${part}.img &&
+            link_image "$TOP_DIR/u-boot/${part}.img" ${part}.img && \
+                message "Enabled ramdisk security $part..." || true
+    done
 fi
 
-if [ -f $PARAMETER ]
-then
-	echo -n "create parameter..."
-	ln -rsf $PARAMETER $ROCKDEV/parameter.txt
-	echo "done."
-else
-	echo -e "\e[31m error: $PARAMETER not found! \e[0m"
-	exit -1
-fi
+pack_extra_partitions
 
-get_partition_size
-
-if [ $RK_CFG_RECOVERY ]
-then
-	if [ -f $RECOVERY_IMG ]
-	then
-		echo -n "create recovery.img..."
-		ln -rsf $RECOVERY_IMG $ROCKDEV/recovery.img
-		echo "done."
-	else
-		echo "warning: $RECOVERY_IMG not found!"
-	fi
-fi
-
-if [ $RK_MISC ]
-then
-	if [ -f $MISC_IMG ]
-	then
-		echo -n "create misc.img..."
-		ln -rsf $MISC_IMG $ROCKDEV/misc.img
-		echo "done."
-	else
-		echo "warning: $MISC_IMG not found!"
-	fi
-fi
-
-if [ "${RK_OEM_BUILDIN_BUILDROOT}x" != "YESx" ]
-then
-	if [ -d "$OEM_DIR" ]
-	then
-		echo "#!/bin/sh" > $OEM_FAKEROOT_SCRIPT
-		echo "set -e" >> $OEM_FAKEROOT_SCRIPT
-		if [ -d $OEM_DIR/www ]; then
-			echo "chown -R www-data:www-data $OEM_DIR/www" >> $OEM_FAKEROOT_SCRIPT
-		fi
-		if [ "$RK_OEM_FS_TYPE" = "ubi" ]; then
-			echo "$MKIMAGE $OEM_DIR $ROCKDEV/oem.img $RK_OEM_FS_TYPE ${RK_OEM_PARTITION_SIZE:-$oem_part_size_bytes} oem $RK_UBI_PAGE_SIZE $RK_UBI_BLOCK_SIZE"  >> $OEM_FAKEROOT_SCRIPT
-		else
-			echo "$MKIMAGE $OEM_DIR $ROCKDEV/oem.img $RK_OEM_FS_TYPE"  >> $OEM_FAKEROOT_SCRIPT
-		fi
-		chmod a+x $OEM_FAKEROOT_SCRIPT
-		$FAKEROOT_TOOL -- $OEM_FAKEROOT_SCRIPT
-		rm -f $OEM_FAKEROOT_SCRIPT
-	else
-		echo "warning: $OEM_DIR  not found!"
-	fi
-else
-	if [ -f "$TOP_DIR/buildroot/output/$RK_CFG_BUILDROOT/images/oem.img" ]; then
-		ln -sfr $TOP_DIR/buildroot/output/$RK_CFG_BUILDROOT/images/oem.img $ROCKDEV/oem.img
-	fi
-fi
-
-if [ $RK_USERDATA_DIR ]
-then
-	if [ -d "$USER_DATA_DIR" ]
-	then
-		echo "#!/bin/sh" > $USERDATA_FAKEROOT_SCRIPT
-		echo "set -e" >> $USERDATA_FAKEROOT_SCRIPT
-		if [ "$RK_USERDATA_FS_TYPE" = "ubi" ]; then
-			echo "$MKIMAGE $USER_DATA_DIR $ROCKDEV/userdata.img $RK_USERDATA_FS_TYPE $RK_USERDATA_PARTITION_SIZE userdata $RK_UBI_PAGE_SIZE $RK_UBI_BLOCK_SIZE"  >> $USERDATA_FAKEROOT_SCRIPT
-		else
-			echo "$MKIMAGE $USER_DATA_DIR $ROCKDEV/userdata.img $RK_USERDATA_FS_TYPE"  >> $USERDATA_FAKEROOT_SCRIPT
-		fi
-		chmod a+x $USERDATA_FAKEROOT_SCRIPT
-		$FAKEROOT_TOOL -- $USERDATA_FAKEROOT_SCRIPT
-		rm -f $USERDATA_FAKEROOT_SCRIPT
-	else
-		echo "warning: $USER_DATA_DIR not found!"
-	fi
-fi
-
-if [ -f $UBOOT_IMG ]
-then
-        echo -n "create uboot.img..."
-        ln -rsf $UBOOT_IMG $ROCKDEV/uboot.img
-        echo "done."
-else
-        echo -e "\e[31m error: $UBOOT_IMG not found! \e[0m"
-fi
-
-if [ "$RK_UBOOT_FORMAT_TYPE" = "fit" ]; then
-        rm -f $ROCKDEV/trust.img
-        echo "uboot fotmat type is fit, so ignore trust.img..."
-else
-if [ -f $TRUST_IMG ]
-then
-        echo -n "create trust.img..."
-        ln -rsf $TRUST_IMG $ROCKDEV/trust.img
-        echo "done."
-else
-        echo -e "\e[31m error: $TRUST_IMG not found! \e[0m"
-fi
-fi
-
-if [ -f $LOADER ]
-then
-        echo -n "create loader..."
-        ln -rsf $LOADER $ROCKDEV/MiniLoaderAll.bin
-        echo "done."
-elif [ -f $SPL ]
-then
-	echo -n "create spl..."
-        ln -rsf $SPL $ROCKDEV/MiniLoaderAll.bin
-        echo "done."
-else
-	echo -e "\e[31m error: $LOADER not found,or there are multiple loaders! \e[0m"
-	rm $LOADER || true
-fi
-
-#if [ -f $SPINOR_LOADER ]
-#then
-#        echo -n "create spinor loader..."
-#        ln -rsf $SPINOR_LOADER $ROCKDEV/MiniLoaderAll_SpiNor.bin
-#        echo "done."
-#else
-#	rm $SPINOR_LOADER_PATH 2>/dev/null
-#fi
-
-if [ $RK_BOOT_IMG ]
-then
-	if [ -f $BOOT_IMG ]
-	then
-		echo -n "create boot.img..."
-		ln -rsf $BOOT_IMG $ROCKDEV/boot.img
-		echo "done."
-	else
-		echo "warning: $BOOT_IMG not found!"
-	fi
-fi
-
-if [ $RK_CFG_RAMBOOT ]
-then
-	if [ -f $RAMBOOT_IMG ]
-	then
-	        echo -n "create boot.img..."
-	        ln -rsf $RAMBOOT_IMG $ROCKDEV/boot.img
-	        echo "done."
-	else
-		echo "warning: $RAMBOOT_IMG not found!"
-	fi
-fi
-
-if [ "$RK_RAMDISK_SECURITY_BOOTUP" = "true" ];then
-	if [ -f $TOP_DIR/u-boot/boot.img ]
-	then
-	        echo -n "Enable ramdisk security bootup, create boot.img..."
-	        ln -rsf $TOP_DIR/u-boot/boot.img $ROCKDEV/boot.img
-	        echo "done."
-	else
-		echo "warning: $TOP_DIR/u-boot/boot.img  not found!"
-	fi
-fi
-
-check_partition_size
-
-echo -e "\e[36m Image: image in rockdev is ready \e[0m"
+message "Images in $ROCKDEV are ready!"

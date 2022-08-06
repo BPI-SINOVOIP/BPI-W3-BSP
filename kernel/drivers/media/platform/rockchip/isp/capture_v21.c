@@ -546,6 +546,9 @@ static int dmatx2_config_mi(struct rkisp_stream *stream)
 		mi_wr_ctrl2(base, SW_RAW1_WR_AUTOUPD);
 		mi_raw_length(stream);
 		vc = csi->sink[CSI_SRC_CH3 - 1].index;
+		/* short frame for esp mode */
+		if (dev->hdr.esp_mode != HDR_NORMAL_VC)
+			vc = 2;
 		val = SW_CSI_RAW_WR_CH_EN(vc);
 		val |= stream->memory;
 		if (dev->hdr.op_mode != HDR_NORMAL)
@@ -589,6 +592,9 @@ static int dmatx0_config_mi(struct rkisp_stream *stream)
 		mi_wr_ctrl2(base, SW_RAW0_WR_AUTOUPD);
 		mi_raw_length(stream);
 		vc = csi->sink[CSI_SRC_CH1 - 1].index;
+		/* long frame for esp mode */
+		if (dev->hdr.esp_mode != HDR_NORMAL_VC)
+			vc = 1;
 		val = SW_CSI_RAW_WR_CH_EN(vc);
 		val |= stream->memory;
 		if (dev->hdr.op_mode != HDR_NORMAL)
@@ -1004,7 +1010,7 @@ static void rkisp_stream_stop(struct rkisp_stream *stream)
 		hdr_stop_dmatx(dev);
 
 	if (dev->isp_state & ISP_START &&
-	    !stream->ops->is_stream_stopped(dev->base_addr)) {
+	    !stream->ops->is_stream_stopped(stream)) {
 		ret = wait_event_timeout(stream->done,
 					 !stream->streaming,
 					 msecs_to_jiffies(500));
@@ -1581,7 +1587,7 @@ void rkisp_mi_v21_isr(u32 mis_val, struct rkisp_device *dev)
 				stream->streaming = false;
 				stream->ops->disable_mi(stream);
 				wake_up(&stream->done);
-			} else if (stream->ops->is_stream_stopped(dev->base_addr)) {
+			} else if (stream->ops->is_stream_stopped(stream)) {
 				stream->stopping = false;
 				stream->streaming = false;
 				wake_up(&stream->done);

@@ -19,7 +19,6 @@
 #include <string.h>
 
 #include "mpp_env.h"
-#include "mpp_log.h"
 #include "mpp_mem.h"
 #include "mpp_common.h"
 
@@ -70,9 +69,12 @@ typedef struct {
     void                *hdr_buf;
     size_t              hdr_size;
     size_t              hdr_len;
+    RK_S32              sps_offset;
     RK_S32              sps_len;
+    RK_S32              pps_offset;
     RK_S32              pps_len;
-    RK_S32              sei_len;
+    RK_S32              prefix_offset;
+    RK_S32              prefix_len;
     H264ePrefixNal      prefix;
 
     /* rate control config */
@@ -447,6 +449,9 @@ static MPP_RET h264e_proc_split_cfg(MppEncSliceSplit *dst, MppEncSliceSplit *src
     if (change & MPP_ENC_SPLIT_CFG_CHANGE_ARG)
         dst->split_arg = src->split_arg;
 
+    if (change & MPP_ENC_SPLIT_CFG_CHANGE_OUTPUT)
+        dst->split_out = src->split_out;
+
     dst->change |= change;
     src->change = 0;
 
@@ -529,14 +534,18 @@ static MPP_RET h264e_gen_hdr(void *ctx, MppPacket pkt)
     h264e_dpb_setup(&p->dpb, p->cfg, &p->sps);
 
     mpp_packet_reset(p->hdr_pkt);
-
-    h264e_sps_to_packet(&p->sps, p->hdr_pkt, &p->sps_len);
-    h264e_pps_to_packet(&p->pps, p->hdr_pkt, &p->pps_len);
+    h264e_sps_to_packet(&p->sps, p->hdr_pkt, &p->sps_offset, &p->sps_len);
+    h264e_pps_to_packet(&p->pps, p->hdr_pkt, &p->pps_offset, &p->pps_len);
     p->hdr_len = mpp_packet_get_length(p->hdr_pkt);
 
     if (pkt) {
         mpp_packet_write(pkt, 0, p->hdr_buf, p->hdr_len);
         mpp_packet_set_length(pkt, p->hdr_len);
+
+        mpp_packet_add_segment_info(pkt, H264_NALU_TYPE_SPS,
+                                    p->sps_offset, p->sps_len);
+        mpp_packet_add_segment_info(pkt, H264_NALU_TYPE_PPS,
+                                    p->pps_offset, p->pps_len);
     }
 
     h264e_dbg_func("leave\n");
@@ -644,6 +653,7 @@ static MPP_RET h264e_proc_hal(void *ctx, HalEncTask *task)
     h264e_add_syntax(p, H264E_SYN_CFG, p->cfg);
     h264e_add_syntax(p, H264E_SYN_SPS, &p->sps);
     h264e_add_syntax(p, H264E_SYN_PPS, &p->pps);
+    h264e_add_syntax(p, H264E_SYN_DPB, &p->dpb);
     h264e_add_syntax(p, H264E_SYN_SLICE, &p->slice);
     h264e_add_syntax(p, H264E_SYN_FRAME, &p->frms);
 

@@ -56,7 +56,7 @@ float DrcGetCurrPara
     float*         inMatrixY,
     int Max_Knots
 ) {
-    LOG1_AMERGE( "%s:enter!\n", __FUNCTION__);
+    LOG1_ATMO( "%s:enter!\n", __FUNCTION__);
     float x1 = 0.0f;
     float x2 = 0.0f;
     float value1 = 0.0f;
@@ -84,7 +84,7 @@ float DrcGetCurrPara
         }
 
     return outPara;
-    LOG1_AMERGE( "%s:exit!\n", __FUNCTION__);
+    LOG1_ATMO( "%s:exit!\n", __FUNCTION__);
 }
 
 /******************************************************************************
@@ -97,7 +97,7 @@ int DrcGetCurrParaInt
     int*         inMatrixY,
     int Max_Knots
 ) {
-    LOG1_AMERGE( "%s:enter!\n", __FUNCTION__);
+    LOG1_ATMO( "%s:enter!\n", __FUNCTION__);
     float x1 = 0.0f;
     float x2 = 0.0f;
     float value1 = 0.0f;
@@ -125,7 +125,7 @@ int DrcGetCurrParaInt
         }
 
     return outPara;
-    LOG1_AMERGE( "%s:exit!\n", __FUNCTION__);
+    LOG1_ATMO( "%s:exit!\n", __FUNCTION__);
 }
 
 /******************************************************************************
@@ -1787,31 +1787,32 @@ bool AdrcByPassProcessing
 
     bool bypass = false;
     float diff = 0.0;
-
     float ByPassThr = 0.0f;
-    if(CHECK_ISP_HW_V21())
-        ByPassThr = pAdrcCtx->Config.Drc_v21.Others.ByPassThr;
-    else if(CHECK_ISP_HW_V30())
-        ByPassThr = pAdrcCtx->Config.Drc_v30.Others.ByPassThr;
 
-    if(pAdrcCtx->frameCnt <= 2)//start frame
+    // get current EnvLv from AecPreRes
+    AdrcGetEnvLv(pAdrcCtx, AecHdrPreResult);
+
+    // motion coef
+    pAdrcCtx->CurrData.MotionCoef = MOVE_COEF_DEFAULT;
+
+    // transfer ae data to CurrHandle
+    pAdrcCtx->CurrData.EnvLv =
+        LIMIT_VALUE(pAdrcCtx->CurrData.EnvLv, ADRCNORMALIZEMAX, ADRCNORMALIZEMIN);
+
+    pAdrcCtx->CurrData.ISO = pAdrcCtx->CurrAeResult.ISO;
+    pAdrcCtx->CurrData.ISO = LIMIT_VALUE(pAdrcCtx->CurrData.ISO, ISOMAX, ISOMIN);
+
+    if (pAdrcCtx->frameCnt <= 2)  // start frame
         bypass = false;
-    else if(pAdrcCtx->drcAttr.opMode > DRC_OPMODE_API_OFF)//api
+    else if (pAdrcCtx->drcAttr.opMode > DRC_OPMODE_API_OFF)  // api
         bypass = false;
-    else if(pAdrcCtx->drcAttr.opMode !=  pAdrcCtx->PrevData.ApiMode)//api change
+    else if (pAdrcCtx->drcAttr.opMode != pAdrcCtx->PrevData.ApiMode)  // api change
         bypass = false;
-    else { //EnvLv change
-        //get current EnvLv from AecPreRes
-        AdrcGetEnvLv(pAdrcCtx, AecHdrPreResult);
-
-        //motion coef
-        pAdrcCtx->CurrData.MotionCoef = MOVE_COEF_DEFAULT;
-
-        //transfer ae data to CurrHandle
-        pAdrcCtx->CurrData.EnvLv = LIMIT_VALUE(pAdrcCtx->CurrData.EnvLv, ADRCNORMALIZEMAX, ADRCNORMALIZEMIN);
-
-        pAdrcCtx->CurrData.ISO = pAdrcCtx->CurrAeResult.ISO;
-        pAdrcCtx->CurrData.ISO = LIMIT_VALUE(pAdrcCtx->CurrData.ISO, ISOMAX, ISOMIN);
+    else {  // EnvLv change
+        if (CHECK_ISP_HW_V21())
+            ByPassThr = pAdrcCtx->Config.Drc_v21.Others.ByPassThr;
+        else if (CHECK_ISP_HW_V30())
+            ByPassThr = pAdrcCtx->Config.Drc_v30.Others.ByPassThr;
 
         //use Envlv for now
         diff = pAdrcCtx->PrevData.EnvLv - pAdrcCtx->CurrData.EnvLv;

@@ -74,7 +74,7 @@ typedef struct MppDecVprocCtxImpl_t {
 
 static void dec_vproc_put_frame(Mpp *mpp, MppFrame frame, MppBuffer buf, RK_S64 pts, RK_U32 err)
 {
-    mpp_list *list = mpp->mFrames;
+    mpp_list *list = mpp->mFrmOut;
     MppFrame out = NULL;
     MppFrameImpl *impl = NULL;
 
@@ -592,7 +592,7 @@ MPP_RET dec_vproc_init(MppDecVprocCtx *ctx, MppDecVprocCfg *cfg)
     p->slots = ((MppDecImpl *)p->mpp->mDec)->frame_slots;
     p->thd = new MppThread(dec_vproc_thread, p, "mpp_dec_vproc");
     sem_init(&p->reset_sem, 0, 0);
-    ret = hal_task_group_init(&p->task_group, 4);
+    ret = hal_task_group_init(&p->task_group, TASK_BUTT, 4, sizeof(HalDecVprocTask));
     if (ret) {
         mpp_err_f("create task group failed\n");
         delete p->thd;

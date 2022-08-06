@@ -28,53 +28,12 @@ typedef enum merge_OpModeV21_e {
 
 typedef uapiMergeCurrCtlData_t MergeCurrCtlData_t;
 
-typedef struct mMergeOECurveV21_s {
-    float Smooth;
-    float Offset;
-} mMergeOECurveV21_t;
-
-typedef struct mMergeMDCurveV21_s {
-    float LM_smooth;
-    float LM_offset;
-    float MS_smooth;
-    float MS_offset;
-} mMergeMDCurveV21_t;
-
-typedef struct mmergeAttrV21_s
-{
-    mMergeOECurveV21_t OECurve;
-    mMergeMDCurveV21_t MDCurve;
-} mmergeAttrV21_t;
-
 typedef struct mergeAttrV21_s
 {
     merge_OpModeV21_t    opMode;
     mmergeAttrV21_t      stManual;
     MergeCurrCtlData_t   CtlInfo;
 } mergeAttrV21_t;
-
-typedef struct mLongFrameModeData_s {
-    mMergeOECurveV21_t OECurve;
-    mMergeMDCurveV21_t MDCurve;
-} mLongFrameModeData_t;
-
-typedef struct mMergeMDCurveV30Short_s {
-    float Coef;
-    float ms_thd0;
-    float lm_thd0;
-} mMergeMDCurveV30Short_t;
-
-typedef struct mShortFrameModeData_s {
-    mMergeOECurveV21_t OECurve;
-    mMergeMDCurveV30Short_t MDCurve;
-} mShortFrameModeData_t;
-
-typedef struct mMergeAttrV30_s
-{
-    MergeBaseFrame_t BaseFrm;
-    mLongFrameModeData_t LongFrmModeData;
-    mShortFrameModeData_t ShortFrmModeData;
-} mMergeAttrV30_t;
 
 typedef struct mergeAttrV30_s
 {

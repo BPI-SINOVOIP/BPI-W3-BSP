@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2020-2021 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2020-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -67,9 +67,9 @@ struct firmware_config {
 			.mode = VERIFY_OCTAL_PERMISSIONS(_mode),	\
 	}
 
-static FW_CFG_ATTR(min, S_IRUGO);
-static FW_CFG_ATTR(max, S_IRUGO);
-static FW_CFG_ATTR(cur, S_IRUGO | S_IWUSR);
+static FW_CFG_ATTR(min, 0444);
+static FW_CFG_ATTR(max, 0444);
+static FW_CFG_ATTR(cur, 0644);
 
 static void fw_cfg_kobj_release(struct kobject *kobj)
 {
@@ -273,9 +273,8 @@ void kbase_csf_firmware_cfg_term(struct kbase_device *kbdev)
 }
 
 int kbase_csf_firmware_cfg_option_entry_parse(struct kbase_device *kbdev,
-					      const struct firmware *fw,
-					      const u32 *entry,
-					      unsigned int size, bool updatable)
+					      const struct kbase_csf_mcu_fw *const fw,
+					      const u32 *entry, unsigned int size, bool updatable)
 {
 	const char *name = (char *)&entry[3];
 	struct firmware_config *config;
@@ -319,8 +318,8 @@ void kbase_csf_firmware_cfg_term(struct kbase_device *kbdev)
 }
 
 int kbase_csf_firmware_cfg_option_entry_parse(struct kbase_device *kbdev,
-		const struct firmware *fw,
-		const u32 *entry, unsigned int size)
+					      const struct kbase_csf_mcu_fw *const fw,
+					      const u32 *entry, unsigned int size)
 {
 	return 0;
 }

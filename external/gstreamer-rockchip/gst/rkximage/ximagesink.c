@@ -141,11 +141,8 @@ static drmModePlane *
 drm_find_plane_for_crtc_by_type (int fd, drmModeRes * res,
     drmModePlaneRes * pres, int crtc_id, int type)
 {
-  drmModePlane *plane;
-  int i, pipe;
+  int i, pipe = -1, num_primary = 0;
 
-  plane = NULL;
-  pipe = -1;
   for (i = 0; i < res->count_crtcs; i++) {
     if (crtc_id == res->crtcs[i]) {
       pipe = i;
@@ -157,9 +154,13 @@ drm_find_plane_for_crtc_by_type (int fd, drmModeRes * res,
     return NULL;
 
   for (i = 0; i < pres->count_planes; i++) {
-    plane = drmModeGetPlane (fd, pres->planes[i]);
-    if (plane->possible_crtcs & (1 << pipe)) {
-      if (drm_plane_get_type (fd, plane) == type)
+    drmModePlane *plane = drmModeGetPlane (fd, pres->planes[i]);
+    int plane_type = drm_plane_get_type (fd, plane);
+    int primary = plane_type == DRM_PLANE_TYPE_PRIMARY;
+
+    num_primary += primary;
+    if ((plane->possible_crtcs & (1 << pipe)) && plane_type == type) {
+      if (!primary || pipe == num_primary - 1)
         return plane;
     }
     drmModeFreePlane (plane);
@@ -443,7 +444,17 @@ drm_ensure_allowed_caps (GstRkXImageSink * self, drmModePlane * plane,
   for (i = 0; i < plane->count_formats; i++) {
     gboolean linear = FALSE, afbc = FALSE;
 
-    fmt = gst_video_format_from_drm (plane->formats[i]);
+    check_afbc (self, plane, plane->formats[i], &linear, &afbc);
+
+    if (plane->formats[i] == DRM_FORMAT_YUV420_8BIT)
+      fmt = GST_VIDEO_FORMAT_NV12;
+    else if (plane->formats[i] == DRM_FORMAT_YUV420_10BIT)
+      fmt = GST_VIDEO_FORMAT_NV12_10LE40;
+    else if (afbc && plane->formats[i] == DRM_FORMAT_YUYV)
+      fmt = GST_VIDEO_FORMAT_NV16;
+      else
+        fmt = gst_video_format_from_drm (plane->formats[i]);
+
     if (fmt == GST_VIDEO_FORMAT_UNKNOWN) {
       GST_INFO_OBJECT (self, "ignoring format %" GST_FOURCC_FORMAT,
           GST_FOURCC_ARGS (plane->formats[i]));
@@ -457,14 +468,6 @@ drm_ensure_allowed_caps (GstRkXImageSink * self, drmModePlane * plane,
         "framerate", GST_TYPE_FRACTION_RANGE, 0, 1, G_MAXINT, 1, NULL);
     if (!caps)
       continue;
-
-#ifndef HAVE_NV12_10LE40
-    /* HACK: Fake format needs negotiation */
-    if (fmt == GST_VIDEO_FORMAT_NV12_10LE40)
-      gst_caps_set_simple (caps, "nv12-10le40", G_TYPE_INT, 1, NULL);
-#endif
-
-    check_afbc (self, plane, plane->formats[i], &linear, &afbc);
 
     if (afbc) {
       GstCaps *afbc_caps = gst_caps_copy (caps);
@@ -686,9 +689,7 @@ gst_kms_sink_import_dmabuf (GstRkXImageSink * self, GstBuffer * inbuf,
     GstBuffer ** outbuf)
 {
   gint prime_fds[GST_VIDEO_MAX_PLANES] = { 0, };
-  GstVideoCropMeta *crop;
   GstVideoMeta *meta;
-  GstVideoInfo info;
   guint i, n_mem, n_planes;
   GstKMSMemory *kmsmem;
   guint mems_idx[GST_VIDEO_MAX_PLANES];
@@ -758,16 +759,8 @@ gst_kms_sink_import_dmabuf (GstRkXImageSink * self, GstBuffer * inbuf,
   GST_LOG_OBJECT (self, "found these prime ids: %d, %d, %d, %d", prime_fds[0],
       prime_fds[1], prime_fds[2], prime_fds[3]);
 
-  info = self->vinfo;
-  if ((crop = gst_buffer_get_video_crop_meta (inbuf))) {
-    int crop_height = crop->y + crop->height;
-
-    if (crop_height > GST_VIDEO_INFO_HEIGHT (&info))
-      GST_VIDEO_INFO_HEIGHT (&info) = crop_height;
-  }
-
   kmsmem = gst_kms_allocator_dmabuf_import (self->allocator,
-      prime_fds, n_planes, mems_skip, &info);
+      prime_fds, n_planes, mems_skip, &self->vinfo);
   if (!kmsmem)
     return FALSE;
 
@@ -1917,14 +1910,6 @@ gst_x_image_sink_setcaps (GstBaseSink * bsink, GstCaps * caps)
     else
       GST_VIDEO_INFO_UNSET_AFBC (&info);
   }
-
-#ifndef HAVE_NV12_10LE40
-  /* HACK: Fake format needs negotiation */
-  if (GST_VIDEO_INFO_FORMAT (&info) == GST_VIDEO_FORMAT_NV12_10LE40) {
-    if (!gst_structure_get_int (s, "nv12-10le40", &value) || !value)
-      goto invalid_format;
-  }
-#endif
 
   GST_VIDEO_SINK_WIDTH (ximagesink) = info.width;
   GST_VIDEO_SINK_HEIGHT (ximagesink) = info.height;

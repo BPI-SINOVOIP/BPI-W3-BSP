@@ -18,6 +18,10 @@
 #define EMMC_CAPACITY 8
 #endif
 
+#ifdef PCBA_3588
+#define EMMC_CAPACITY 8
+#endif
+
 void *emmc_test(void *argv);
 
 #endif

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2018-2021 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2018-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -133,6 +133,8 @@ struct kbase_hwcnt_backend_jm {
  * @info:  Non-NULL pointer to data structure to be filled in.
  *
  * The initialised info struct will only be valid for use while kbdev is valid.
+ *
+ * Return: 0 on success, else error code.
  */
 static int
 kbasep_hwcnt_backend_jm_gpu_info_init(struct kbase_device *kbdev,
@@ -412,7 +414,12 @@ static int kbasep_hwcnt_backend_jm_dump_enable_nolock(
 	enable.tiler_bm = phys_enable_map.tiler_bm;
 	enable.mmu_l2_bm = phys_enable_map.mmu_l2_bm;
 	enable.counter_set = phys_counter_set;
+#if IS_ENABLED(CONFIG_MALI_BIFROST_NO_MALI)
+	/* The dummy model needs the CPU mapping. */
+	enable.dump_buffer = (uintptr_t)backend_jm->cpu_dump_va;
+#else
 	enable.dump_buffer = backend_jm->gpu_dump_va;
+#endif /* CONFIG_MALI_BIFROST_NO_MALI */
 	enable.dump_buffer_bytes = backend_jm->info->dump_bytes;
 
 	timestamp_ns = kbasep_hwcnt_backend_jm_timestamp_ns(backend);
@@ -731,9 +738,6 @@ static int kbasep_hwcnt_backend_jm_create(
 	int errcode;
 	struct kbase_device *kbdev;
 	struct kbase_hwcnt_backend_jm *backend = NULL;
-#if IS_ENABLED(CONFIG_MALI_BIFROST_NO_MALI)
-	size_t page_count;
-#endif
 
 	WARN_ON(!info);
 	WARN_ON(!out_backend);
@@ -772,14 +776,6 @@ static int kbasep_hwcnt_backend_jm_create(
 
 	kbase_ccswe_init(&backend->ccswe_shader_cores);
 	backend->rate_listener.notify = kbasep_hwcnt_backend_jm_on_freq_change;
-
-#if IS_ENABLED(CONFIG_MALI_BIFROST_NO_MALI)
-	/* The dummy model needs the CPU mapping. */
-	page_count = PFN_UP(info->dump_bytes);
-	gpu_model_set_dummy_prfcnt_base_cpu(backend->cpu_dump_va, kbdev,
-					    backend->vmap->cpu_pages,
-					    page_count);
-#endif /* CONFIG_MALI_BIFROST_NO_MALI */
 
 	*out_backend = backend;
 	return 0;
@@ -854,7 +850,7 @@ static void kbasep_hwcnt_backend_jm_info_destroy(
  * @kbdev: Non_NULL pointer to kbase device.
  * @out_info: Non-NULL pointer to where info is stored on success.
  *
- * Return 0 on success, else error code.
+ * Return: 0 on success, else error code.
  */
 static int kbasep_hwcnt_backend_jm_info_create(
 	struct kbase_device *kbdev,

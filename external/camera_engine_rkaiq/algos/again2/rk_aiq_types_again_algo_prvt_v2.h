@@ -50,6 +50,8 @@ typedef struct Again_Context_V2_s {
     Again_Auto_Attr_V2_t stAuto;
     Again_Manual_Attr_V2_t stManual;
 
+    Again_ProcResult_V2_t stProcResult;
+
     bool isIQParaUpdate;
     bool isGrayMode;
     Again_ParamMode_V2_t eParamMode;
@@ -58,11 +60,12 @@ typedef struct Again_Context_V2_s {
     int rawHeight;
 
     Again_GainState_V2_t stGainState;
-    int mfnr_mode_3to1;
-    int mfnr_local_gain_en;
     int prepare_type;
 
     int isReCalculate;
+
+    CalibDbV2_GainV2_t gain_v2;
+
 } Again_Context_V2_t;
 
 

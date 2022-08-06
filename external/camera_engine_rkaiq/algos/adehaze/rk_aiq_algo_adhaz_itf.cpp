@@ -121,7 +121,6 @@ pre_process(const RkAiqAlgoCom* inparams, RkAiqAlgoResCom* outparams)
     LOG1_ADEHAZE("ENTER: %s \n", __func__);
 
     AdehazeHandle_t * pAdehazeHandle = (AdehazeHandle_t *)inparams->ctx;
-    pAdehazeHandle->FrameID = inparams->frame_id;
     RkAiqAlgoPreAdhaz* config = (RkAiqAlgoPreAdhaz*)inparams;
 
     pAdehazeHandle->width = config->rawWidth;
@@ -141,6 +140,7 @@ processing(const RkAiqAlgoCom* inparams, RkAiqAlgoResCom* outparams)
     AdehazeHandle_t * pAdehazeHandle = (AdehazeHandle_t *)inparams->ctx;
     RkAiqAlgoProcAdhaz* pProcPara = (RkAiqAlgoProcAdhaz*)inparams;
     RkAiqAlgoProcResAdhaz* pProcRes = (RkAiqAlgoProcResAdhaz*)outparams;
+	pAdehazeHandle->FrameID = inparams->frame_id;
 
     LOGD_ADEHAZE("/*************************Adehaze Start******************/ \n");
 

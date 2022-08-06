@@ -68,6 +68,7 @@ Abayer2dnr_result_V2_t bayer2dnr_select_params_by_ISO_V2(RK_Bayer2dnr_Params_V2_
              isoGain, isoGainHig, isoGainLow);
 
     pSelect->enable = pParams->enable;
+    pSelect->hdrdgain_ctrl_en = pParams->hdrdgain_ctrl_en;
 
     pSelect->filter_strength = float(isoGainHig - isoGain) / float(isoGainHig - isoGainLow) * pParams->filter_strength[isoLevelLow]
                                + float(isoGain - isoGainLow) / float(isoGainHig - isoGainLow) * pParams->filter_strength[isoLevelHig];
@@ -93,6 +94,10 @@ Abayer2dnr_result_V2_t bayer2dnr_select_params_by_ISO_V2(RK_Bayer2dnr_Params_V2_
                         + float(isoGain - isoGainLow) / float(isoGainHig - isoGainLow) * pParams->pix_diff[isoLevelHig];
     pSelect->diff_thld = float(isoGainHig - isoGain) / float(isoGainHig - isoGainLow) * pParams->diff_thld[isoLevelLow]
                          + float(isoGain - isoGainLow) / float(isoGainHig - isoGainLow) * pParams->diff_thld[isoLevelHig];
+    pSelect->hdr_dgain_scale_s = float(isoGainHig - isoGain) / float(isoGainHig - isoGainLow) * pParams->hdr_dgain_scale_s[isoLevelLow]
+                                 + float(isoGain - isoGainLow) / float(isoGainHig - isoGainLow) * pParams->hdr_dgain_scale_s[isoLevelHig];
+    pSelect->hdr_dgain_scale_m = float(isoGainHig - isoGain) / float(isoGainHig - isoGainLow) * pParams->hdr_dgain_scale_m[isoLevelLow]
+                                 + float(isoGain - isoGainLow) / float(isoGainHig - isoGainLow) * pParams->hdr_dgain_scale_m[isoLevelHig];
     return res;
 }
 
@@ -148,7 +153,7 @@ unsigned short bayer2dnr_get_trans_V2(int tmpfix)
     return fx;
 }
 
-Abayer2dnr_result_V2_t bayer2dnr_fix_transfer_V2(RK_Bayer2dnr_Params_V2_Select_t* pSelect, RK_Bayer2dnr_Fix_V2_t *pFix, float fStrength, Abayer2dnr_ExpInfo_V2_t *pExpInfo)
+Abayer2dnr_result_V2_t bayer2dnr_fix_transfer_V2(RK_Bayer2dnr_Params_V2_Select_t* pSelect, RK_Bayer2dnr_Fix_V2_t *pFix, rk_aiq_bayer2dnr_strength_v2_t *pStrength, Abayer2dnr_ExpInfo_V2_t *pExpInfo)
 {
     //--------------------------- v2 params ----------------------------//
     float frameiso[3];
@@ -161,6 +166,7 @@ Abayer2dnr_result_V2_t bayer2dnr_fix_transfer_V2(RK_Bayer2dnr_Params_V2_Select_t
     float tmp1, tmp2, edgesofts;
     int bayernr_sw_bil_gauss_weight[16];
     int tmp;
+    float fStrength = 1.0;
 
     if(pSelect == NULL) {
         LOGE_ANR("%s(%d): null pointer\n", __FUNCTION__, __LINE__);
@@ -177,9 +183,23 @@ Abayer2dnr_result_V2_t bayer2dnr_fix_transfer_V2(RK_Bayer2dnr_Params_V2_Select_t
         return ABAYER2DNR_RET_NULL_POINTER;
     }
 
+    if(pStrength == NULL) {
+        LOGE_ANR("%s(%d): null pointer\n", __FUNCTION__, __LINE__);
+        return ABAYER2DNR_RET_NULL_POINTER;
+    }
+
+    if(pStrength->strength_enable) {
+        fStrength = pStrength->percent;
+    }
+
     if(fStrength <= 0.0f) {
         fStrength = 0.000001;
     }
+
+    LOGD_ANR("api enalbe:%d api:strength:%f fStrength:%f\n",
+             pStrength->strength_enable,
+             pStrength->percent,
+             fStrength);
 
     // hdr gain
     int framenum = pExpInfo->hdr_mode + 1;
@@ -221,6 +241,60 @@ Abayer2dnr_result_V2_t bayer2dnr_fix_transfer_V2(RK_Bayer2dnr_Params_V2_Select_t
         pFix->baynr_dgain[i] = CLIP(tmp, 0, 0xffff);
     }
 
+    if(pSelect->hdrdgain_ctrl_en) {
+        //lc
+        if(framenum == 2) {
+            LOGD_ANR("lc before bayernr dgain:%d\n", pFix->baynr_dgain[0]);
+            tmp = pFix->baynr_dgain[0] * pSelect->hdr_dgain_scale_s;
+            pFix->baynr_dgain[0] = CLIP(tmp, 0, 0xffff);
+            LOGD_ANR("lc after bayernr dgain:%d sacale_s:%f\n ",
+                     pFix->baynr_dgain[0], pSelect->hdr_dgain_scale_s);
+        }
+
+        if(framenum == 3) {
+            LOGD_ANR("lc before bayernr dgain:%d %d\n",
+                     pFix->baynr_dgain[0],
+                     pFix->baynr_dgain[1]);
+            tmp = pFix->baynr_dgain[0] * pSelect->hdr_dgain_scale_s;
+            pFix->baynr_dgain[0] = CLIP(tmp, 0, 0xffff);
+
+            tmp = pFix->baynr_dgain[1] * pSelect->hdr_dgain_scale_m;
+            pFix->baynr_dgain[1] = CLIP(tmp, 0, 0xffff);
+
+            LOGD_ANR("lc after bayernr dgain:%d %d scale:%f %f\n ",
+                     pFix->baynr_dgain[0], pFix->baynr_dgain[1],
+                     pSelect->hdr_dgain_scale_s, pSelect->hdr_dgain_scale_m);
+        }
+    }
+
+    //wjm  get gain
+    if(framenum > 1) {
+        LOGD_ANR("wjm before dgain[0]:%d \n ", pFix->baynr_dgain[0]);
+
+        //wjm clip
+        double maxsigma = (1 << 14) - 1;
+        double maxgain = pSelect->sigma[0];
+        for(i = 0; i < 16; i++) {
+            if(maxgain < pSelect->sigma[i]) {
+                maxgain = pSelect->sigma[i];
+            }
+        }
+        LOGD_ANR("wjm maxgain:%f\n", maxgain);
+        maxgain = maxsigma / maxgain;
+        tmp = maxgain * (1 << 8);
+        LOGD_ANR("wjm tmp:%d\n", tmp);
+        tmp = MIN(pFix->baynr_dgain[0], tmp);
+        pFix->baynr_dgain[0] = CLIP(tmp, 0, 0xffff);
+        LOGD_ANR("wjm after hdr mode maxsigma:%f maxgain:%f  tmp:%d dgain[0]:%d \n ",
+                 maxsigma, maxgain, tmp, pFix->baynr_dgain[0]);
+
+        if(framenum > 2) {
+            tmp = MIN(pFix->baynr_dgain[1], tmp);
+            pFix->baynr_dgain[1] = CLIP(tmp, 0, 0xffff);
+        }
+
+    }
+
     // ISP_BAYNR_3A00_PIXDIFF
     tmp = pSelect->pix_diff;
     pFix->baynr_pix_diff = CLIP(tmp, 0, 0x3fff);
@@ -253,8 +327,9 @@ Abayer2dnr_result_V2_t bayer2dnr_fix_transfer_V2(RK_Bayer2dnr_Params_V2_Select_t
     pFix->weit_d[2] = 0x31d;
 #else
     edgesofts = pSelect->edgesofts * fStrength;
-    if(edgesofts > 16.0);
-    edgesofts = 16.0;
+    if(edgesofts > 16.0) {
+        edgesofts = 16.0;
+    }
     for(i = 0; i < 8; i++)
     {
         tmp1 = (float)(ypos[i] * ypos[i] + xpos[i] * xpos[i]);
@@ -413,6 +488,7 @@ Abayer2dnr_result_V2_t bayer2dnr_init_params_json_V2(RK_Bayer2dnr_Params_V2_t *p
         return ABAYER2DNR_RET_NULL_POINTER;
     }
     pParams->enable = pCalibdb->TuningPara.enable;
+    pParams->hdrdgain_ctrl_en = pCalibdb->TuningPara.hdrdgain_ctrl_en;
 
     for(int i = 0; i < pCalibdb->CalibPara.Setting[calib_idx].Calib_ISO_len && i < RK_BAYER2DNR_V2_MAX_ISO_NUM; i++) {
         pCalibIso = &pCalibdb->CalibPara.Setting[calib_idx].Calib_ISO[i];
@@ -434,7 +510,14 @@ Abayer2dnr_result_V2_t bayer2dnr_init_params_json_V2(RK_Bayer2dnr_Params_V2_t *p
 
         pParams->pix_diff[i] = FIXDIFMAX - 1;
         pParams->diff_thld[i] = LUTPRECISION_FIX;
+
+        pParams->hdr_dgain_scale_s[i] = pTuningISO->hdr_dgain_scale_s;
+        pParams->hdr_dgain_scale_m[i] = pTuningISO->hdr_dgain_scale_m;
+        LOGD_ANR("i:%d dgain_scale:%f %f  \n",
+                 i,
+                 pTuningISO->hdr_dgain_scale_s, pTuningISO->hdr_dgain_scale_m);
     }
+
 
     LOGI_ANR("%s:(%d) oyyf bayerner xml config end!   \n", __FUNCTION__, __LINE__);
 

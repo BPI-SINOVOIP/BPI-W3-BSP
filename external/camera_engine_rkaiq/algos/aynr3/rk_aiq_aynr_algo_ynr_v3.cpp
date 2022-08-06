@@ -185,7 +185,7 @@ Aynr_result_V3_t ynr_select_params_by_ISO_V3(RK_YNR_Params_V3_t *pParams, RK_YNR
     return res;
 }
 
-Aynr_result_V3_t ynr_fix_transfer_V3(RK_YNR_Params_V3_Select_t* pSelect, RK_YNR_Fix_V3_t *pFix, float fStrength, Aynr_ExpInfo_V3_t *pExpInfo)
+Aynr_result_V3_t ynr_fix_transfer_V3(RK_YNR_Params_V3_Select_t* pSelect, RK_YNR_Fix_V3_t *pFix, rk_aiq_ynr_strength_v3_t *pStrength, Aynr_ExpInfo_V3_t *pExpInfo)
 {
     LOGI_ANR("%s:(%d) enter \n", __FUNCTION__, __LINE__);
 
@@ -203,18 +203,32 @@ Aynr_result_V3_t ynr_fix_transfer_V3(RK_YNR_Params_V3_Select_t* pSelect, RK_YNR_
         return AYNRV3_RET_NULL_POINTER;
     }
 
+    if(pStrength == NULL) {
+        LOGE_ANR("%s(%d): null pointer\n", __FUNCTION__, __LINE__);
+        return AYNRV3_RET_NULL_POINTER;
+    }
+
     if(pExpInfo == NULL) {
         LOGE_ANR("%s(%d): null pointer\n", __FUNCTION__, __LINE__);
         return AYNRV3_RET_NULL_POINTER;
     }
 
-    LOGD_ANR("%s:%d strength:%f raw:width:%d height:%d\n",
-             __FUNCTION__, __LINE__,
-             fStrength, pExpInfo->rawHeight, pExpInfo->rawWidth);
+    float fStrength = 1.0;
+
+    if(pStrength->strength_enable) {
+        fStrength = pStrength->percent;
+    }
 
     if(fStrength <= 0.0) {
         fStrength = 0.000001;
     }
+
+    LOGD_ANR("%s:%d strength_enable:%d fStrength:%f raw:width:%d height:%d\n",
+             __FUNCTION__, __LINE__,
+             pStrength->strength_enable,
+             fStrength,
+             pExpInfo->rawHeight,
+             pExpInfo->rawWidth);
 
     // YNR_2700_GLOBAL_CTRL (0x0000)
     pFix->ynr_rnr_en = 1;

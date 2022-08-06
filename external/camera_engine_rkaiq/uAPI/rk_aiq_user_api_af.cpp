@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2019 Rockchip Corporation
+ * Copyright (c) 2019-2022 Rockchip Eletronics Co., Ltd.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -12,11 +12,10 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
-
 #include "rk_aiq_user_api_af.h"
-#include "RkAiqHandleInt.h"
+
+#include "algo_handlers/RkAiqAfHandle.h"
 #include "rk_aiq_user_api_sysctl.h"
 
 RKAIQ_BEGIN_DECLARE
@@ -283,7 +282,7 @@ rk_aiq_user_api_af_GetZoomRange(const rk_aiq_sys_ctx_t* sys_ctx, rk_aiq_af_zoomr
     }
     focal_length_len = zoomfocus_tbl->focal_length_len;
 
-    if (focal_length_len > 0) {
+    if (focal_length_len > 1) {
         range->min_fl = zoomfocus_tbl->focal_length[0];
         range->max_fl = zoomfocus_tbl->focal_length[focal_length_len - 1];
         range->min_pos = 0;

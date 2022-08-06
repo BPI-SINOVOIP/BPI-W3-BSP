@@ -4,6 +4,12 @@ SRC_CPP := $(wildcard $(LOCAL_PATH)/demo/*.cpp)
 SRC_C := $(wildcard $(LOCAL_PATH)/demo/*.c)
 SRC_C += $(wildcard $(LOCAL_PATH)/demo/drmDsp/*.c)
 
+ifneq ($(filter rk1126 rk356x, $(strip $(TARGET_BOARD_PLATFORM))), )
+LOCAL_CPPFLAGS += -DISP_HW_V21
+endif
+ifneq ($(filter rk3588, $(strip $(TARGET_BOARD_PLATFORM))), )
+LOCAL_CPPFLAGS += -DISP_HW_V30
+endif
 LOCAL_SRC_FILES :=\
 	demo/drmDsp.c \
 	demo/drmDsp/bo.c \
@@ -30,7 +36,9 @@ LOCAL_C_INCLUDES := \
 	$(LOCAL_PATH)/demo/include/rga \
 	$(LOCAL_PATH)/demo/include/libdrm \
 	$(LOCAL_PATH)/demo/drmDsp \
+	$(LOCAL_PATH)/demo/sample \
 	$(LOCAL_PATH)/../../include/uAPI \
+	$(LOCAL_PATH)/../../include/uAPI2 \
 	$(LOCAL_PATH)/../../include/xcore \
 	$(LOCAL_PATH)/../../include/algos \
 	$(LOCAL_PATH)/../../include/common \

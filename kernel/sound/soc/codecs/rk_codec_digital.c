@@ -25,6 +25,7 @@
 
 #define RK3568_GRF_SOC_CON2 (0x0508)
 #define RK3588_GRF_SOC_CON6 (0x0318)
+#define RV1106_GRF_SOC_CON1 (0x0004)
 #define RV1126_GRF_SOC_CON2 (0x0008)
 
 struct rk_codec_digital_soc_data {
@@ -910,6 +911,33 @@ static const struct rk_codec_digital_soc_data rk3588_data = {
 	.deinit = rk3588_soc_deinit,
 };
 
+static int rv1106_soc_init(struct device *dev)
+{
+	struct rk_codec_digital_priv *rcd = dev_get_drvdata(dev);
+
+	if (IS_ERR(rcd->grf))
+		return PTR_ERR(rcd->grf);
+
+	/* enable internal codec to i2s0 */
+	return regmap_write(rcd->grf, RV1106_GRF_SOC_CON1,
+			    (BIT(8) << 16 | BIT(8)));
+}
+
+static void rv1106_soc_deinit(struct device *dev)
+{
+	struct rk_codec_digital_priv *rcd = dev_get_drvdata(dev);
+
+	if (IS_ERR(rcd->grf))
+		return;
+
+	regmap_write(rcd->grf, RV1106_GRF_SOC_CON1, (BIT(8) << 16));
+}
+
+static const struct rk_codec_digital_soc_data rv1106_data = {
+	.init = rv1106_soc_init,
+	.deinit = rv1106_soc_deinit,
+};
+
 static int rv1126_soc_init(struct device *dev)
 {
 	struct rk_codec_digital_priv *rcd = dev_get_drvdata(dev);
@@ -940,9 +968,18 @@ static const struct rk_codec_digital_soc_data rv1126_data = {
 #ifdef CONFIG_OF
 static const struct of_device_id rcd_of_match[] = {
 	{ .compatible = "rockchip,codec-digital-v1", },
+#ifdef CONFIG_CPU_RK3568
 	{ .compatible = "rockchip,rk3568-codec-digital", .data = &rk3568_data },
+#endif
+#ifdef CONFIG_CPU_RK3588
 	{ .compatible = "rockchip,rk3588-codec-digital", .data = &rk3588_data },
+#endif
+#ifdef CONFIG_CPU_RV1106
+	{ .compatible = "rockchip,rv1106-codec-digital", .data = &rv1106_data },
+#endif
+#ifdef CONFIG_CPU_RV1126
 	{ .compatible = "rockchip,rv1126-codec-digital", .data = &rv1126_data },
+#endif
 	{},
 };
 MODULE_DEVICE_TABLE(of, rcd_of_match);

@@ -1,6 +1,7 @@
 #ifndef __RK_AIQ_TYPES_AF_ALGO_INT_H__
 #define __RK_AIQ_TYPES_AF_ALGO_INT_H__
 
+#include "af_uapi_head.h"
 #include "rk_aiq_types_af_algo.h"
 
 typedef struct {

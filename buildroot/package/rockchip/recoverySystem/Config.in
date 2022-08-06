@@ -1,4 +1,0 @@
-config BR2_PACKAGE_RECOVERYSYSTEM
-	bool "Rockchip recoverySystem for linux"
-	help
-	  Rockchip recoverySystem for linux.

@@ -1,6 +1,6 @@
-# From https://lists.freedesktop.org/archives/input-tools/2018-January/001447.html
-md5 c25a8c3939e4ad59a5e9e5e1e354832d libevdev-1.5.8.tar.xz
-sha1 a60e7a43570cdbc64af5adf99ca80023d21a1174 libevdev-1.5.8.tar.xz
-sha256 6083d81e46609da8ba80cb826c02d9080764a6dec33c8267ccb7e158833d4c6d libevdev-1.5.8.tar.xz
-sha512 e9485d8c6b48ebf762b32b003bc6b761c548024ad3bc34a0793485b53383746881fcc9b206a078d571937291e519d9822e50c5d8816778d347094691b65ec3fa libevdev-1.5.8.tar.xz
-sha256 f063d1279b31e73007e1c54493391818b4cb5f9162d590120397e0347b932137  COPYING
+# From https://lists.freedesktop.org/archives/input-tools/2021-February/001557.html
+sha256  63f4ea1489858a109080e0b40bd43e4e0903a1e12ea888d581db8c495747c2d0  libevdev-1.11.0.tar.xz
+sha512  b3c6b4a1532c5142f3684b920dcdd497a5368aec516e8c389e2c8f9d1eaba16c907b2a7f2c82a3c3ff89bb4d0ae5503c736098c095f9f1bc98f0668e99bf639d  libevdev-1.11.0.tar.xz
+
+# Hash for license files:
+sha256  6f13de7ce28e4948ba95170e0723ee1254c1978ce1f127af82aeca597b567cb9  COPYING

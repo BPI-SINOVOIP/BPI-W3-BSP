@@ -691,13 +691,9 @@ XCamReturn AccmAutoConfig
     const CalibDbV2_Ccm_Para_V2_t * pCcm = NULL;
     float sensorGain =  hAccm->accmSwInfo.sensorGain;
     float fSaturation;
-    if (hAccm->mCurAtt.mode == RK_AIQ_CCM_MODE_TOOL){
-        pCcm = &hAccm->mCurAtt.stTool;
-        ret = pCcmMatrixAll_init(hAccm, &hAccm->mCurAtt.stTool.TuningPara);
-        RETURN_RESULT_IF_DIFFERENT(ret, XCAM_RETURN_NO_ERROR);
-    } else {
-        pCcm = hAccm->calibV2Ccm;
-    }
+
+    pCcm = hAccm->calibV2Ccm;
+
     if (hAccm->update || hAccm->updateAtt) {
     LOGD_ACCM("Illu Probability Estimation Enable: %d \n", pCcm->TuningPara.illu_estim.interp_enable);
     if (pCcm->TuningPara.illu_estim.interp_enable) {
@@ -823,11 +819,11 @@ XCamReturn AccmAutoConfig
 
     //4) calc scale for y_alpha_curve
     float fScale = 1.0;
-#if 0
+#if 1
     //real use
-    interpolation(hAccm->calibCcm->luma_ccm.alpha_gain,
-                  hAccm->calibCcm->luma_ccm.alpha_scale,
-                  hAccm->calibCcm->luma_ccm.gain_scale_cure_size,
+    interpolation(pCcm->lumaCCM.gain_alphaScale_curve.gain,
+                  pCcm->lumaCCM.gain_alphaScale_curve.scale,
+                  9,
                   sensorGain, &fScale);
 #else
     //for test, to be same with demo
@@ -980,12 +976,7 @@ XCamReturn AccmConfig
         hAccm->mCurAtt.mode = hAccm->mNewAtt.mode;
         hAccm->mCurAtt.byPass = hAccm->mNewAtt.byPass;
 
-        if (hAccm->mCurAtt.mode == RK_AIQ_CCM_MODE_TOOL)
-        {
-            hAccm->mCurAtt.byPass = !(hAccm->mNewAtt.stTool.control.enable);
-            hAccm->mCurAtt.stTool = hAccm->mNewAtt.stTool;
-            }
-        else if (hAccm->mCurAtt.mode == RK_AIQ_CCM_MODE_AUTO)
+        if (hAccm->mCurAtt.mode == RK_AIQ_CCM_MODE_AUTO)
             hAccm->mCurAtt.stAuto = hAccm->mNewAtt.stAuto;
         else
             hAccm->mCurAtt.stManual = hAccm->mNewAtt.stManual;
@@ -1001,7 +992,7 @@ XCamReturn AccmConfig
     if(hAccm->mCurAtt.byPass != true && hAccm->accmSwInfo.grayMode != true) {
         hAccm->ccmHwConf.ccmEnable = true;
 
-        if((hAccm->mCurAtt.mode == RK_AIQ_CCM_MODE_AUTO)|| (hAccm->mCurAtt.mode == RK_AIQ_CCM_MODE_TOOL)){
+        if(hAccm->mCurAtt.mode == RK_AIQ_CCM_MODE_AUTO){
             if (hAccm->updateAtt || hAccm->update ||(!hAccm->accmSwInfo.ccmConverged))
                 AccmAutoConfig(hAccm);
         } else if(hAccm->mCurAtt.mode == RK_AIQ_CCM_MODE_MANUAL) {

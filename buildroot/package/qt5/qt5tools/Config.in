@@ -7,7 +7,7 @@ config BR2_PACKAGE_QT5TOOLS
 	  Qt Tools provides tools facilitate the development
 	  and design of applications.
 
-	  https://doc.qt.io/qt-5/qtmodules.html#qt-tools
+	  http://doc.qt.io/qt-5/qtmodules.html#qt-tools
 
 if BR2_PACKAGE_QT5TOOLS
 
@@ -31,6 +31,13 @@ config BR2_PACKAGE_QT5TOOLS_QDOC_TOOL
 	depends on BR2_USE_WCHAR # llvm, clang
 	help
 	  This option enables the qdoc host tool.
+
+config BR2_PACKAGE_QT5TOOLS_DESIGNER
+	bool "designer"
+	select BR2_PACKAGE_QT5BASE_GUI
+	select BR2_PACKAGE_QT5BASE_WIDGETS
+	help
+	  Compile and install the designer program.
 
 config BR2_PACKAGE_QT5TOOLS_PIXELTOOL
 	bool "pixeltool"

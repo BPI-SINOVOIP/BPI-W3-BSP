@@ -20,8 +20,9 @@
 #ifndef _RK_AIQ_TYPE_ADEHAZE_ALGO_INT_H_
 #define _RK_AIQ_TYPE_ADEHAZE_ALGO_INT_H_
 #include "RkAiqCalibDbTypes.h"
-#include "adehaze_head.h"
 #include "adehaze/rk_aiq_types_adehaze_algo.h"
+#include "adehaze_head.h"
+#include "adehaze_uapi_head.h"
 
 typedef enum AdehazeVersion_e {
     ADEHAZE_ISP20      = 0,
@@ -40,76 +41,6 @@ typedef enum dehaze_api_mode_s {
     DEHAZE_API_ENHANCE_AUTO            = 6,        /**< dehaze enhance follow IQ setting*/
     DEHAZE_API_ENHANCE_OFF             = 7,        /**< dehaze enhance off, dehaze enable fellow IQ setting*/
 } dehaze_api_mode_t;
-
-typedef struct mDehazeDataV21_s {
-    float dc_min_th;
-    float dc_max_th;
-    float yhist_th;
-    float yblk_th;
-    float dark_th;
-    float bright_min;
-    float bright_max;
-    float wt_max;
-    float air_min;
-    float air_max;
-    float tmax_base;
-    float tmax_off;
-    float tmax_max;
-    float cfg_wt;
-    float cfg_air;
-    float cfg_tmax;
-    float dc_weitcur;
-    float bf_weight;
-    float range_sigma;
-    float space_sigma_pre;
-    float space_sigma_cur;
-} mDehazeDataV21_t;
-
-typedef struct mDehaze_Setting_V21_s {
-    bool en;
-    bool air_lc_en;
-    float stab_fnum;
-    float sigma;
-    float wt_sigma;
-    float air_sigma;
-    float tmax_sigma;
-    float pre_wet;
-    mDehazeDataV21_t DehazeData;
-} mDehaze_Setting_V21_t;
-
-typedef struct mEnhanceDataV21_s {
-    float enhance_value;
-    float enhance_chroma;
-} mEnhanceDataV21_t;
-
-typedef struct mEnhance_Setting_V21_s {
-    bool en;
-    float enhance_curve[CALIBDB_ADEHAZE_ENHANCE_CURVE_KNOTS_NUM];
-    mEnhanceDataV21_t EnhanceData;
-} mEnhance_Setting_V21_t;
-
-typedef struct mHistDataV21_s {
-    float hist_gratio;
-    float hist_th_off;
-    float hist_k;
-    float hist_min;
-    float hist_scale;
-    float cfg_gratio;
-} mHistDataV21_t;
-
-typedef struct mHist_setting_V21_s {
-    bool en;
-    bool hist_para_en;
-    mHistDataV21_t HistData;
-} mHist_setting_V21_t;
-
-typedef struct mDehazeAttr_s {
-    bool Enable;
-    float cfg_alpha;
-    mDehaze_Setting_V21_t dehaze_setting;
-    mEnhance_Setting_V21_t enhance_setting;
-    mHist_setting_V21_t hist_setting;
-} mDehazeAttr_t;
 
 typedef struct DehazeManuAttr_s {
     int level;//0~100

@@ -1,7 +1,5 @@
 /*
- * RkAiqCustomHandle.h
- *
- *  Copyright (c) 2021 Rockchip Corporation
+ * Copyright (c) 2019-2022 Rockchip Eletronics Co., Ltd.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,13 +12,11 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
-
 #ifndef _RK_AIQ_CUSTOM_AE_HANDLE_H_
 #define _RK_AIQ_CUSTOM_AE_HANDLE_H_
 
-#include "RkAiqHandleInt.h"
+#include "algo_handlers/RkAiqAeHandle.h"
 
 namespace RkCam {
 

@@ -47,7 +47,8 @@
 
 /* encoder control command */
 #define CMD_ENC_CFG_ALL                 (0x00000000)
-#define CMD_ENC_CFG_RC_API              (0x00000100)
+#define CMD_ENC_QUERY                   (0x00000100)
+#define CMD_ENC_CFG_RC_API              (0x00000200)
 
 #define CMD_ENC_CFG_MISC                (0x00008000)
 #define CMD_ENC_CFG_SPLIT               (0x00008100)
@@ -100,6 +101,7 @@ typedef enum {
     MPP_DEC_SET_DISABLE_ERROR,          /* When set it will disable sw/hw error (H.264 / H.265) */
     MPP_DEC_SET_IMMEDIATE_OUT,
     MPP_DEC_SET_ENABLE_DEINTERLACE,     /* MPP enable deinterlace by default. Vpuapi can disable it */
+    MPP_DEC_SET_ENABLE_FAST_PLAY,       /* enable idr output immediately */
 
     MPP_DEC_CMD_QUERY                   = CMD_MODULE_CODEC | CMD_CTX_ID_DEC | CMD_DEC_QUERY,
     /* query decoder runtime information for decode stage */
@@ -134,6 +136,10 @@ typedef enum {
     MPP_ENC_SET_QP_RANGE,               /* used for adjusting qp range, the parameter can be 1 or 2 */
     MPP_ENC_SET_ROI_CFG,                /* set MppEncROICfg structure */
     MPP_ENC_SET_CTU_QP,                 /* for H265 Encoder,set CTU's size and QP */
+
+    MPP_ENC_CMD_QUERY                   = CMD_MODULE_CODEC | CMD_CTX_ID_ENC | CMD_ENC_QUERY,
+    /* query encoder runtime information for encode stage */
+    MPP_ENC_QUERY,                      /* set and get MppEncQueryCfg structure */
 
     /* User define rate control stategy API control */
     MPP_ENC_CFG_RC_API                  = CMD_MODULE_CODEC | CMD_CTX_ID_ENC | CMD_ENC_CFG_RC_API,

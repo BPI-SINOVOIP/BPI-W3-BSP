@@ -32,16 +32,6 @@ config BR2_PACKAGE_GST1_PLUGINS_GOOD_BZ2
 	  Enable bz2 support for the following plugins:
 	  matroska
 
-if BR2_PACKAGE_GSTREAMER1_14
-config BR2_PACKAGE_GST1_PLUGINS_GOOD_ZLIB
-	bool "zlib support"
-	depends on BR2_PACKAGE_GST1_PLUGINS_GOOD_PLUGIN_ISOMP4 || BR2_PACKAGE_GST1_PLUGINS_GOOD_PLUGIN_ID3DEMUX || BR2_PACKAGE_GST1_PLUGINS_GOOD_PLUGIN_MATROSKA
-	select BR2_PACKAGE_ZLIB
-	help
-	  Enable zlib support for the following plugins:
-	  id3demux, isomp4, matroska
-endif
-
 comment "dependency-less plugins"
 
 config BR2_PACKAGE_GST1_PLUGINS_GOOD_PLUGIN_ALPHA
@@ -77,7 +67,6 @@ config BR2_PACKAGE_GST1_PLUGINS_GOOD_PLUGIN_AUTODETECT
 
 config BR2_PACKAGE_GST1_PLUGINS_GOOD_PLUGIN_AVI
 	bool "avi (*.avi video)"
-	default y
 	help
 	  AVI stream handling
 
@@ -285,7 +274,6 @@ config BR2_PACKAGE_GST1_PLUGINS_GOOD_PLUGIN_OSS4
 	help
 	  Open Sound System (OSS) version 4 support for GStreamer
 
-if !BR2_PACKAGE_GSTREAMER1_14
 config BR2_PACKAGE_GST1_PLUGINS_GOOD_PLUGIN_QMLGL
 	bool "qmlgl (qt5)"
 	depends on BR2_PACKAGE_QT5
@@ -306,7 +294,6 @@ config BR2_PACKAGE_GST1_PLUGINS_GOOD_PLUGIN_SHOUT2
 	select BR2_PACKAGE_LIBSHOUT
 	help
 	  Elements to send data to an icecast server using libshout2
-endif
 
 config BR2_PACKAGE_GST1_PLUGINS_GOOD_PLUGIN_V4L2
 	bool "v4l2"
@@ -354,7 +341,6 @@ config BR2_PACKAGE_GST1_PLUGINS_GOOD_PLUGIN_GDKPIXBUF
 comment "gdkpixbuf needs a toolchain w/ wchar, threads"
 	depends on !BR2_USE_WCHAR || !BR2_TOOLCHAIN_HAS_THREADS
 
-if !BR2_PACKAGE_GSTREAMER1_14
 config BR2_PACKAGE_GST1_PLUGINS_GOOD_PLUGIN_JACK
 	bool "jack"
 	depends on BR2_INSTALL_LIBSTDCPP
@@ -367,7 +353,6 @@ config BR2_PACKAGE_GST1_PLUGINS_GOOD_PLUGIN_JACK
 comment "jack needs a toolchain w/ C++, dynamic library"
 	depends on BR2_TOOLCHAIN_HAS_SYNC_4
 	depends on !BR2_INSTALL_LIBSTDCPP || BR2_STATIC_LIBS
-endif
 
 config BR2_PACKAGE_GST1_PLUGINS_GOOD_PLUGIN_PULSE
 	bool "pulseaudio"
@@ -413,13 +398,11 @@ config BR2_PACKAGE_GST1_PLUGINS_GOOD_PLUGIN_TAGLIB
 comment "taglib needs a toolchain w/ C++, wchar"
 	depends on !BR2_INSTALL_LIBSTDCPP || !BR2_USE_WCHAR
 
-if !BR2_PACKAGE_GSTREAMER1_14
 config BR2_PACKAGE_GST1_PLUGINS_GOOD_PLUGIN_TWOLAME
 	bool "twolame"
 	select BR2_PACKAGE_TWOLAME
 	help
 	  twolame mp2 audio encoder plugin
-endif
 
 config BR2_PACKAGE_GST1_PLUGINS_GOOD_PLUGIN_VPX
 	bool "vpx (webm)"

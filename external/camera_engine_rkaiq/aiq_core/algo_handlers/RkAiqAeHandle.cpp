@@ -1,7 +1,5 @@
 /*
- * RkAiqHandle.h
- *
- *  Copyright (c) 2019 Rockchip Corporation
+ * Copyright (c) 2019-2022 Rockchip Eletronics Co., Ltd.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,12 +12,10 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
+#include "RkAiqAeHandle.h"
 
 #include "RkAiqCore.h"
-#include "RkAiqHandle.h"
-#include "RkAiqHandleInt.h"
 
 namespace RkCam {
 
@@ -50,7 +46,7 @@ XCamReturn RkAiqAeHandleInt::updateConfig(bool needSync) {
     if (updateExpSwAttr) {
         mCurExpSwAttr   = mNewExpSwAttr;
         rk_aiq_uapi_ae_convExpSwAttr_v1Tov2(&mCurExpSwAttr, &mCurExpSwAttrV2);
-        rk_aiq_uapi_ae_setExpSwAttr(mAlgoCtx, &mCurExpSwAttrV2, false);
+        rk_aiq_uapi_ae_setExpSwAttr(mAlgoCtx, &mCurExpSwAttrV2, false, false);
         updateExpSwAttr = false;
         updateAttr |= UPDATE_EXPSWATTR;
         sendSignal();
@@ -59,7 +55,7 @@ XCamReturn RkAiqAeHandleInt::updateConfig(bool needSync) {
     if (updateLinExpAttr) {
         mCurLinExpAttr   = mNewLinExpAttr;
         rk_aiq_uapi_ae_convLinExpAttr_v1Tov2(&mCurLinExpAttr, &mCurLinExpAttrV2);
-        rk_aiq_uapi_ae_setLinExpAttr(mAlgoCtx, &mCurLinExpAttrV2, false);
+        rk_aiq_uapi_ae_setLinExpAttr(mAlgoCtx, &mCurLinExpAttrV2, false, false);
         updateLinExpAttr = false;
         updateAttr |= UPDATE_LINEXPATTR;
         sendSignal();
@@ -68,7 +64,7 @@ XCamReturn RkAiqAeHandleInt::updateConfig(bool needSync) {
     if (updateHdrExpAttr) {
         mCurHdrExpAttr   = mNewHdrExpAttr;
         rk_aiq_uapi_ae_convHdrExpAttr_v1Tov2(&mCurHdrExpAttr, &mCurHdrExpAttrV2);
-        rk_aiq_uapi_ae_setHdrExpAttr(mAlgoCtx, &mCurHdrExpAttrV2, false);
+        rk_aiq_uapi_ae_setHdrExpAttr(mAlgoCtx, &mCurHdrExpAttrV2, false, false);
         updateHdrExpAttr = false;
         updateAttr |= UPDATE_HDREXPATTR;
         sendSignal();
@@ -78,7 +74,7 @@ XCamReturn RkAiqAeHandleInt::updateConfig(bool needSync) {
 
     if (updateExpSwAttrV2) {
         mCurExpSwAttrV2   = mNewExpSwAttrV2;
-        rk_aiq_uapi_ae_setExpSwAttr(mAlgoCtx, &mCurExpSwAttrV2, false);
+        rk_aiq_uapi_ae_setExpSwAttr(mAlgoCtx, &mCurExpSwAttrV2, false, false);
         updateExpSwAttrV2 = false;
         updateAttr |= UPDATE_EXPSWATTR;
         sendSignal(mCurExpSwAttrV2.sync.sync_mode);
@@ -86,7 +82,7 @@ XCamReturn RkAiqAeHandleInt::updateConfig(bool needSync) {
 
     if (updateLinExpAttrV2) {
         mCurLinExpAttrV2   = mNewLinExpAttrV2;
-        rk_aiq_uapi_ae_setLinExpAttr(mAlgoCtx, &mCurLinExpAttrV2, false);
+        rk_aiq_uapi_ae_setLinExpAttr(mAlgoCtx, &mCurLinExpAttrV2, false, false);
         updateLinExpAttrV2 = false;
         updateAttr |= UPDATE_LINEXPATTR;
         sendSignal(mCurLinExpAttrV2.sync.sync_mode);
@@ -94,7 +90,7 @@ XCamReturn RkAiqAeHandleInt::updateConfig(bool needSync) {
 
     if (updateHdrExpAttrV2) {
         mCurHdrExpAttrV2   = mNewHdrExpAttrV2;
-        rk_aiq_uapi_ae_setHdrExpAttr(mAlgoCtx, &mCurHdrExpAttrV2, false);
+        rk_aiq_uapi_ae_setHdrExpAttr(mAlgoCtx, &mCurHdrExpAttrV2, false, false);
         updateHdrExpAttrV2 = false;
         updateAttr |= UPDATE_HDREXPATTR;
         sendSignal(mCurHdrExpAttrV2.sync.sync_mode);
@@ -102,14 +98,14 @@ XCamReturn RkAiqAeHandleInt::updateConfig(bool needSync) {
 
     if (updateLinAeRouteAttr) {
         mCurLinAeRouteAttr   = mNewLinAeRouteAttr;
-        rk_aiq_uapi_ae_setLinAeRouteAttr(mAlgoCtx, &mCurLinAeRouteAttr, false);
+        rk_aiq_uapi_ae_setLinAeRouteAttr(mAlgoCtx, &mCurLinAeRouteAttr, false, false);
         updateLinAeRouteAttr = false;
         updateAttr |= UPDATE_LINAEROUTEATTR;
         sendSignal(mCurLinAeRouteAttr.sync.sync_mode);
     }
     if (updateHdrAeRouteAttr) {
         mCurHdrAeRouteAttr   = mNewHdrAeRouteAttr;
-        rk_aiq_uapi_ae_setHdrAeRouteAttr(mAlgoCtx, &mCurHdrAeRouteAttr, false);
+        rk_aiq_uapi_ae_setHdrAeRouteAttr(mAlgoCtx, &mCurHdrAeRouteAttr, false, false);
         updateHdrAeRouteAttr = false;
         updateAttr |= UPDATE_HDRAEROUTEATTR;
         sendSignal(mCurHdrAeRouteAttr.sync.sync_mode);
@@ -123,7 +119,7 @@ XCamReturn RkAiqAeHandleInt::updateConfig(bool needSync) {
     }
     if (updateSyncTestAttr) {
         mCurAecSyncTestAttr = mNewAecSyncTestAttr;
-        rk_aiq_uapi_ae_setSyncTest(mAlgoCtx, &mCurAecSyncTestAttr, false);
+        rk_aiq_uapi_ae_setSyncTest(mAlgoCtx, &mCurAecSyncTestAttr, false, false);
         updateSyncTestAttr  = false;
         updateAttr |= UPDATE_SYNCTESTATTR;
         sendSignal(mCurAecSyncTestAttr.sync.sync_mode);
@@ -176,7 +172,7 @@ XCamReturn RkAiqAeHandleInt::getExpSwAttr(Uapi_ExpSwAttr_t* pExpSwAttr) {
     XCamReturn ret = XCAM_RETURN_NO_ERROR;
     Uapi_ExpSwAttrV2_t ExpSwAttrV2;
 
-    rk_aiq_uapi_ae_getExpSwAttr(mAlgoCtx, &mCurExpSwAttrV2);
+    rk_aiq_uapi_ae_getExpSwAttr(mAlgoCtx, &mCurExpSwAttrV2, false);
     rk_aiq_uapi_ae_convExpSwAttr_v2Tov1(&mCurExpSwAttrV2, pExpSwAttr);
 
     EXIT_ANALYZER_FUNCTION();
@@ -188,14 +184,21 @@ XCamReturn RkAiqAeHandleInt::setExpSwAttr(Uapi_ExpSwAttrV2_t ExpSwAttrV2) {
 
     XCamReturn ret = XCAM_RETURN_NO_ERROR;
     mCfgMutex.lock();
-    // TODO
-    // check if there is different between att & mCurAtt
+
+    // check if there is different between att & mCurAtt(sync)/mNewAtt(async)
     // if something changed, set att to mNewAtt, and
     // the new params will be effective later when updateConfig
     // called by RkAiqCore
+    bool isChanged = false;
+    if (ExpSwAttrV2.sync.sync_mode == RK_AIQ_UAPI_MODE_ASYNC && \
+        memcmp(&mNewExpSwAttrV2, &ExpSwAttrV2, sizeof(ExpSwAttrV2)))
+        isChanged = true;
+    else if (ExpSwAttrV2.sync.sync_mode != RK_AIQ_UAPI_MODE_ASYNC && \
+             memcmp(&mCurExpSwAttrV2, &ExpSwAttrV2, sizeof(ExpSwAttrV2)))
+        isChanged = true;
 
     // if something changed
-    if (0 != memcmp(&mCurExpSwAttrV2, &ExpSwAttrV2, sizeof(Uapi_ExpSwAttrV2_t))) {
+    if (isChanged) {
         mNewExpSwAttrV2   = ExpSwAttrV2;
         updateExpSwAttrV2 = true;
         waitSignal(ExpSwAttrV2.sync.sync_mode);
@@ -213,7 +216,7 @@ XCamReturn RkAiqAeHandleInt::getExpSwAttr(Uapi_ExpSwAttrV2_t* pExpSwAttrV2) {
 
     if (pExpSwAttrV2->sync.sync_mode == RK_AIQ_UAPI_MODE_SYNC) {
         mCfgMutex.lock();
-        rk_aiq_uapi_ae_getExpSwAttr(mAlgoCtx, pExpSwAttrV2);
+        rk_aiq_uapi_ae_getExpSwAttr(mAlgoCtx, pExpSwAttrV2, false);
         pExpSwAttrV2->sync.done = true;
         mCfgMutex.unlock();
     } else {
@@ -221,7 +224,7 @@ XCamReturn RkAiqAeHandleInt::getExpSwAttr(Uapi_ExpSwAttrV2_t* pExpSwAttrV2) {
             memcpy(pExpSwAttrV2, &mNewExpSwAttrV2, sizeof(mNewExpSwAttrV2));
             pExpSwAttrV2->sync.done = false;
         } else {
-            rk_aiq_uapi_ae_getExpSwAttr(mAlgoCtx, pExpSwAttrV2);
+            rk_aiq_uapi_ae_getExpSwAttr(mAlgoCtx, pExpSwAttrV2, false);
             pExpSwAttrV2->sync.sync_mode = mNewExpSwAttrV2.sync.sync_mode;
             pExpSwAttrV2->sync.done = true;
         }
@@ -243,7 +246,7 @@ XCamReturn RkAiqAeHandleInt::setLinExpAttr(Uapi_LinExpAttr_t LinExpAttr) {
     // called by RkAiqCore
 
     // if something changed
-    if (0 != memcmp(&mCurLinExpAttr, &LinExpAttr, sizeof(Uapi_LinExpAttr_t))) {
+    if (0 != memcmp(& mCurLinExpAttr, &LinExpAttr, sizeof(Uapi_LinExpAttr_t))) {
         mNewLinExpAttr   = LinExpAttr;
         updateLinExpAttr = true;
         waitSignal();
@@ -259,7 +262,7 @@ XCamReturn RkAiqAeHandleInt::getLinExpAttr(Uapi_LinExpAttr_t* pLinExpAttr) {
 
     XCamReturn ret = XCAM_RETURN_NO_ERROR;
 
-    rk_aiq_uapi_ae_getLinExpAttr(mAlgoCtx, &mCurLinExpAttrV2);
+    rk_aiq_uapi_ae_getLinExpAttr(mAlgoCtx, &mCurLinExpAttrV2, false);
     rk_aiq_uapi_ae_convLinExpAttr_v2Tov1(&mCurLinExpAttrV2, pLinExpAttr);
 
     EXIT_ANALYZER_FUNCTION();
@@ -271,14 +274,20 @@ XCamReturn RkAiqAeHandleInt::setLinExpAttr(Uapi_LinExpAttrV2_t LinExpAttrV2) {
 
     XCamReturn ret = XCAM_RETURN_NO_ERROR;
     mCfgMutex.lock();
-    // TODO
-    // check if there is different between att & mCurAtt
+    // check if there is different between att & mCurAtt(sync)/mNewAtt(async)
     // if something changed, set att to mNewAtt, and
     // the new params will be effective later when updateConfig
     // called by RkAiqCore
+    bool isChanged = false;
+    if (LinExpAttrV2.sync.sync_mode == RK_AIQ_UAPI_MODE_ASYNC && \
+        memcmp(&mNewLinExpAttrV2, &LinExpAttrV2, sizeof(LinExpAttrV2)))
+        isChanged = true;
+    else if (LinExpAttrV2.sync.sync_mode != RK_AIQ_UAPI_MODE_ASYNC && \
+             memcmp(&mCurLinExpAttrV2, &LinExpAttrV2, sizeof(LinExpAttrV2)))
+        isChanged = true;
 
     // if something changed
-    if (0 != memcmp(&mCurLinExpAttrV2, &LinExpAttrV2, sizeof(Uapi_LinExpAttrV2_t))) {
+    if (isChanged) {
         mNewLinExpAttrV2   = LinExpAttrV2;
         updateLinExpAttrV2 = true;
         waitSignal(LinExpAttrV2.sync.sync_mode);
@@ -297,7 +306,7 @@ XCamReturn RkAiqAeHandleInt::getLinExpAttr(Uapi_LinExpAttrV2_t* pLinExpAttrV2) {
 
     if (pLinExpAttrV2->sync.sync_mode == RK_AIQ_UAPI_MODE_SYNC) {
         mCfgMutex.lock();
-        rk_aiq_uapi_ae_getLinExpAttr(mAlgoCtx, pLinExpAttrV2);
+        rk_aiq_uapi_ae_getLinExpAttr(mAlgoCtx, pLinExpAttrV2, false);
         pLinExpAttrV2->sync.done = true;
         mCfgMutex.unlock();
     } else {
@@ -305,7 +314,7 @@ XCamReturn RkAiqAeHandleInt::getLinExpAttr(Uapi_LinExpAttrV2_t* pLinExpAttrV2) {
             memcpy(pLinExpAttrV2, &mNewLinExpAttrV2, sizeof(mNewLinExpAttrV2));
             pLinExpAttrV2->sync.done = false;
         } else {
-            rk_aiq_uapi_ae_getLinExpAttr(mAlgoCtx, pLinExpAttrV2);
+            rk_aiq_uapi_ae_getLinExpAttr(mAlgoCtx, pLinExpAttrV2, false);
             pLinExpAttrV2->sync.sync_mode = mNewLinExpAttrV2.sync.sync_mode;
             pLinExpAttrV2->sync.done      = true;
         }
@@ -343,7 +352,7 @@ XCamReturn RkAiqAeHandleInt::getHdrExpAttr(Uapi_HdrExpAttr_t* pHdrExpAttr) {
 
     XCamReturn ret = XCAM_RETURN_NO_ERROR;
 
-    rk_aiq_uapi_ae_getHdrExpAttr(mAlgoCtx, &mCurHdrExpAttrV2);
+    rk_aiq_uapi_ae_getHdrExpAttr(mAlgoCtx, &mCurHdrExpAttrV2, false);
     rk_aiq_uapi_ae_convHdrExpAttr_v2Tov1(&mCurHdrExpAttrV2, pHdrExpAttr);
 
     EXIT_ANALYZER_FUNCTION();
@@ -355,14 +364,17 @@ XCamReturn RkAiqAeHandleInt::setHdrExpAttr(Uapi_HdrExpAttrV2_t HdrExpAttrV2) {
 
     XCamReturn ret = XCAM_RETURN_NO_ERROR;
     mCfgMutex.lock();
-    // TODO
-    // check if there is different between att & mCurAtt
-    // if something changed, set att to mNewAtt, and
-    // the new params will be effective later when updateConfig
-    // called by RkAiqCore
+
+    bool isChanged = false;
+    if (HdrExpAttrV2.sync.sync_mode == RK_AIQ_UAPI_MODE_ASYNC && \
+        memcmp(&mNewHdrExpAttrV2, &HdrExpAttrV2, sizeof(HdrExpAttrV2)))
+        isChanged = true;
+    else if (HdrExpAttrV2.sync.sync_mode != RK_AIQ_UAPI_MODE_ASYNC && \
+             memcmp(&mCurHdrExpAttrV2, &HdrExpAttrV2, sizeof(HdrExpAttrV2)))
+        isChanged = true;
 
     // if something changed
-    if (0 != memcmp(&mCurHdrExpAttrV2, &HdrExpAttrV2, sizeof(Uapi_HdrExpAttrV2_t))) {
+    if (isChanged) {
         mNewHdrExpAttrV2   = HdrExpAttrV2;
         updateHdrExpAttrV2 = true;
         waitSignal(HdrExpAttrV2.sync.sync_mode);
@@ -380,7 +392,7 @@ XCamReturn RkAiqAeHandleInt::getHdrExpAttr(Uapi_HdrExpAttrV2_t* pHdrExpAttrV2) {
 
     if (pHdrExpAttrV2->sync.sync_mode == RK_AIQ_UAPI_MODE_SYNC) {
         mCfgMutex.lock();
-        rk_aiq_uapi_ae_getHdrExpAttr(mAlgoCtx, pHdrExpAttrV2);
+        rk_aiq_uapi_ae_getHdrExpAttr(mAlgoCtx, pHdrExpAttrV2, false);
         pHdrExpAttrV2->sync.done = true;
         mCfgMutex.unlock();
     } else {
@@ -388,7 +400,7 @@ XCamReturn RkAiqAeHandleInt::getHdrExpAttr(Uapi_HdrExpAttrV2_t* pHdrExpAttrV2) {
             memcpy(pHdrExpAttrV2, &mNewHdrExpAttrV2, sizeof(mNewHdrExpAttrV2));
             pHdrExpAttrV2->sync.done = false;
         } else {
-            rk_aiq_uapi_ae_getHdrExpAttr(mAlgoCtx, pHdrExpAttrV2);
+            rk_aiq_uapi_ae_getHdrExpAttr(mAlgoCtx, pHdrExpAttrV2, false);
             pHdrExpAttrV2->sync.sync_mode = mNewHdrExpAttrV2.sync.sync_mode;
             pHdrExpAttrV2->sync.done      = true;
         }
@@ -403,15 +415,17 @@ XCamReturn RkAiqAeHandleInt::setLinAeRouteAttr(Uapi_LinAeRouteAttr_t LinAeRouteA
 
     XCamReturn ret = XCAM_RETURN_NO_ERROR;
     mCfgMutex.lock();
-    // TODO
-    // check if there is different between att & mCurAtt
-    // if something changed, set att to mNewAtt, and
-    // the new params will be effective later when updateConfig
-    // called by RkAiqCore
+
+    bool isChanged = false;
+    if (LinAeRouteAttr.sync.sync_mode == RK_AIQ_UAPI_MODE_ASYNC && \
+        memcmp(&mNewLinAeRouteAttr, &LinAeRouteAttr, sizeof(LinAeRouteAttr)))
+        isChanged = true;
+    else if (LinAeRouteAttr.sync.sync_mode != RK_AIQ_UAPI_MODE_ASYNC && \
+             memcmp(&mCurLinAeRouteAttr, &LinAeRouteAttr, sizeof(LinAeRouteAttr)))
+        isChanged = true;
 
     // if something changed
-
-    if (0 != memcmp(&mCurLinAeRouteAttr, &LinAeRouteAttr, sizeof(Uapi_LinAeRouteAttr_t))) {
+    if (isChanged) {
         mNewLinAeRouteAttr   = LinAeRouteAttr;
         updateLinAeRouteAttr = true;
         waitSignal(LinAeRouteAttr.sync.sync_mode);
@@ -429,7 +443,7 @@ XCamReturn RkAiqAeHandleInt::getLinAeRouteAttr(Uapi_LinAeRouteAttr_t* pLinAeRout
 
     if (pLinAeRouteAttr->sync.sync_mode == RK_AIQ_UAPI_MODE_SYNC) {
         mCfgMutex.lock();
-        rk_aiq_uapi_ae_getLinAeRouteAttr(mAlgoCtx, pLinAeRouteAttr);
+        rk_aiq_uapi_ae_getLinAeRouteAttr(mAlgoCtx, pLinAeRouteAttr, false);
         pLinAeRouteAttr->sync.done = true;
         mCfgMutex.unlock();
     } else {
@@ -437,7 +451,7 @@ XCamReturn RkAiqAeHandleInt::getLinAeRouteAttr(Uapi_LinAeRouteAttr_t* pLinAeRout
             memcpy(pLinAeRouteAttr, &mNewLinAeRouteAttr, sizeof(mNewLinAeRouteAttr));
             pLinAeRouteAttr->sync.done = false;
         } else {
-            rk_aiq_uapi_ae_getLinAeRouteAttr(mAlgoCtx, pLinAeRouteAttr);
+            rk_aiq_uapi_ae_getLinAeRouteAttr(mAlgoCtx, pLinAeRouteAttr, false);
             pLinAeRouteAttr->sync.sync_mode = mNewLinAeRouteAttr.sync.sync_mode;
             pLinAeRouteAttr->sync.done      = true;
         }
@@ -452,14 +466,17 @@ XCamReturn RkAiqAeHandleInt::setHdrAeRouteAttr(Uapi_HdrAeRouteAttr_t HdrAeRouteA
 
     XCamReturn ret = XCAM_RETURN_NO_ERROR;
     mCfgMutex.lock();
-    // TODO
-    // check if there is different between att & mCurAtt
-    // if something changed, set att to mNewAtt, and
-    // the new params will be effective later when updateConfig
-    // called by RkAiqCore
+
+    bool isChanged = false;
+    if (HdrAeRouteAttr.sync.sync_mode == RK_AIQ_UAPI_MODE_ASYNC && \
+        memcmp(&mNewHdrAeRouteAttr, &HdrAeRouteAttr, sizeof(HdrAeRouteAttr)))
+        isChanged = true;
+    else if (HdrAeRouteAttr.sync.sync_mode != RK_AIQ_UAPI_MODE_ASYNC && \
+             memcmp(&mCurHdrAeRouteAttr, &HdrAeRouteAttr, sizeof(HdrAeRouteAttr)))
+        isChanged = true;
 
     // if something changed
-    if (0 != memcmp(&mCurHdrAeRouteAttr, &HdrAeRouteAttr, sizeof(Uapi_HdrAeRouteAttr_t))) {
+    if (isChanged) {
         mNewHdrAeRouteAttr   = HdrAeRouteAttr;
         updateHdrAeRouteAttr = true;
         waitSignal(HdrAeRouteAttr.sync.sync_mode);
@@ -477,7 +494,7 @@ XCamReturn RkAiqAeHandleInt::getHdrAeRouteAttr(Uapi_HdrAeRouteAttr_t* pHdrAeRout
 
     if (pHdrAeRouteAttr->sync.sync_mode == RK_AIQ_UAPI_MODE_SYNC) {
         mCfgMutex.lock();
-        rk_aiq_uapi_ae_getHdrAeRouteAttr(mAlgoCtx, pHdrAeRouteAttr);
+        rk_aiq_uapi_ae_getHdrAeRouteAttr(mAlgoCtx, pHdrAeRouteAttr, false);
         pHdrAeRouteAttr->sync.done = true;
         mCfgMutex.unlock();
     } else {
@@ -485,7 +502,7 @@ XCamReturn RkAiqAeHandleInt::getHdrAeRouteAttr(Uapi_HdrAeRouteAttr_t* pHdrAeRout
             memcpy(pHdrAeRouteAttr, &mNewHdrAeRouteAttr, sizeof(mNewHdrAeRouteAttr));
             pHdrAeRouteAttr->sync.done = false;
         } else {
-            rk_aiq_uapi_ae_getHdrAeRouteAttr(mAlgoCtx, pHdrAeRouteAttr);
+            rk_aiq_uapi_ae_getHdrAeRouteAttr(mAlgoCtx, pHdrAeRouteAttr, false);
             pHdrAeRouteAttr->sync.sync_mode = mNewHdrAeRouteAttr.sync.sync_mode;
             pHdrAeRouteAttr->sync.done      = true;
         }
@@ -500,15 +517,17 @@ XCamReturn RkAiqAeHandleInt::setIrisAttr(Uapi_IrisAttrV2_t IrisAttr) {
 
     XCamReturn ret = XCAM_RETURN_NO_ERROR;
     mCfgMutex.lock();
-    // TODO
-    // check if there is different between att & mCurAtt
-    // if something changed, set att to mNewAtt, and
-    // the new params will be effective later when updateConfig
-    // called by RkAiqCore
+
+    bool isChanged = false;
+    if (IrisAttr.sync.sync_mode == RK_AIQ_UAPI_MODE_ASYNC && \
+        memcmp(&mNewIrisAttr, &IrisAttr, sizeof(IrisAttr)))
+        isChanged = true;
+    else if (IrisAttr.sync.sync_mode != RK_AIQ_UAPI_MODE_ASYNC && \
+             memcmp(&mCurIrisAttr, &IrisAttr, sizeof(IrisAttr)))
+        isChanged = true;
 
     // if something changed
-
-    if (0 != memcmp(&mCurIrisAttr, &IrisAttr, sizeof(Uapi_IrisAttrV2_t))) {
+    if (isChanged) {
         mNewIrisAttr   = IrisAttr;
         updateIrisAttr = true;
         waitSignal(IrisAttr.sync.sync_mode);
@@ -550,15 +569,17 @@ XCamReturn RkAiqAeHandleInt::setSyncTestAttr(Uapi_AecSyncTest_t SyncTestAttr) {
 
     XCamReturn ret = XCAM_RETURN_NO_ERROR;
     mCfgMutex.lock();
-    // TODO
-    // check if there is different between att & mCurAtt
-    // if something changed, set att to mNewAtt, and
-    // the new params will be effective later when updateConfig
-    // called by RkAiqCore
+
+    bool isChanged = false;
+    if (SyncTestAttr.sync.sync_mode == RK_AIQ_UAPI_MODE_ASYNC && \
+        memcmp(&mNewAecSyncTestAttr, &SyncTestAttr, sizeof(SyncTestAttr)))
+        isChanged = true;
+    else if (SyncTestAttr.sync.sync_mode != RK_AIQ_UAPI_MODE_ASYNC && \
+             memcmp(&mCurAecSyncTestAttr, &SyncTestAttr, sizeof(SyncTestAttr)))
+        isChanged = true;
 
     // if something changed
-
-    if (0 != memcmp(&mCurAecSyncTestAttr, &SyncTestAttr, sizeof(Uapi_AecSyncTest_t))) {
+    if (isChanged) {
         mNewAecSyncTestAttr = SyncTestAttr;
         updateSyncTestAttr  = true;
         waitSignal(SyncTestAttr.sync.sync_mode);
@@ -577,7 +598,7 @@ XCamReturn RkAiqAeHandleInt::getSyncTestAttr(Uapi_AecSyncTest_t* pSyncTestAttr) 
 
     if (pSyncTestAttr->sync.sync_mode == RK_AIQ_UAPI_MODE_SYNC) {
         mCfgMutex.lock();
-        rk_aiq_uapi_ae_getSyncTest(mAlgoCtx, pSyncTestAttr);
+        rk_aiq_uapi_ae_getSyncTest(mAlgoCtx, pSyncTestAttr, false);
         pSyncTestAttr->sync.done = true;
         mCfgMutex.unlock();
     } else {
@@ -585,7 +606,7 @@ XCamReturn RkAiqAeHandleInt::getSyncTestAttr(Uapi_AecSyncTest_t* pSyncTestAttr) 
             memcpy(pSyncTestAttr, &mNewAecSyncTestAttr, sizeof(mNewAecSyncTestAttr));
             pSyncTestAttr->sync.done = false;
         } else {
-            rk_aiq_uapi_ae_getSyncTest(mAlgoCtx, pSyncTestAttr);
+            rk_aiq_uapi_ae_getSyncTest(mAlgoCtx, pSyncTestAttr, false);
             pSyncTestAttr->sync.sync_mode = mNewAecSyncTestAttr.sync.sync_mode;
             pSyncTestAttr->sync.done      = true;
         }
@@ -600,15 +621,17 @@ XCamReturn RkAiqAeHandleInt::setExpWinAttr(Uapi_ExpWin_t ExpWinAttr) {
 
     XCamReturn ret = XCAM_RETURN_NO_ERROR;
     mCfgMutex.lock();
-    // TODO
-    // check if there is different between att & mCurAtt
-    // if something changed, set att to mNewAtt, and
-    // the new params will be effective later when updateConfig
-    // called by RkAiqCore
+
+    bool isChanged = false;
+    if (ExpWinAttr.sync.sync_mode == RK_AIQ_UAPI_MODE_ASYNC && \
+        memcmp(&mNewExpWinAttr, &ExpWinAttr, sizeof(ExpWinAttr)))
+        isChanged = true;
+    else if (ExpWinAttr.sync.sync_mode != RK_AIQ_UAPI_MODE_ASYNC && \
+             memcmp(&mCurExpWinAttr, &ExpWinAttr, sizeof(ExpWinAttr)))
+        isChanged = true;
 
     // if something changed
-
-    if (0 != memcmp(&mCurExpWinAttr, &ExpWinAttr, sizeof(Uapi_ExpWin_t))) {
+    if (isChanged) {
         mNewExpWinAttr   = ExpWinAttr;
         updateExpWinAttr = true;
         waitSignal(ExpWinAttr.sync.sync_mode);
@@ -650,7 +673,7 @@ XCamReturn RkAiqAeHandleInt::queryExpInfo(Uapi_ExpQueryInfo_t* pExpQueryInfo) {
 
     XCamReturn ret = XCAM_RETURN_NO_ERROR;
 
-    rk_aiq_uapi_ae_queryExpInfo(mAlgoCtx, pExpQueryInfo);
+    rk_aiq_uapi_ae_queryExpInfo(mAlgoCtx, pExpQueryInfo, false);
 
     EXIT_ANALYZER_FUNCTION();
     return ret;
@@ -796,6 +819,7 @@ XCamReturn RkAiqAeHandleInt::processing() {
     }
     if ((!xAecStats || !xAecStats->aec_stats_valid) && !sharedCom->init) {
         LOGW("no aec stats, ignore!");
+        mProcResShared.release();
         return XCAM_RETURN_BYPASS;
     }
 
@@ -863,6 +887,8 @@ XCamReturn RkAiqAeHandleInt::genIspResult(RkAiqFullParams* params, RkAiqFullPara
     RkAiqCore::RkAiqAlgosGroupShared_t* shared =
         (RkAiqCore::RkAiqAlgosGroupShared_t*)(getGroupShared());
     RkAiqCore::RkAiqAlgosComShared_t* sharedCom = &mAiqCore->mAlogsComSharedParams;
+    if (!mProcResShared.ptr())
+        return XCAM_RETURN_NO_ERROR;
     RkAiqAlgoProcResAe* ae_proc                 = &mProcResShared->result;
     RkAiqAlgoPostResAe* ae_post                 = (RkAiqAlgoPostResAe*)mPostOutParam;
     if (!ae_proc) {
@@ -886,6 +912,7 @@ XCamReturn RkAiqAeHandleInt::genIspResult(RkAiqFullParams* params, RkAiqFullPara
     exp_param->aecExpInfo.LinearExp = ae_proc->new_ae_exp.LinearExp;
     memcpy(exp_param->aecExpInfo.HdrExp, ae_proc->new_ae_exp.HdrExp,
            sizeof(ae_proc->new_ae_exp.HdrExp));
+    exp_param->aecExpInfo.exp_i2c_params = ae_proc->new_ae_exp.exp_i2c_params;
     exp_param->aecExpInfo.frame_length_lines   = ae_proc->new_ae_exp.frame_length_lines;
     exp_param->aecExpInfo.line_length_pixels   = ae_proc->new_ae_exp.line_length_pixels;
     exp_param->aecExpInfo.pixel_clock_freq_mhz = ae_proc->new_ae_exp.pixel_clock_freq_mhz;

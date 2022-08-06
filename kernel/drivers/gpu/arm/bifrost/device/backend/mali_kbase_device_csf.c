@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2019-2021 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2019-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -191,7 +191,7 @@ static int kbase_csf_early_init(struct kbase_device *kbdev)
 }
 
 /**
- * kbase_csf_early_init - Early termination for firmware & scheduler.
+ * kbase_csf_early_term() - Early termination for firmware & scheduler.
  * @kbdev:	Device pointer
  */
 static void kbase_csf_early_term(struct kbase_device *kbdev)
@@ -203,6 +203,8 @@ static void kbase_csf_early_term(struct kbase_device *kbdev)
  * kbase_device_hwcnt_watchdog_if_init - Create hardware counter watchdog
  *                                       interface.
  * @kbdev:	Device pointer
+ *
+ * Return: 0 if successful or a negative error code on failure.
  */
 static int kbase_device_hwcnt_watchdog_if_init(struct kbase_device *kbdev)
 {
@@ -245,8 +247,9 @@ static void kbase_device_hwcnt_backend_csf_if_term(struct kbase_device *kbdev)
 /**
  * kbase_device_hwcnt_backend_csf_init - Create hardware counter backend.
  * @kbdev:	Device pointer
+ *
+ * Return: 0 if successful or a negative error code on failure.
  */
-
 static int kbase_device_hwcnt_backend_csf_init(struct kbase_device *kbdev)
 {
 	return kbase_hwcnt_backend_csf_create(
@@ -280,6 +283,8 @@ static const struct kbase_device_init dev_init[] = {
 	  "Early device initialization failed" },
 	{ kbase_device_populate_max_freq, NULL,
 	  "Populating max frequency failed" },
+	{ kbase_pm_lowest_gpu_freq_init, NULL,
+	  "Lowest freq initialization failed" },
 	{ kbase_device_misc_init, kbase_device_misc_term,
 	  "Miscellaneous device initialization failed" },
 	{ kbase_device_pcm_dev_init, kbase_device_pcm_dev_term,
@@ -299,8 +304,6 @@ static const struct kbase_device_init dev_init[] = {
 	  "Timeline stream initialization failed" },
 	{ kbase_clk_rate_trace_manager_init, kbase_clk_rate_trace_manager_term,
 	  "Clock rate trace manager initialization failed" },
-	{ kbase_lowest_gpu_freq_init, NULL,
-	  "Lowest freq initialization failed" },
 	{ kbase_device_hwcnt_watchdog_if_init,
 	  kbase_device_hwcnt_watchdog_if_term,
 	  "GPU hwcnt backend watchdog interface creation failed" },
@@ -390,7 +393,7 @@ int kbase_device_init(struct kbase_device *kbdev)
  * Hardware counter components depending on firmware are initialized after CSF
  * firmware is loaded.
  *
- * @return 0 on success. An error code on failure.
+ * Return: 0 on success. An error code on failure.
  */
 static int kbase_device_hwcnt_csf_deferred_init(struct kbase_device *kbdev)
 {
@@ -457,7 +460,7 @@ virt_fail:
  * To meet Android GKI vendor guideline, firmware load is deferred at
  * the time when @ref kbase_open is called for the first time.
  *
- * @return 0 on success. An error code on failure.
+ * Return: 0 on success. An error code on failure.
  */
 static int kbase_csf_firmware_deferred_init(struct kbase_device *kbdev)
 {

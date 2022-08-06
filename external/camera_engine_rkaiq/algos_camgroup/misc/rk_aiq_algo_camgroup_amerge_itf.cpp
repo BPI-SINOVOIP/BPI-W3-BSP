@@ -21,6 +21,7 @@
 #include "xcam_log.h"
 #include "algos/amerge/rk_aiq_amerge_algo.h"
 #include "algos/amerge/rk_aiq_types_amerge_algo_prvt.h"
+#include "algos/amerge/rk_aiq_algo_amerge_itf.h"
 
 
 
@@ -55,7 +56,7 @@ static XCamReturn AmergeDestroyCtx(RkAiqAlgoContext *context)
     if(context != NULL) {
         AmergeContext_t* pAmergeGrpCtx = (AmergeContext_t*)context;
         ret = AmergeRelease(pAmergeGrpCtx);
-        if (ret != AMERGE_RET_SUCCESS) {
+        if (ret != XCAM_RETURN_NO_ERROR) {
             LOGE_AMERGE("%s Amerge Release failed: %d", __FUNCTION__, ret);
             return(XCAM_RETURN_ERROR_FAILED);
         }
@@ -101,7 +102,7 @@ static XCamReturn AmergePrepare(RkAiqAlgoCom* params)
     if(/* !params->u.prepare.reconfig*/true) {
         AmergeStop(pAmergeGrpCtx); // stop firstly for re-preapre
         ret = AmergeStart(pAmergeGrpCtx);
-        if (ret != AMERGE_RET_SUCCESS) {
+        if (ret != XCAM_RETURN_NO_ERROR) {
             LOGE_AMERGE("%s Amerge Start failed: %d\n", __FUNCTION__, ret);
             return(XCAM_RETURN_ERROR_FAILED);
         }
@@ -131,7 +132,7 @@ static XCamReturn AmergeProcess(const RkAiqAlgoCom* inparams, RkAiqAlgoResCom* o
         LOGD_AMERGE("/#####################################Amerge Group Start#####################################/ \n");
 
         //update config
-        merge_OpModeV21_t mode ;
+        merge_OpModeV21_t mode = MERGE_OPMODE_API_OFF;
         if(CHECK_ISP_HW_V21())
             mode = pAmergeGrpCtx->mergeAttr.attrV21.opMode;
         else if(CHECK_ISP_HW_V30())
@@ -143,9 +144,9 @@ static XCamReturn AmergeProcess(const RkAiqAlgoCom* inparams, RkAiqAlgoResCom* o
 
         //get Sensor Info
         XCamVideoBuffer* xCamAeProcRes = pAmergeGrpParams->camgroupParmasArray[0]->aec._aeProcRes;
-        RkAiqAlgoProcResAeInt* pAEProcRes = NULL;
+        RkAiqAlgoProcResAe* pAEProcRes = NULL;
         if (xCamAeProcRes) {
-            pAEProcRes = (RkAiqAlgoProcResAeInt*)xCamAeProcRes->map(xCamAeProcRes);
+            pAEProcRes = (RkAiqAlgoProcResAe*)xCamAeProcRes->map(xCamAeProcRes);
             AmergeGetSensorInfo(pAmergeGrpCtx, pAEProcRes->ae_proc_res_rk);
         }
         else {
@@ -157,9 +158,9 @@ static XCamReturn AmergeProcess(const RkAiqAlgoCom* inparams, RkAiqAlgoResCom* o
 
         //get ae pre res and proc
         XCamVideoBuffer* xCamAePreRes = pAmergeGrpParams->camgroupParmasArray[0]->aec._aePreRes;
-        RkAiqAlgoPreResAeInt* pAEPreRes = NULL;
+        RkAiqAlgoPreResAe* pAEPreRes = NULL;
         if (xCamAePreRes) {
-            pAEPreRes = (RkAiqAlgoPreResAeInt*)xCamAePreRes->map(xCamAePreRes);
+            pAEPreRes = (RkAiqAlgoPreResAe*)xCamAePreRes->map(xCamAePreRes);
             bypass = AmergeByPassProcessing(pAmergeGrpCtx, pAEPreRes->ae_pre_res_rk);
         }
         else {
@@ -229,7 +230,7 @@ static XCamReturn AmergeProcess(const RkAiqAlgoCom* inparams, RkAiqAlgoResCom* o
         }
 
         //clip for Longframe mode
-        if(pAmergeGrpParams->SensorInfo.LongFrmMode) {
+        if(pAmergeGrpCtx->SensorInfo.LongFrmMode) {
             ExpoData.nextRatioLS = 1;
             ExpoData.nextRatioLM = 1;
         }

@@ -24,7 +24,6 @@
 #include <dlfcn.h>
 #include <unistd.h>
 
-#include "mpp_log.h"
 #include "mpp_mem.h"
 #include "mpp_env.h"
 #include "mpp_platform.h"
@@ -153,6 +152,8 @@ MPP_RET hal_h264d_init(void *hal, MppHalCfg *cfg)
             p_api->flush   = rkv_h264d_flush;
             p_api->control = rkv_h264d_control;
         }
+
+        cfg->support_fast_mode = 1;
     } break;
     case VPU_CLIENT_VDPU1 : {
         p_api->init    = vdpu1_h264d_init;

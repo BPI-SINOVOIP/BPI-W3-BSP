@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2010-2016, 2020-2021 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2010-2016, 2020-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -88,7 +88,7 @@ int kbase_dma_fence_wait(struct kbase_jd_atom *katom,
 			 struct kbase_dma_fence_resv_info *info);
 
 /**
- * kbase_dma_fence_cancel_ctx() - Cancel all dma-fences blocked atoms on kctx
+ * kbase_dma_fence_cancel_all_atoms() - Cancel all dma-fences blocked atoms on kctx
  * @kctx: Pointer to kbase context
  *
  * This function will cancel and clean up all katoms on @kctx that is waiting
@@ -132,6 +132,8 @@ void kbase_dma_fence_term(struct kbase_context *kctx);
 /**
  * kbase_dma_fence_init() - Initialize Mali dma-fence context
  * @kctx: kbase context to initialize
+ *
+ * Return: 0 on success, error code otherwise.
  */
 int kbase_dma_fence_init(struct kbase_context *kctx);
 

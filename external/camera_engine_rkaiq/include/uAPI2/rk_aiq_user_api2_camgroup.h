@@ -68,6 +68,8 @@ typedef struct rk_aiq_camgroup_instance_cfg_s {
     const char* single_iq_file;
     const char* group_iq_file;
     const char* overlap_map_file;
+    rk_aiq_hwevt_cb pHwEvt_cb;
+    void* pHwEvtCbCtx;
 } rk_aiq_camgroup_instance_cfg_t;
 
 typedef struct rk_aiq_camgroup_camInfos_s {

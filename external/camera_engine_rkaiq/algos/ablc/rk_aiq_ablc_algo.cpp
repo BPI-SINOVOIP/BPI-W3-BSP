@@ -17,15 +17,16 @@ AblcResult_t AblcJsonParamInit(AblcParams_t *pParams, AblcParaV2_t* pBlcCalibPar
         pParams->blc_gr[i] = pBlcCalibParams->BLC_Data.Gr_Channel[i];
         pParams->blc_gb[i] = pBlcCalibParams->BLC_Data.Gb_Channel[i];
         pParams->blc_b[i] = pBlcCalibParams->BLC_Data.B_Channel[i];
-    }
 
-    LOGD_ABLC("%s(%d): Ablc en:%d blc:%f %f %f %f \n",
-              __FUNCTION__, __LINE__,
-              pParams->enable,
-              pParams->blc_r[0],
-              pParams->blc_gr[0],
-              pParams->blc_gb[0],
-              pParams->blc_b[0]);
+        LOGD_ABLC("%s(%d): Ablc en:%d iso:%d blc:%f %f %f %f \n",
+                  __FUNCTION__, __LINE__,
+                  pParams->enable,
+                  pParams->iso[i],
+                  pParams->blc_r[i],
+                  pParams->blc_gr[i],
+                  pParams->blc_gb[i],
+                  pParams->blc_b[i]);
+    }
 
     LOG1_ABLC("%s(%d)\n", __FUNCTION__, __LINE__);
     return res;
@@ -175,9 +176,12 @@ AblcResult_t AblcParamsUpdate(AblcContext_t *pAblcCtx, CalibDbV2_Ablc_t *pCalibD
     //blc0
     BlcNewMalloc(&pAblcCtx->stBlc0Params, &pCalibDb->BlcTuningPara);
     AblcJsonParamInit(&pAblcCtx->stBlc0Params, &pCalibDb->BlcTuningPara);
+
     //blc1
-    BlcNewMalloc(&pAblcCtx->stBlc1Params, &pCalibDb->Blc1TuningPara);
-    AblcJsonParamInit(&pAblcCtx->stBlc1Params, &pCalibDb->Blc1TuningPara);
+    if (CHECK_ISP_HW_V3X()) {
+        BlcNewMalloc(&pAblcCtx->stBlc1Params, &pCalibDb->Blc1TuningPara);
+        AblcJsonParamInit(&pAblcCtx->stBlc1Params, &pCalibDb->Blc1TuningPara);
+    }
 
     return ret;
     LOG1_ABLC( "%s:exit!\n", __FUNCTION__);
@@ -283,18 +287,25 @@ AblcResult_t AblcProcess(AblcContext_t *pAblcCtx, AblcExpInfo_t *pExpInfo)
     if(pAblcCtx->eMode == ABLC_OP_MODE_AUTO) {
         LOGD_ABLC("%s:(%d) Ablc auto !!! \n", __FUNCTION__, __LINE__);
         ret = Ablc_Select_Params_By_ISO(&pAblcCtx->stBlc0Params, &pAblcCtx->stBlc0Select, pExpInfo);
-        ret = Ablc_Select_Params_By_ISO(&pAblcCtx->stBlc1Params, &pAblcCtx->stBlc1Select, pExpInfo);
         pAblcCtx->ProcRes.enable = pAblcCtx->stBlc0Select.enable;
         pAblcCtx->ProcRes.blc_r = pAblcCtx->stBlc0Select.blc_r;
         pAblcCtx->ProcRes.blc_gr = pAblcCtx->stBlc0Select.blc_gr;
         pAblcCtx->ProcRes.blc_gb = pAblcCtx->stBlc0Select.blc_gb;
         pAblcCtx->ProcRes.blc_b = pAblcCtx->stBlc0Select.blc_b;
 
-        pAblcCtx->ProcRes.blc1_enable = pAblcCtx->stBlc1Select.enable;
-        pAblcCtx->ProcRes.blc1_r = pAblcCtx->stBlc1Select.blc_r;
-        pAblcCtx->ProcRes.blc1_gr = pAblcCtx->stBlc1Select.blc_gr;
-        pAblcCtx->ProcRes.blc1_gb = pAblcCtx->stBlc1Select.blc_gb;
-        pAblcCtx->ProcRes.blc1_b = pAblcCtx->stBlc1Select.blc_b;
+        if (CHECK_ISP_HW_V3X()) {
+            if(pAblcCtx->stBlc1Params.enable) {
+                ret = Ablc_Select_Params_By_ISO(&pAblcCtx->stBlc1Params, &pAblcCtx->stBlc1Select, pExpInfo);
+            }
+            pAblcCtx->stBlc1Select.enable = pAblcCtx->stBlc1Params.enable;
+            pAblcCtx->ProcRes.blc1_enable = pAblcCtx->stBlc1Select.enable;
+            pAblcCtx->ProcRes.blc1_r = pAblcCtx->stBlc1Select.blc_r;
+            pAblcCtx->ProcRes.blc1_gr = pAblcCtx->stBlc1Select.blc_gr;
+            pAblcCtx->ProcRes.blc1_gb = pAblcCtx->stBlc1Select.blc_gb;
+            pAblcCtx->ProcRes.blc1_b = pAblcCtx->stBlc1Select.blc_b;
+
+
+        }
     } else if(pAblcCtx->eMode == ABLC_OP_MODE_MANUAL) {
         LOGD_ABLC("%s:(%d) Ablc manual !!! \n", __FUNCTION__, __LINE__);
         pAblcCtx->ProcRes.enable = pAblcCtx->stBlc0Manual.enable;
@@ -303,11 +314,13 @@ AblcResult_t AblcProcess(AblcContext_t *pAblcCtx, AblcExpInfo_t *pExpInfo)
         pAblcCtx->ProcRes.blc_gb = pAblcCtx->stBlc0Manual.blc_gb;
         pAblcCtx->ProcRes.blc_b = pAblcCtx->stBlc0Manual.blc_b;
 
-        pAblcCtx->ProcRes.blc1_enable = pAblcCtx->stBlc1Manual.enable;
-        pAblcCtx->ProcRes.blc1_r = pAblcCtx->stBlc1Manual.blc_r;
-        pAblcCtx->ProcRes.blc1_gr = pAblcCtx->stBlc1Manual.blc_gr;
-        pAblcCtx->ProcRes.blc1_gb = pAblcCtx->stBlc1Manual.blc_gb;
-        pAblcCtx->ProcRes.blc1_b = pAblcCtx->stBlc1Manual.blc_b;
+        if (CHECK_ISP_HW_V3X()) {
+            pAblcCtx->ProcRes.blc1_enable = pAblcCtx->stBlc1Manual.enable;
+            pAblcCtx->ProcRes.blc1_r = pAblcCtx->stBlc1Manual.blc_r;
+            pAblcCtx->ProcRes.blc1_gr = pAblcCtx->stBlc1Manual.blc_gr;
+            pAblcCtx->ProcRes.blc1_gb = pAblcCtx->stBlc1Manual.blc_gb;
+            pAblcCtx->ProcRes.blc1_b = pAblcCtx->stBlc1Manual.blc_b;
+        }
     } else {
         LOGE_ABLC("%s(%d): not support mode:%d!\n", __FUNCTION__, __LINE__, pAblcCtx->eMode);
     }
@@ -321,14 +334,15 @@ AblcResult_t AblcProcess(AblcContext_t *pAblcCtx, AblcExpInfo_t *pExpInfo)
               pAblcCtx->ProcRes.blc_gb,
               pAblcCtx->ProcRes.blc_b);
 
-
-    LOGD_ABLC("%s(%d): Ablc1 en:%d blc:%d %d %d %d \n",
-              __FUNCTION__, __LINE__,
-              pAblcCtx->ProcRes.blc1_enable,
-              pAblcCtx->ProcRes.blc1_r,
-              pAblcCtx->ProcRes.blc1_gr,
-              pAblcCtx->ProcRes.blc1_gb,
-              pAblcCtx->ProcRes.blc1_b);
+    if (CHECK_ISP_HW_V3X()) {
+        LOGD_ABLC("%s(%d): Ablc1 en:%d blc:%d %d %d %d \n",
+                  __FUNCTION__, __LINE__,
+                  pAblcCtx->ProcRes.blc1_enable,
+                  pAblcCtx->ProcRes.blc1_r,
+                  pAblcCtx->ProcRes.blc1_gr,
+                  pAblcCtx->ProcRes.blc1_gb,
+                  pAblcCtx->ProcRes.blc1_b);
+    }
 
     LOG1_ABLC("%s(%d): exit!\n", __FUNCTION__, __LINE__);
     return ABLC_RET_SUCCESS;

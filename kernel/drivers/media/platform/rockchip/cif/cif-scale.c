@@ -430,12 +430,6 @@ static int rkcif_scale_fh_open(struct file *file)
 		v4l2_err(&cifdev->v4l2_dev, "Failed to get runtime pm, %d\n",
 			 ret);
 
-	mutex_lock(&cifdev->stream_lock);
-	if (!atomic_read(&cifdev->fh_cnt))
-		rkcif_soft_reset(cifdev, true);
-	atomic_inc(&cifdev->fh_cnt);
-	mutex_unlock(&cifdev->stream_lock);
-
 	ret = v4l2_fh_open(file);
 	if (!ret) {
 		ret = v4l2_pipeline_pm_get(&vnode->vdev.entity);
@@ -517,7 +511,7 @@ static void rkcif_scale_vb2_buf_queue(struct vb2_buffer *vb)
 	for (i = 0; i < fmt->mplanes; i++) {
 		void *addr = vb2_plane_vaddr(vb, i);
 
-		if (hw_dev->iommu_en) {
+		if (hw_dev->is_dma_sg_ops) {
 			struct sg_table *sgt = vb2_dma_sg_plane_desc(vb, i);
 
 			cifbuf->buff_addr[i] = sg_dma_address(sgt->sgl);
@@ -914,10 +908,7 @@ static int rkcif_scale_init_vb2_queue(struct vb2_queue *q,
 	q->io_modes = VB2_MMAP | VB2_DMABUF;
 	q->drv_priv = scale_vdev;
 	q->ops = &rkcif_scale_vb2_ops;
-	if (hw_dev->iommu_en)
-		q->mem_ops = &vb2_dma_sg_memops;
-	else
-		q->mem_ops = &vb2_dma_contig_memops;
+	q->mem_ops = hw_dev->mem_ops;
 	q->buf_struct_size = sizeof(struct rkcif_buffer);
 	q->min_buffers_needed = CIF_SCALE_REQ_BUFS_MIN;
 	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
@@ -926,6 +917,8 @@ static int rkcif_scale_init_vb2_queue(struct vb2_queue *q,
 	q->allow_cache_hints = 1;
 	q->bidirectional = 1;
 	q->gfp_flags = GFP_DMA32;
+	if (hw_dev->is_dma_contig)
+		q->dma_attrs = DMA_ATTR_FORCE_CONTIGUOUS;
 	return vb2_queue_init(q);
 }
 
@@ -1055,7 +1048,7 @@ void rkcif_irq_handle_scale(struct rkcif_device *cif_dev, unsigned int intstat_g
 		rkcif_scale_update_stream(scale_vdev, ch);
 		stream = scale_vdev->stream;
 		if (stream->to_en_dma)
-			rkcif_enable_dma_capture(stream);
+			rkcif_enable_dma_capture(stream, false);
 	}
 }
 

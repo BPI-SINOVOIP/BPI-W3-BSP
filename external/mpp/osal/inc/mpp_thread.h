@@ -65,7 +65,7 @@ typedef enum {
 
 #ifdef __cplusplus
 
-#include "mpp_log.h"
+#include "mpp_debug.h"
 
 class Mutex;
 class Condition;
@@ -209,7 +209,7 @@ public:
 
     void    lock()      { mLock.lock(); }
     void    unlock()    { mLock.unlock(); }
-    void    trylock()   { mLock.trylock(); }
+    int     trylock()   { return mLock.trylock(); }
     void    wait()      { mCondition.wait(mLock); }
     RK_S32  wait(RK_S64 timeout) { return mCondition.timedwait(mLock, timeout); }
     void    signal()    { mCondition.signal(); }

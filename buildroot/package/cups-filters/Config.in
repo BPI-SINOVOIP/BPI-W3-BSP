@@ -14,7 +14,6 @@ config BR2_PACKAGE_CUPS_FILTERS
 	select BR2_PACKAGE_LCMS2
 	select BR2_PACKAGE_LIBGLIB2
 	select BR2_PACKAGE_QPDF
-	select BR2_PACKAGE_DEJAVU
 	help
 	  This project provides backends, filters, and other software
 	  that was once part of the core CUPS distribution but is no

@@ -7,11 +7,13 @@ export RK_UBOOT_DEFCONFIG=evb-px30
 # Trust choose ignore bl32, including --ignore-bl32
 export TRUST_PACK_IGNORE_BL32=
 # Kernel defconfig
-export RK_KERNEL_DEFCONFIG=rockchip_linux_defconfig
+export RK_KERNEL_DEFCONFIG=px30_linux_defconfig
+# Kernel defconfig fragment
+export RK_KERNEL_DEFCONFIG_FRAGMENT=rk3358_linux.config
 # Kernel dts
 export RK_KERNEL_DTS=rk3358-evb-ddr3-v10-linux
 # boot image type
-export RK_BOOT_IMG=boot.img
+export RK_BOOT_IMG=zboot.img
 # kernel image path
 export RK_KERNEL_IMG=kernel/arch/arm64/boot/Image
 export RK_KERNEL_ZIMG=kernel/arch/arm64/boot/Image.lz4

@@ -23,6 +23,8 @@
 #include "ablc/rk_aiq_types_ablc_algo.h"
 #include "RkAiqCalibDbTypes.h"
 #include "ablc_head.h"
+#include "ablc_uapi_head.h"
+
 
 #define ABLC_RECALCULATE_DELTE_ISO  (10)
 
@@ -73,6 +75,7 @@ typedef struct AblcParams_s {
     float* blc_b;
 } AblcParams_t;
 
+#if 0
 typedef struct AblcSelect_s {
     bool enable;
     short int blc_r;
@@ -81,7 +84,10 @@ typedef struct AblcSelect_s {
     short int blc_b;
 } AblcSelect_t;
 
+
 typedef AblcSelect_t AblcManualAttr_t;
+#endif
+
 
 typedef struct AblcProc_s {
     bool enable;

@@ -60,6 +60,9 @@ G_DEFINE_ABSTRACT_TYPE (GstMppDec, gst_mpp_dec, GST_TYPE_VIDEO_DECODER);
 #define DEFAULT_PROP_WIDTH 0    /* Original */
 #define DEFAULT_PROP_HEIGHT 0   /* Original */
 
+static gboolean DEFAULT_PROP_IGNORE_ERROR = TRUE;
+static gboolean DEFAULT_PROP_FAST_MODE = TRUE;
+
 enum
 {
   PROP_0,
@@ -67,6 +70,8 @@ enum
   PROP_WIDTH,
   PROP_HEIGHT,
   PROP_CROP_RECTANGLE,
+  PROP_IGNORE_ERROR,
+  PROP_FAST_MODE,
   PROP_LAST,
 };
 
@@ -126,6 +131,20 @@ gst_mpp_dec_set_property (GObject * object,
 
       break;
     }
+    case PROP_IGNORE_ERROR:{
+      if (self->input_state)
+        GST_WARNING_OBJECT (decoder, "unable to change error mode");
+      else
+        self->ignore_error = g_value_get_boolean (value);
+      break;
+    }
+    case PROP_FAST_MODE:{
+      if (self->input_state)
+        GST_WARNING_OBJECT (decoder, "unable to change fast mode");
+      else
+        self->fast_mode = g_value_get_boolean (value);
+      break;
+    }
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
       break;
@@ -148,6 +167,12 @@ gst_mpp_dec_get_property (GObject * object,
       break;
     case PROP_HEIGHT:
       g_value_set_uint (value, self->height);
+      break;
+    case PROP_IGNORE_ERROR:
+      g_value_set_boolean (value, self->ignore_error);
+      break;
+    case PROP_FAST_MODE:
+      g_value_set_boolean (value, self->fast_mode);
       break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
@@ -200,6 +225,7 @@ gst_mpp_dec_reset (GstVideoDecoder * decoder, gboolean drain, gboolean final)
 
   self->mpi->reset (self->mpp_ctx);
   self->task_ret = GST_FLOW_OK;
+  self->decoded_frames = 0;
 
   GST_MPP_DEC_UNLOCK (decoder);
 }
@@ -223,10 +249,12 @@ gst_mpp_dec_start (GstVideoDecoder * decoder)
   self->interlace_mode = GST_VIDEO_INTERLACE_MODE_PROGRESSIVE;
   self->mpp_type = MPP_VIDEO_CodingUnused;
   self->seen_valid_pts = FALSE;
+  self->convert = FALSE;
 
   self->input_state = NULL;
 
   self->task_ret = GST_FLOW_OK;
+  self->decoded_frames = 0;
   self->flushing = FALSE;
 
   /* Prefer using MPP PTS */
@@ -298,6 +326,10 @@ gst_mpp_dec_set_format (GstVideoDecoder * decoder, GstVideoCodecState * state)
 
   GST_DEBUG_OBJECT (self, "setting format: %" GST_PTR_FORMAT, state->caps);
 
+  /* The MPP m2vd's PTS is buggy */
+  if (self->mpp_type == MPP_VIDEO_CodingMPEG2)
+    self->use_mpp_pts = FALSE;
+
   if (self->input_state) {
     if (gst_caps_is_strictly_equal (self->input_state->caps, state->caps))
       return TRUE;
@@ -309,6 +341,10 @@ gst_mpp_dec_set_format (GstVideoDecoder * decoder, GstVideoCodecState * state)
   } else {
     MppBufferGroup group;
 
+    /* NOTE: MPP fast mode must be applied before mpp_init() */
+    self->mpi->control (self->mpp_ctx, MPP_DEC_SET_PARSER_FAST_MODE,
+        &self->fast_mode);
+
     if (mpp_init (self->mpp_ctx, MPP_CTX_DEC, self->mpp_type)) {
       GST_ERROR_OBJECT (self, "failed to init mpp ctx");
       return FALSE;
@@ -318,6 +354,9 @@ gst_mpp_dec_set_format (GstVideoDecoder * decoder, GstVideoCodecState * state)
     self->mpi->control (self->mpp_ctx, MPP_DEC_SET_EXT_BUF_GROUP, group);
   }
 
+  if (self->ignore_error)
+    self->mpi->control (self->mpp_ctx, MPP_DEC_SET_DISABLE_ERROR, NULL);
+
   self->input_state = gst_video_codec_state_ref (state);
   return TRUE;
 }
@@ -325,7 +364,7 @@ gst_mpp_dec_set_format (GstVideoDecoder * decoder, GstVideoCodecState * state)
 static gboolean
 gst_mpp_dec_update_video_info (GstVideoDecoder * decoder, GstVideoFormat format,
     guint width, guint height, gint hstride, gint vstride, guint align,
-    gboolean afbc, gboolean nv12_10le40 UNUSED)
+    gboolean afbc)
 {
   GstMppDec *self = GST_MPP_DEC (decoder);
   GstVideoInfo *info = &self->info;
@@ -352,12 +391,6 @@ gst_mpp_dec_update_video_info (GstVideoDecoder * decoder, GstVideoFormat format,
     GST_VIDEO_INFO_UNSET_AFBC (&output_state->info);
   }
 
-#ifndef HAVE_NV12_10LE40
-  if (nv12_10le40)
-    gst_caps_set_simple (output_state->caps,
-        MPP_DEC_FEATURE_NV12_10LE40, G_TYPE_INT, 1, NULL);
-#endif
-
   *info = output_state->info;
   gst_video_codec_state_unref (output_state);
 
@@ -380,7 +413,7 @@ gst_mpp_dec_update_simple_video_info (GstVideoDecoder * decoder,
     GstVideoFormat format, guint width, guint height, guint align)
 {
   return gst_mpp_dec_update_video_info (decoder, format, width, height, 0, 0,
-      align, FALSE, FALSE);
+      align, FALSE);
 }
 
 void
@@ -401,9 +434,11 @@ gst_mpp_dec_fixup_video_info (GstVideoDecoder * decoder, GstVideoFormat format,
     /* Fallback to NV12 */
     format = GST_VIDEO_FORMAT_NV12;
 
+#ifdef HAVE_NV12_10LE40
   if (format == GST_VIDEO_FORMAT_NV12_10LE40 &&
       g_getenv ("GST_MPP_DEC_DISABLE_NV12_10"))
     format = GST_VIDEO_FORMAT_NV12;
+#endif
 
   gst_video_info_set_format (info, format,
       self->width ? : width, self->height ? : height);
@@ -445,8 +480,8 @@ gst_mpp_dec_apply_info_change (GstVideoDecoder * decoder, MppFrame mframe)
 
   if (self->rotation || dst_format != src_format ||
       dst_width != width || dst_height != height) {
-    if (offset_x || offset_y) {
-      GST_ERROR_OBJECT (self, "unable to convert with offsets (%d, %d)",
+    if (afbc || offset_x || offset_y) {
+      GST_ERROR_OBJECT (self, "unable to convert with AFBC or offsets (%d, %d)",
           offset_x, offset_y);
       return GST_FLOW_NOT_NEGOTIATED;
     }
@@ -456,13 +491,26 @@ gst_mpp_dec_apply_info_change (GstVideoDecoder * decoder, MppFrame mframe)
         gst_mpp_video_format_to_string (src_format), width, height,
         gst_mpp_video_format_to_string (dst_format), dst_width, dst_height);
 
+    self->convert = TRUE;
+
     hstride = 0;
     vstride = 0;
   }
 
+  if (afbc) {
+    /* HACK: MPP would align width to 64 for AFBC */
+    dst_width = GST_ROUND_UP_64 (dst_width);
+
+    /* HACK: MPP might have extra offsets for AFBC */
+    dst_height += offset_y;
+    vstride = dst_height;
+
+    /* HACK: Fake hstride for Rockchip VOP driver */
+    hstride = 0;
+  }
+
   if (!gst_mpp_dec_update_video_info (decoder, dst_format,
-          dst_width, dst_height, hstride, vstride, 0, afbc,
-          dst_format == GST_VIDEO_FORMAT_NV12_10LE40))
+          dst_width, dst_height, hstride, vstride, 0, afbc))
     return GST_FLOW_NOT_NEGOTIATED;
 
   return GST_FLOW_OK;
@@ -474,7 +522,10 @@ gst_mpp_dec_get_frame (GstVideoDecoder * decoder, GstClockTime pts)
   GstMppDec *self = GST_MPP_DEC (decoder);
   GstVideoCodecFrame *frame;
   GList *frames, *l;
+  gboolean is_first_frame = !self->decoded_frames;
   gint i;
+
+  self->decoded_frames++;
 
   frames = gst_video_decoder_get_frames (decoder);
   if (!frames) {
@@ -482,9 +533,9 @@ gst_mpp_dec_get_frame (GstVideoDecoder * decoder, GstClockTime pts)
     return NULL;
   }
 
-  frame = frames->data;
-  if (!frame->system_frame_number) {
-    /* Choose PTS source when getting the first frame */
+  /* Choose PTS source when getting the first frame */
+  if (is_first_frame) {
+    frame = frames->data;
 
     if (self->use_mpp_pts) {
       if (!GST_CLOCK_TIME_IS_VALID (pts)) {
@@ -493,6 +544,8 @@ gst_mpp_dec_get_frame (GstVideoDecoder * decoder, GstClockTime pts)
       } else {
         if (GST_CLOCK_TIME_IS_VALID (frame->pts))
           self->mpp_delta_pts = frame->pts - MPP_TO_GST_PTS (pts);
+
+        pts = GST_CLOCK_TIME_NONE;
 
         GST_DEBUG_OBJECT (self, "MPP delta pts=%" GST_TIME_FORMAT,
             GST_TIME_ARGS (self->mpp_delta_pts));
@@ -515,6 +568,8 @@ gst_mpp_dec_get_frame (GstVideoDecoder * decoder, GstClockTime pts)
   /* Fixup MPP PTS */
   if (self->use_mpp_pts && GST_CLOCK_TIME_IS_VALID (pts)) {
     pts = MPP_TO_GST_PTS (pts);
+
+    /* Apply delta PTS for frame matching */
     pts += self->mpp_delta_pts;
   }
 
@@ -536,7 +591,7 @@ gst_mpp_dec_get_frame (GstVideoDecoder * decoder, GstClockTime pts)
 
     if (GST_CLOCK_TIME_IS_VALID (f->pts)) {
       /* Prefer frame with close PTS */
-      if (abs ((gint) f->pts - (gint) pts) < 3000000) {
+      if (abs ((gint) f->pts - (gint) pts) < 3 * GST_MSECOND) {
         frame = f;
 
         GST_DEBUG_OBJECT (self, "using matched frame (#%d)",
@@ -574,53 +629,13 @@ out:
   if (frame) {
     gst_video_codec_frame_ref (frame);
 
+    /* Prefer using MPP PTS */
     if (GST_CLOCK_TIME_IS_VALID (pts))
       frame->pts = pts;
   }
 
   g_list_free_full (frames, (GDestroyNotify) gst_video_codec_frame_unref);
   return frame;
-}
-
-static gboolean
-gst_mpp_dec_info_matched (GstVideoDecoder * decoder, MppFrame mframe)
-{
-  GstMppDec *self = GST_MPP_DEC (decoder);
-  GstVideoInfo *info = &self->info;
-  GstVideoFormat format = GST_VIDEO_INFO_FORMAT (info);
-  MppFrameFormat mpp_format = mpp_frame_get_fmt (mframe);
-  gint width = mpp_frame_get_width (mframe);
-  gint height = mpp_frame_get_height (mframe);
-  gint hstride = mpp_frame_get_hor_stride (mframe);
-  gint vstride = mpp_frame_get_ver_stride (mframe);
-
-  if (self->rotation)
-    return FALSE;
-
-  /* NOTE: The output video info is aligned to 2 */
-  width = GST_ROUND_UP_2 (width);
-  height = GST_ROUND_UP_2 (height);
-
-  if (!!MPP_FRAME_FMT_IS_FBC (mpp_format) != !!GST_VIDEO_INFO_IS_AFBC (info))
-    return FALSE;
-
-  mpp_format &= ~MPP_FRAME_FBC_MASK;
-  if (mpp_format != gst_mpp_gst_format_to_mpp_format (format))
-    return FALSE;
-
-  if (width != GST_VIDEO_INFO_WIDTH (info))
-    return FALSE;
-
-  if (height != GST_VIDEO_INFO_HEIGHT (info))
-    return FALSE;
-
-  if (hstride != GST_MPP_VIDEO_INFO_HSTRIDE (info))
-    return FALSE;
-
-  if (vstride != GST_MPP_VIDEO_INFO_VSTRIDE (info))
-    return FALSE;
-
-  return TRUE;
 }
 
 #ifdef HAVE_RGA
@@ -666,6 +681,7 @@ gst_mpp_dec_get_gst_buffer (GstVideoDecoder * decoder, MppFrame mframe)
   gint crop_y = self->crop_y;
   guint crop_w = self->crop_w;
   guint crop_h = self->crop_h;
+  gboolean afbc = !!MPP_FRAME_FMT_IS_FBC (mpp_frame_get_fmt (mframe));
 
   mbuf = mpp_frame_get_buffer (mframe);
   if (!mbuf)
@@ -684,14 +700,16 @@ gst_mpp_dec_get_gst_buffer (GstVideoDecoder * decoder, MppFrame mframe)
     return NULL;
   }
 
-  if (offset_x || offset_y || crop_x || crop_y || crop_w || crop_h) {
+  if (afbc || offset_x || offset_y || crop_x || crop_y || crop_w || crop_h) {
     GstVideoCropMeta *cmeta = gst_buffer_add_video_crop_meta (buffer);
+    gint width = mpp_frame_get_width (mframe);
+    gint height = mpp_frame_get_height (mframe);
 
-    cmeta->x = CLAMP (crop_x, 0, GST_VIDEO_INFO_WIDTH (info) - 1);
-    cmeta->y = CLAMP (crop_y, 0, GST_VIDEO_INFO_HEIGHT (info) - 1);
+    cmeta->x = CLAMP (crop_x, 0, width - 1);
+    cmeta->y = CLAMP (crop_y, 0, height - 1);
 
-    cmeta->width = GST_VIDEO_INFO_WIDTH (info) - cmeta->x;
-    cmeta->height = GST_VIDEO_INFO_HEIGHT (info) - cmeta->y;
+    cmeta->width = width - cmeta->x;
+    cmeta->height = height - cmeta->y;
 
     if (crop_w && crop_w < cmeta->width)
       cmeta->width = crop_w;
@@ -711,11 +729,6 @@ gst_mpp_dec_get_gst_buffer (GstVideoDecoder * decoder, MppFrame mframe)
   if (GST_VIDEO_INFO_IS_AFBC (info))
     GST_MEMORY_FLAGS (mem) |= GST_MEMORY_FLAG_NOT_MAPPABLE;
 
-#ifndef HAVE_NV12_10LE40
-  if (GST_VIDEO_INFO_FORMAT (info) == GST_VIDEO_FORMAT_NV12_10LE40)
-    GST_MEMORY_FLAGS (mem) |= GST_MEMORY_FLAG_NOT_MAPPABLE;
-#endif
-
   gst_buffer_append_memory (buffer, mem);
 
   gst_buffer_add_video_meta_full (buffer, GST_VIDEO_FRAME_FLAG_NONE,
@@ -723,15 +736,15 @@ gst_mpp_dec_get_gst_buffer (GstVideoDecoder * decoder, MppFrame mframe)
       GST_VIDEO_INFO_WIDTH (info), GST_VIDEO_INFO_HEIGHT (info),
       GST_VIDEO_INFO_N_PLANES (info), info->offset, info->stride);
 
-  if (gst_mpp_dec_info_matched (decoder, mframe))
+  if (!self->convert)
     return buffer;
-
-  GST_DEBUG_OBJECT (self, "frame format not matched");
 
 #ifdef HAVE_RGA
-  if (!GST_VIDEO_INFO_IS_AFBC (info) && !offset_x && !offset_y &&
-      gst_mpp_dec_rga_convert (decoder, mframe, buffer))
-    return buffer;
+  if (gst_mpp_use_rga ()) {
+    if (!GST_VIDEO_INFO_IS_AFBC (info) && !offset_x && !offset_y &&
+        gst_mpp_dec_rga_convert (decoder, mframe, buffer))
+      return buffer;
+  }
 #endif
 
   GST_WARNING_OBJECT (self, "unable to convert frame");
@@ -810,6 +823,10 @@ gst_mpp_dec_loop (GstVideoDecoder * decoder)
     self->task_ret = gst_mpp_dec_apply_info_change (decoder, mframe);
     goto info_change;
   }
+
+  /* Apply info change when video info not unavaliable (no info-change event) */
+  if (!self->info.size)
+    self->task_ret = gst_mpp_dec_apply_info_change (decoder, mframe);
 
   mode = mpp_frame_get_mode (mframe);
 #ifdef MPP_FRAME_FLAG_IEP_DEI_MASK
@@ -1009,6 +1026,9 @@ gst_mpp_dec_init (GstMppDec * self)
 {
   GstVideoDecoder *decoder = GST_VIDEO_DECODER (self);
 
+  self->ignore_error = DEFAULT_PROP_IGNORE_ERROR;
+  self->fast_mode = DEFAULT_PROP_FAST_MODE;
+
   gst_video_decoder_set_packetized (decoder, TRUE);
 }
 
@@ -1039,6 +1059,7 @@ gst_mpp_dec_class_init (GstMppDecClass * klass)
   GstVideoDecoderClass *decoder_class = GST_VIDEO_DECODER_CLASS (klass);
   GObjectClass *gobject_class = G_OBJECT_CLASS (klass);
   GstElementClass *element_class = GST_ELEMENT_CLASS (klass);
+  const char *env;
 
   GST_DEBUG_CATEGORY_INIT (GST_CAT_DEFAULT, "mppdec", 0, "MPP decoder");
 
@@ -1054,6 +1075,9 @@ gst_mpp_dec_class_init (GstMppDecClass * klass)
   gobject_class->get_property = GST_DEBUG_FUNCPTR (gst_mpp_dec_get_property);
 
 #ifdef HAVE_RGA
+  if (!gst_mpp_use_rga ())
+    goto no_rga;
+
   g_object_class_install_property (gobject_class, PROP_ROTATION,
       g_param_spec_enum ("rotation", "Rotation",
           "Rotation",
@@ -1071,6 +1095,8 @@ gst_mpp_dec_class_init (GstMppDecClass * klass)
           "Height (0 = original)",
           0, G_MAXINT, DEFAULT_PROP_HEIGHT,
           G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+
+no_rga:
 #endif
 
   g_object_class_install_property (gobject_class, PROP_CROP_RECTANGLE,
@@ -1080,6 +1106,24 @@ gst_mpp_dec_class_init (GstMppDecClass * klass)
               "One of x, y, width or height value.", 0, G_MAXINT, 0,
               G_PARAM_WRITABLE | G_PARAM_STATIC_STRINGS),
           G_PARAM_WRITABLE | G_PARAM_STATIC_STRINGS));
+
+  env = g_getenv ("GST_MPP_DEC_DEFAULT_IGNORE_ERROR");
+  if (env && !strcmp (env, "0"))
+    DEFAULT_PROP_IGNORE_ERROR = FALSE;
+
+  g_object_class_install_property (gobject_class, PROP_IGNORE_ERROR,
+      g_param_spec_boolean ("ignore-error", "Ignore error",
+          "Ignore MPP decode errors", DEFAULT_PROP_IGNORE_ERROR,
+          G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+
+  env = g_getenv ("GST_MPP_DEC_DEFAULT_FAST_MODE");
+  if (env && !strcmp (env, "0"))
+    DEFAULT_PROP_FAST_MODE = FALSE;
+
+  g_object_class_install_property (gobject_class, PROP_FAST_MODE,
+      g_param_spec_boolean ("fast-mode", "Fast mode",
+          "Enable MPP fast decode mode", DEFAULT_PROP_FAST_MODE,
+          G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 
   element_class->change_state = GST_DEBUG_FUNCPTR (gst_mpp_dec_change_state);
 }

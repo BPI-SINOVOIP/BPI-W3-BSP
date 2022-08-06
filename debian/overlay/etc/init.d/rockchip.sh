@@ -10,6 +10,19 @@
 ### END INIT INFO
 
 PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+install_rga() {
+    case $1 in
+        rk3288|rk3399|rk3399pro|rk3328|px30|rk3326|rk3128|rk3036|rk3566|rk3568)
+            RGA=rga
+            ;;
+        rk3588|rk3588s)
+            RGA=rga2
+            ;;
+    esac
+    apt-get install -fy --allow-downgrades /$RGA/*.deb
+}
+
 install_mali() {
     case $1 in
         rk3288)
@@ -39,7 +52,7 @@ install_mali() {
             ;;
     esac
 
-    apt install -f /packages/libmali/libmali-*$MALI*-x11*.deb
+    apt-get install -fy --allow-downgrades /libmali-*$MALI*-x11*.deb
 }
 
 
@@ -88,9 +101,12 @@ then
     mount -o remount,sync /
 
     install_mali ${CHIPNAME}
+    install_rga ${CHIPNAME}
+
     setcap CAP_SYS_ADMIN+ep /usr/bin/gst-launch-1.0
 
-    rm -rf /packages
+    rm -rf /rga*
+    rm -rf /*.deb
 
     # The base target does not come with lightdm
     systemctl restart lightdm.service || true
@@ -132,6 +148,9 @@ chown root.video /dev/video-*
 # The chromium using fixed pathes for libv4l2.so
 ln -rsf /usr/lib/*/libv4l2.so /usr/lib/
 [ -e /usr/lib/aarch64-linux-gnu/ ] && ln -Tsf lib /usr/lib64
+
+# sync system time
+hwclock --systohc
 
 # read mac-address from efuse
 # if [ "$BOARDNAME" == "rk3288-miniarm" ]; then

@@ -118,6 +118,7 @@ processing(const RkAiqAlgoCom* inparams, RkAiqAlgoResCom* outparams)
     AdehazeHandle_t * pAdehazeGrpHandle = (AdehazeHandle_t *)inparams->ctx;
     RkAiqAlgoCamGroupProcIn* pGrpProcPara = (RkAiqAlgoCamGroupProcIn*)inparams;
     RkAiqAlgoCamGroupProcOut* pGrpProcResPara = (RkAiqAlgoCamGroupProcOut*)outparams;
+	pAdehazeGrpHandle->FrameID = inparams->frame_id;
 
     LOGD_ADEHAZE("/*************************Adehaze Group Start******************/ \n");
 

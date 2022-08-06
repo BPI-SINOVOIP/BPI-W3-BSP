@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2020-2021 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2020-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -20,6 +20,7 @@
  */
 
 #include <mali_kbase.h>
+#include <mali_kbase_config_defaults.h>
 #include "backend/gpu/mali_kbase_clk_rate_trace_mgr.h"
 #include "mali_kbase_csf_ipa_control.h"
 
@@ -44,24 +45,14 @@
 #define COMMAND_RESET_ACK ((u32)5)
 
 /*
- * Default value for the TIMER register of the IPA Control interface,
- * expressed in milliseconds.
- *
- * The chosen value is a trade off between two requirements: the IPA Control
- * interface should sample counters with a resolution in the order of
- * milliseconds, while keeping GPU overhead as limited as possible.
- */
-#define TIMER_DEFAULT_VALUE_MS ((u32)10) /* 10 milliseconds */
-
-/*
  * Number of timer events per second.
  */
-#define TIMER_EVENTS_PER_SECOND ((u32)1000 / TIMER_DEFAULT_VALUE_MS)
+#define TIMER_EVENTS_PER_SECOND ((u32)1000 / IPA_CONTROL_TIMER_DEFAULT_VALUE_MS)
 
 /*
  * Maximum number of loops polling the GPU before we assume the GPU has hung.
  */
-#define IPA_INACTIVE_MAX_LOOPS ((unsigned int)8000000)
+#define IPA_INACTIVE_MAX_LOOPS (8000000U)
 
 /*
  * Number of bits used to configure a performance counter in SELECT registers.
@@ -356,9 +347,8 @@ void kbase_ipa_control_init(struct kbase_device *kbdev)
 
 	spin_lock_init(&ipa_ctrl->lock);
 	ipa_ctrl->num_active_sessions = 0;
-	for (i = 0; i < KBASE_IPA_CONTROL_MAX_SESSIONS; i++) {
+	for (i = 0; i < KBASE_IPA_CONTROL_MAX_SESSIONS; i++)
 		ipa_ctrl->sessions[i].active = false;
-	}
 
 	listener_data = kmalloc(sizeof(struct kbase_ipa_control_listener_data),
 				GFP_KERNEL);
@@ -523,8 +513,10 @@ int kbase_ipa_control_register(
 	struct kbase_ipa_control_session *session = NULL;
 	unsigned long flags;
 
-	if (WARN_ON(kbdev == NULL) || WARN_ON(perf_counters == NULL) ||
-	    WARN_ON(client == NULL) ||
+	if (WARN_ON(unlikely(kbdev == NULL)))
+		return -ENODEV;
+
+	if (WARN_ON(perf_counters == NULL) || WARN_ON(client == NULL) ||
 	    WARN_ON(num_counters > KBASE_IPA_CONTROL_MAX_COUNTERS)) {
 		dev_err(kbdev->dev, "%s: wrong input arguments", __func__);
 		return -EINVAL;
@@ -601,9 +593,10 @@ int kbase_ipa_control_register(
 	 */
 	for (session_idx = 0; session_idx < KBASE_IPA_CONTROL_MAX_SESSIONS;
 	     session_idx++) {
-		session = &ipa_ctrl->sessions[session_idx];
-		if (!session->active)
+		if (!ipa_ctrl->sessions[session_idx].active) {
+			session = &ipa_ctrl->sessions[session_idx];
 			break;
+		}
 	}
 
 	if (!session) {
@@ -658,7 +651,7 @@ int kbase_ipa_control_register(
 		/* Reports to this client for GPU time spent in protected mode
 		 * should begin from the point of registration.
 		 */
-		session->last_query_time = ktime_get_ns();
+		session->last_query_time = ktime_get_raw_ns();
 
 		/* Initially, no time has been spent in protected mode */
 		session->protm_time = 0;
@@ -706,7 +699,10 @@ int kbase_ipa_control_unregister(struct kbase_device *kbdev, const void *client)
 	unsigned long flags;
 	bool new_config = false, valid_session = false;
 
-	if (WARN_ON(kbdev == NULL) || WARN_ON(client == NULL)) {
+	if (WARN_ON(unlikely(kbdev == NULL)))
+		return -ENODEV;
+
+	if (WARN_ON(client == NULL)) {
 		dev_err(kbdev->dev, "%s: wrong input arguments", __func__);
 		return -EINVAL;
 	}
@@ -788,8 +784,10 @@ int kbase_ipa_control_query(struct kbase_device *kbdev, const void *client,
 	unsigned long flags;
 	bool gpu_ready;
 
-	if (WARN_ON(kbdev == NULL) || WARN_ON(client == NULL) ||
-	    WARN_ON(values == NULL)) {
+	if (WARN_ON(unlikely(kbdev == NULL)))
+		return -ENODEV;
+
+	if (WARN_ON(client == NULL) || WARN_ON(values == NULL)) {
 		dev_err(kbdev->dev, "%s: wrong input arguments", __func__);
 		return -EINVAL;
 	}
@@ -823,7 +821,7 @@ int kbase_ipa_control_query(struct kbase_device *kbdev, const void *client,
 	}
 
 	if (protected_time) {
-		u64 time_now = ktime_get_ns();
+		u64 time_now = ktime_get_raw_ns();
 
 		/* This is the amount of protected-mode time spent prior to
 		 * the current protm period.
@@ -986,14 +984,14 @@ void kbase_ipa_control_protm_entered(struct kbase_device *kbdev)
 	struct kbase_ipa_control *ipa_ctrl = &kbdev->csf.ipa_control;
 
 	lockdep_assert_held(&kbdev->hwaccess_lock);
-	ipa_ctrl->protm_start = ktime_get_ns();
+	ipa_ctrl->protm_start = ktime_get_raw_ns();
 }
 
 void kbase_ipa_control_protm_exited(struct kbase_device *kbdev)
 {
 	struct kbase_ipa_control *ipa_ctrl = &kbdev->csf.ipa_control;
 	size_t i;
-	u64 time_now = ktime_get_ns();
+	u64 time_now = ktime_get_raw_ns();
 	u32 status;
 
 	lockdep_assert_held(&kbdev->hwaccess_lock);

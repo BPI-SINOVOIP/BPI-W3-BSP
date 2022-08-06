@@ -61,7 +61,8 @@ Aynr_result_V3_t Aynr_Init_V3(Aynr_Context_V3_t **ppAynrCtx, void *pCalibDb)
     memset(pAynrCtx, 0x00, sizeof(Aynr_Context_V3_t));
 
     //gain state init
-    pAynrCtx->fYnr_SF_Strength = 1.0;
+    pAynrCtx->stStrength.strength_enable = false;
+    pAynrCtx->stStrength.percent = 1.0;
 
     pAynrCtx->eState = AYNRV3_STATE_INITIALIZED;
     *ppAynrCtx = pAynrCtx;
@@ -261,16 +262,18 @@ Aynr_result_V3_t Aynr_GetProcResult_V3(Aynr_Context_V3_t *pAynrCtx, Aynr_ProcRes
     } else if(pAynrCtx->eMode == AYNRV3_OP_MODE_MANUAL) {
         //TODO
         pAynrResult->stSelect = pAynrCtx->stManual.stSelect;
-        pAynrCtx->fYnr_SF_Strength = 1.0;
     }
 
     //transfer to reg value
-    ynr_fix_transfer_V3(&pAynrResult->stSelect, &pAynrResult->stFix, pAynrCtx->fYnr_SF_Strength, &pAynrCtx->stExpInfo);
+    ynr_fix_transfer_V3(&pAynrResult->stSelect, &pAynrResult->stFix, &pAynrCtx->stStrength, &pAynrCtx->stExpInfo);
 
     if(pAynrCtx->eMode == AYNRV3_OP_MODE_REG_MANUAL) {
         pAynrResult->stFix = pAynrCtx->stManual.stFix;
+        pAynrCtx->stStrength.strength_enable = false;
+        pAynrCtx->stStrength.percent = 1.0;
     }
 
+    pAynrCtx->stProcResult = *pAynrResult;
     LOGI_ANR("%s(%d): exit!\n", __FUNCTION__, __LINE__);
     return AYNRV3_RET_SUCCESS;
 }

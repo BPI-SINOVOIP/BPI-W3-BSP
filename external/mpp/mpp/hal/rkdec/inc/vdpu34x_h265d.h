@@ -127,11 +127,60 @@ typedef struct Vdpu34xRegH265dAddr_t {
     RK_U32  reg197_cabactbl_base;
 } Vdpu34xRegH265dAddr;
 
+typedef struct Vdpu34xH265dHighPoc_t {
+    /* SWREG200 */
+    struct SWREG200_REF0_7_POC_HIGHBIT {
+        RK_U32      ref0_poc_highbit        : 4;
+        RK_U32      ref1_poc_highbit        : 4;
+        RK_U32      ref2_poc_highbit        : 4;
+        RK_U32      ref3_poc_highbit        : 4;
+        RK_U32      ref4_poc_highbit        : 4;
+        RK_U32      ref5_poc_highbit        : 4;
+        RK_U32      ref6_poc_highbit        : 4;
+        RK_U32      ref7_poc_highbit        : 4;
+    } reg200;
+    struct SWREG201_REF8_15_POC_HIGHBIT {
+        RK_U32      ref8_poc_highbit        : 4;
+        RK_U32      ref9_poc_highbit        : 4;
+        RK_U32      ref10_poc_highbit       : 4;
+        RK_U32      ref11_poc_highbit       : 4;
+        RK_U32      ref12_poc_highbit       : 4;
+        RK_U32      ref13_poc_highbit       : 4;
+        RK_U32      ref14_poc_highbit       : 4;
+        RK_U32      ref15_poc_highbit       : 4;
+    } reg201;
+    struct SWREG200_REF16_23_POC_HIGHBIT {
+        RK_U32      ref16_poc_highbit       : 4;
+        RK_U32      ref17_poc_highbit       : 4;
+        RK_U32      ref18_poc_highbit       : 4;
+        RK_U32      ref19_poc_highbit       : 4;
+        RK_U32      ref20_poc_highbit       : 4;
+        RK_U32      ref21_poc_highbit       : 4;
+        RK_U32      ref22_poc_highbit       : 4;
+        RK_U32      ref23_poc_highbit       : 4;
+    } reg202;
+    struct SWREG200_REF24_31_POC_HIGHBIT {
+        RK_U32      ref24_poc_highbit       : 4;
+        RK_U32      ref25_poc_highbit       : 4;
+        RK_U32      ref26_poc_highbit       : 4;
+        RK_U32      ref27_poc_highbit       : 4;
+        RK_U32      ref28_poc_highbit       : 4;
+        RK_U32      ref29_poc_highbit       : 4;
+        RK_U32      ref30_poc_highbit       : 4;
+        RK_U32      ref31_poc_highbit       : 4;
+    } reg203;
+    struct SWREG200_CUR_POC_HIGHBIT {
+        RK_U32      cur_poc_highbit         : 4;
+        RK_U32      reserver                : 28;
+    } reg204;
+} Vdpu34xH2645HighPoc_t;
+
 typedef struct Vdpu34xH265dRegSet_t {
     Vdpu34xRegCommon        common;
     Vdpu34xRegH265d         h265d_param;
     Vdpu34xRegCommonAddr    common_addr;
     Vdpu34xRegH265dAddr     h265d_addr;
+    Vdpu34xH2645HighPoc_t   highpoc;
     Vdpu34xRegIrqStatus     irq_status;
     Vdpu34xRegStatistic     statistic;
 } Vdpu34xH265dRegSet;

@@ -26,19 +26,21 @@
 #include "mpp_mem_pool.h"
 
 static const char *module_name = MODULE_TAG;
-static MppMemPool mpp_frame_pool = mpp_mem_pool_init(sizeof(MppFrameImpl));
+static MppMemPool mpp_frame_pool = mpp_mem_pool_init_f(module_name, sizeof(MppFrameImpl));
 
 static void setup_mpp_frame_name(MppFrameImpl *frame)
 {
     frame->name = module_name;
 }
 
-MPP_RET check_is_mpp_frame(void *frame)
+#define check_is_mpp_frame(frame) _check_is_mpp_frame(__FUNCTION__, frame)
+
+MPP_RET _check_is_mpp_frame(const char *func, void *frame)
 {
     if (frame && ((MppFrameImpl*)frame)->name == module_name)
         return MPP_OK;
 
-    mpp_err_f("pointer %p failed on check\n", frame);
+    mpp_err("pointer %p failed on %s check mpp_frame\n", frame, func);
     mpp_abort();
     return MPP_NOK;
 }
@@ -81,25 +83,6 @@ MPP_RET mpp_frame_deinit(MppFrame *frame)
 
     mpp_mem_pool_put(mpp_frame_pool, *frame);
     *frame = NULL;
-    return MPP_OK;
-}
-
-MppFrame mpp_frame_get_next(MppFrame frame)
-{
-    if (check_is_mpp_frame(frame))
-        return NULL;
-
-    MppFrameImpl *p = (MppFrameImpl *)frame;
-    return (MppFrame)p->next;
-}
-
-MPP_RET mpp_frame_set_next(MppFrame frame, MppFrame next)
-{
-    if (check_is_mpp_frame(frame))
-        return MPP_ERR_UNKNOW;
-
-    MppFrameImpl *p = (MppFrameImpl *)frame;
-    p->next = (MppFrameImpl *)next;
     return MPP_OK;
 }
 
@@ -281,6 +264,7 @@ MPP_FRAME_ACCESSORS(RK_U32, height)
 MPP_FRAME_ACCESSORS(RK_U32, hor_stride_pixel)
 MPP_FRAME_ACCESSORS(RK_U32, hor_stride)
 MPP_FRAME_ACCESSORS(RK_U32, ver_stride)
+MPP_FRAME_ACCESSORS(RK_U32, fbc_hdr_stride)
 MPP_FRAME_ACCESSORS(RK_U32, offset_x)
 MPP_FRAME_ACCESSORS(RK_U32, offset_y)
 MPP_FRAME_ACCESSORS(RK_U32, mode)
@@ -302,3 +286,4 @@ MPP_FRAME_ACCESSORS(MppFrameMasteringDisplayMetadata, mastering_display)
 MPP_FRAME_ACCESSORS(MppFrameContentLightMetadata, content_light)
 MPP_FRAME_ACCESSORS(size_t, buf_size)
 MPP_FRAME_ACCESSORS(RK_U32, errinfo)
+MPP_FRAME_ACCESSORS(MppTask, task)

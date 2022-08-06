@@ -41,6 +41,7 @@
 
 #include "rk_aiq_user_api2_adpcc.h"
 #include "rk_aiq_user_api2_acp.h"
+#include "rk_aiq_user_api2_aie.h"
 #include "rk_aiq_user_api2_adebayer.h"
 #include "rk_aiq_user_api2_a3dlut.h"
 #include "rk_aiq_user_api2_aldch.h"
@@ -51,6 +52,7 @@
 #include "rk_aiq_user_api2_asharp_v4.h"
 #include "rk_aiq_user_api2_abayer2dnr_v2.h"
 #include "rk_aiq_user_api2_abayertnr_v2.h"
+#include "rk_aiq_user_api2_again_v2.h"
 
 
 
@@ -65,11 +67,11 @@ RKAIQ_BEGIN_DECLARE
 *
 * Desc: set ae lock
 * Argument:
-*		true, ae lock
+*       true, ae lock
 *           false, ae unlock
 *****************************
 */
-XCamReturn rk_aiq_uapi2_setAeLock(const rk_aiq_sys_ctx_t* ctx,bool on);
+XCamReturn rk_aiq_uapi2_setAeLock(const rk_aiq_sys_ctx_t* ctx, bool on);
 
 /*
 *****************************
@@ -679,6 +681,18 @@ XCamReturn rk_aiq_uapi2_resetZoom(const rk_aiq_sys_ctx_t* ctx);
 XCamReturn rk_aiq_uapi2_setAngleZ(const rk_aiq_sys_ctx_t* ctx, float angleZ);
 
 /*
+*****************************
+*
+* Desc: get/set CustomAf Result
+* Argument:
+*
+*
+*****************************
+*/
+XCamReturn rk_aiq_uapi2_getCustomAfRes(const rk_aiq_sys_ctx_t* ctx, rk_tool_customAf_res_t *attr);
+XCamReturn rk_aiq_uapi2_setCustomAfRes(const rk_aiq_sys_ctx_t* ctx, rk_tool_customAf_res_t *attr);
+
+/*
 **********************************************************
 * Color Correction
 **********************************************************
@@ -859,6 +873,23 @@ XCamReturn rk_aiq_uapi2_setFecCorrectLevel(const rk_aiq_sys_ctx_t* ctx, int corr
 */
 XCamReturn rk_aiq_uapi2_setFecCorrectMode(const rk_aiq_sys_ctx_t* ctx,
         const fec_correct_mode_t mode);
+
+/*
+*****************************
+*
+* Desc:
+* Argument:
+*****************************
+*/
+XCamReturn rk_aiq_uapi2_setGrayMode(const rk_aiq_sys_ctx_t* ctx, rk_aiq_gray_mode_t mode);
+/*
+*****************************
+*
+* Desc:
+* Argument:
+*****************************
+*/
+rk_aiq_gray_mode_t rk_aiq_uapi2_getGrayMode(const rk_aiq_sys_ctx_t* ctx);
 RKAIQ_END_DECLARE
 
 #endif

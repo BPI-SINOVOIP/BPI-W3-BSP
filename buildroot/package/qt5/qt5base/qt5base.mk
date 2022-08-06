@@ -11,6 +11,10 @@ QT5BASE_SOURCE = qtbase-$(QT5_SOURCE_TARBALL_PREFIX)-$(QT5BASE_VERSION).tar.xz
 QT5BASE_DEPENDENCIES = host-pkgconf pcre2 zlib
 QT5BASE_INSTALL_STAGING = YES
 
+# 0010-Avoid-processing-intensive-painting-of-high-number-o.patch
+# 0011-Improve-fix-for-avoiding-huge-number-of-tiny-dashes.patch
+QT5BASE_IGNORE_CVES += CVE-2021-38593
+
 # A few comments:
 #  * -no-pch to workaround the issue described at
 #     http://comments.gmane.org/gmane.comp.lib.qt.devel/5933.
@@ -27,10 +31,13 @@ QT5BASE_CONFIGURE_OPTS += \
 	-system-zlib \
 	-system-pcre \
 	-no-pch \
-	-shared
-
-QT5BASE_CONFIGURE_OPTS += \
+	-shared \
 	-no-feature-relocatable
+
+ifeq ($(BR2_PACKAGE_BINUTILS_ENABLE_GOLD),y)
+QT5BASE_CONFIGURE_OPTS += \
+	-linker gold
+endif
 
 # starting from version 5.9.0, -optimize-debug is enabled by default
 # for debug builds and it overrides -O* with -Og which is not what we
@@ -93,9 +100,6 @@ QT5BASE_LICENSE = GPL-2.0+ or LGPL-3.0, GPL-3.0 with exception(tools), GFDL-1.3 
 QT5BASE_LICENSE_FILES = LICENSE.GPL2 LICENSE.GPL3 LICENSE.GPL3-EXCEPT LICENSE.LGPLv3 LICENSE.FDL
 ifeq ($(BR2_PACKAGE_QT5BASE_EXAMPLES),y)
 QT5BASE_LICENSE += , BSD-3-Clause (examples)
-ifeq ($(BR2_PACKAGE_QT5_VERSION_5_15),)
-QT5BASE_LICENSE_FILES += header.BSD
-endif
 endif
 
 QT5BASE_CONFIG_FILE = $(call qstrip,$(BR2_PACKAGE_QT5BASE_CONFIG_FILE))
@@ -113,13 +117,6 @@ QT5BASE_DEPENDENCIES += cups
 QT5BASE_CONFIGURE_OPTS += -cups
 else
 QT5BASE_CONFIGURE_OPTS += -no-cups
-endif
-
-ifeq ($(BR2_PACKAGE_ZSTD),y)
-QT5BASE_DEPENDENCIES += zstd
-QT5BASE_CONFIGURE_OPTS += -zstd
-else
-QT5BASE_CONFIGURE_OPTS += -no-zstd
 endif
 
 # Qt5 SQL Plugins
@@ -173,9 +170,13 @@ QT5BASE_CONFIGURE_OPTS += $(if $(BR2_PACKAGE_QT5BASE_LINUXFB),--enable-linuxfb,-
 QT5BASE_CONFIGURE_OPTS += $(if $(BR2_PACKAGE_QT5BASE_DIRECTFB),-directfb,-no-directfb)
 QT5BASE_DEPENDENCIES   += $(if $(BR2_PACKAGE_QT5BASE_DIRECTFB),directfb)
 
+ifeq ($(BR2_PACKAGE_LIBXKBCOMMON),y)
+QT5BASE_CONFIGURE_OPTS += -xkbcommon
+QT5BASE_DEPENDENCIES   += libxkbcommon
+endif
+
 ifeq ($(BR2_PACKAGE_QT5BASE_XCB),y)
 QT5BASE_CONFIGURE_OPTS += -xcb
-QT5BASE_CONFIGURE_OPTS += -xkbcommon
 
 QT5BASE_DEPENDENCIES   += \
 	libxcb \
@@ -183,8 +184,7 @@ QT5BASE_DEPENDENCIES   += \
 	xcb-util-image \
 	xcb-util-keysyms \
 	xcb-util-renderutil \
-	xlib_libX11 \
-	libxkbcommon
+	xlib_libX11
 ifeq ($(BR2_PACKAGE_QT5BASE_WIDGETS),y)
 QT5BASE_DEPENDENCIES   += xlib_libXext
 endif
@@ -208,6 +208,15 @@ QT5BASE_CONFIGURE_OPTS += $(if $(QT5BASE_DEFAULT_QPA),-qpa $(QT5BASE_DEFAULT_QPA
 ifeq ($(BR2_PACKAGE_QT5BASE_EGLFS),y)
 QT5BASE_CONFIGURE_OPTS += -eglfs
 QT5BASE_DEPENDENCIES   += libegl
+
+# Avoid conflict with Rockchip BSP kernel's logo.
+define QT5BASE_INSTALL_TARGET_ENV
+	echo "export QT_QPA_EGLFS_ALWAYS_SET_MODE=1" > $(@D)/qt_eglfs.sh
+	$(INSTALL) -D -m 0644 $(@D)/qt_eglfs.sh \
+		$(TARGET_DIR)/etc/profile.d/qt_eglfs.sh
+endef
+QT5BASE_POST_INSTALL_TARGET_HOOKS += QT5BASE_INSTALL_TARGET_ENV
+
 else
 QT5BASE_CONFIGURE_OPTS += -no-eglfs
 endif
@@ -231,8 +240,6 @@ QT5BASE_DEPENDENCIES   += $(if $(BR2_PACKAGE_QT5BASE_TSLIB),tslib)
 
 QT5BASE_CONFIGURE_OPTS += $(if $(BR2_PACKAGE_LIBGLIB2),-glib,-no-glib)
 QT5BASE_DEPENDENCIES   += $(if $(BR2_PACKAGE_LIBGLIB2),libglib2)
-
-QT5BASE_DEPENDENCIES   += $(if $(BR2_PACKAGE_LIBKRB5),libkrb5)
 
 QT5BASE_CONFIGURE_OPTS += $(if $(BR2_PACKAGE_QT5BASE_ICU),-icu,-no-icu)
 QT5BASE_DEPENDENCIES   += $(if $(BR2_PACKAGE_QT5BASE_ICU),icu)
@@ -263,9 +270,8 @@ endif
 
 ifeq ($(BR2_PACKAGE_QT5BASE_USE_RGA),y)
 QT5BASE_CONFIGURE_OPTS += \
-			  QMAKE_CXXFLAGS+=-DQT_USE_RGA \
-			  QMAKE_LFLAGS+=-lrga
-QT5BASE_DEPENDENCIES += linux-rga
+	QMAKE_CXXFLAGS+=-DQT_USE_RGA QMAKE_LFLAGS+=-lrga
+QT5BASE_DEPENDENCIES += rockchip-rga
 endif
 
 ifeq ($(BR2_PACKAGE_QT5BASE_LINUXFB_RGB565),y)

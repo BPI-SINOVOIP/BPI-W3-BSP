@@ -18,10 +18,10 @@
 
 #include <string.h>
 
-#include "mpp_log.h"
 #include "mpp_env.h"
 #include "mpp_hash.h"
 #include "mpp_lock.h"
+#include "mpp_debug.h"
 #include "mpp_mem_pool.h"
 
 #include "mpp_buffer_impl.h"
@@ -121,8 +121,8 @@ static const char *ops2str[BUF_OPS_BUTT] = {
     "buf destroy",
 };
 
-static MppMemPool mpp_buffer_pool = mpp_mem_pool_init(sizeof(MppBufferImpl));
-static MppMemPool mpp_buf_grp_pool = mpp_mem_pool_init(sizeof(MppBufferGroupImpl));
+static MppMemPool mpp_buffer_pool = mpp_mem_pool_init_f(MODULE_TAG, sizeof(MppBufferImpl));
+static MppMemPool mpp_buf_grp_pool = mpp_mem_pool_init_f("mpp_buf_grp", sizeof(MppBufferGroupImpl));
 
 RK_U32 mpp_buffer_debug = 0;
 
@@ -513,7 +513,31 @@ done:
     return ret;
 }
 
-MppBufferImpl *mpp_buffer_get_unused(MppBufferGroupImpl *p, size_t size)
+void mpp_buffer_group_dump(MppBufferGroupImpl *group, const char *caller)
+{
+    mpp_log("\ndumping buffer group %p id %d from %s\n", group,
+            group->group_id, caller);
+    mpp_log("mode %s\n", mode2str[group->mode]);
+    mpp_log("type %s\n", type2str[group->type]);
+    mpp_log("limit size %d count %d\n", group->limit_size, group->limit_count);
+
+    mpp_log("used buffer count %d\n", group->count_used);
+
+    MppBufferImpl *pos, *n;
+    list_for_each_entry_safe(pos, n, &group->list_used, MppBufferImpl, list_status) {
+        dump_buffer_info(pos);
+    }
+
+    mpp_log("unused buffer count %d\n", group->count_unused);
+    list_for_each_entry_safe(pos, n, &group->list_unused, MppBufferImpl, list_status) {
+        dump_buffer_info(pos);
+    }
+
+    if (group->logs)
+        buf_logs_dump(group->logs);
+}
+
+MppBufferImpl *mpp_buffer_get_unused(MppBufferGroupImpl *p, size_t size, const char* caller)
 {
     MPP_BUF_FUNCTION_ENTER();
 
@@ -531,7 +555,7 @@ MppBufferImpl *mpp_buffer_get_unused(MppBufferGroupImpl *p, size_t size)
             if (pos->info.size >= size) {
                 buffer = pos;
                 pthread_mutex_lock(&buffer->lock);
-                buf_add_log(buffer, BUF_REF_INC, __FUNCTION__);
+                buf_add_log(buffer, BUF_REF_INC, caller);
                 buffer->ref_count++;
                 buffer->used = 1;
                 list_del_init(&buffer->list_status);
@@ -543,14 +567,16 @@ MppBufferImpl *mpp_buffer_get_unused(MppBufferGroupImpl *p, size_t size)
                 break;
             } else {
                 if (MPP_BUFFER_INTERNAL == p->mode) {
-                    put_buffer(p, pos, 0, __FUNCTION__);
+                    put_buffer(p, pos, 0, caller);
                 } else
                     search_count++;
             }
         }
 
-        if (!found && search_count)
+        if (!found && search_count) {
             mpp_err_f("can not found match buffer with size larger than %d\n", size);
+            mpp_buffer_group_dump(p, caller);
+        }
     }
     pthread_mutex_unlock(&p->buf_lock);
 
@@ -660,30 +686,6 @@ MPP_RET mpp_buffer_group_set_callback(MppBufferGroupImpl *p,
 
     MPP_BUF_FUNCTION_LEAVE();
     return MPP_OK;
-}
-
-void mpp_buffer_group_dump(MppBufferGroupImpl *group, const char *caller)
-{
-    mpp_log("\ndumping buffer group %p id %d from %s\n", group,
-            group->group_id, caller);
-    mpp_log("mode %s\n", mode2str[group->mode]);
-    mpp_log("type %s\n", type2str[group->type]);
-    mpp_log("limit size %d count %d\n", group->limit_size, group->limit_count);
-
-    mpp_log("used buffer count %d\n", group->count_used);
-
-    MppBufferImpl *pos, *n;
-    list_for_each_entry_safe(pos, n, &group->list_used, MppBufferImpl, list_status) {
-        dump_buffer_info(pos);
-    }
-
-    mpp_log("unused buffer count %d\n", group->count_unused);
-    list_for_each_entry_safe(pos, n, &group->list_unused, MppBufferImpl, list_status) {
-        dump_buffer_info(pos);
-    }
-
-    if (group->logs)
-        buf_logs_dump(group->logs);
 }
 
 void mpp_buffer_service_dump(const char *info)
@@ -910,9 +912,9 @@ MppBufferGroupImpl *MppBufferService::get_group(const char *tag, const char *cal
     RK_U32 id = get_group_id();
 
     if (tag) {
-        snprintf(p->tag, sizeof(p->tag), "%s_%d", tag, id);
+        snprintf(p->tag, sizeof(p->tag) - 1, "%s_%d", tag, id);
     } else {
-        snprintf(p->tag, sizeof(p->tag), "unknown");
+        snprintf(p->tag, sizeof(p->tag) - 1, "unknown");
     }
     p->group_id = id;
 

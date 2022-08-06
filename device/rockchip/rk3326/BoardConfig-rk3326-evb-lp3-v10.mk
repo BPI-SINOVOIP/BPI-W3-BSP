@@ -7,7 +7,9 @@ export RK_UBOOT_DEFCONFIG=rk3326
 # Trust choose ignore bl32, including --ignore-bl32
 export TRUST_PACK_IGNORE_BL32=
 # Kernel defconfig
-export RK_KERNEL_DEFCONFIG=rk3326_linux_defconfig
+export RK_KERNEL_DEFCONFIG=px30_linux_defconfig
+# Kernel defconfig fragment
+export RK_KERNEL_DEFCONFIG_FRAGMENT=rk3326_linux.config
 # Kernel dts
 export RK_KERNEL_DTS=rk3326-evb-lp3-v10-linux
 # boot image type

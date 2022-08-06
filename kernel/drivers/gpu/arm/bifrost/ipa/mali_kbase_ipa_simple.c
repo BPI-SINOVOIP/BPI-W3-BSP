@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2016-2018, 2020-2021 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2016-2018, 2020-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -307,8 +307,12 @@ static int kbase_simple_power_model_recalculate(struct kbase_ipa_model *model)
 		model_data->gpu_tz = NULL;
 	} else {
 		char tz_name[THERMAL_NAME_LENGTH];
+		u32 string_len = strscpy(tz_name, model_data->tz_name, sizeof(tz_name));
 
-		strlcpy(tz_name, model_data->tz_name, sizeof(tz_name));
+		string_len += sizeof(char);
+		/* Make sure that the source string fit into the buffer. */
+		KBASE_DEBUG_ASSERT(string_len <= sizeof(tz_name));
+		CSTD_UNUSED(string_len);
 
 		/* Release ipa.lock so that thermal_list_lock is not acquired
 		 * with ipa.lock held, thereby avoid lock ordering violation
@@ -322,8 +326,9 @@ static int kbase_simple_power_model_recalculate(struct kbase_ipa_model *model)
 		mutex_lock(&model->kbdev->ipa.lock);
 
 		if (IS_ERR_OR_NULL(tz)) {
-			pr_warn_ratelimited("Error %ld getting thermal zone \'%s\', not yet ready?\n",
-					    PTR_ERR(tz), tz_name);
+			pr_warn_ratelimited(
+				"Error %d getting thermal zone \'%s\', not yet ready?\n",
+				PTR_ERR_OR_ZERO(tz), tz_name);
 			return -EPROBE_DEFER;
 		}
 

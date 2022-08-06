@@ -8,7 +8,20 @@
 #define pr_fmt(fmt) "rga_policy: " fmt
 
 #include "rga_job.h"
+#include "rga_common.h"
 #include "rga_hw_config.h"
+#include "rga_debugger.h"
+
+#define GET_GCD(n1, n2) \
+	({ \
+		int i; \
+		for (i = 1; i <= (n1) && i <= (n2); i++) { \
+			if ((n1) % i == 0 && (n2) % i == 0) \
+				gcd = i; \
+		} \
+		gcd; \
+	})
+#define GET_LCM(n1, n2, gcd) (((n1) * (n2)) / gcd)
 
 static int rga_set_feature(struct rga_req *rga_base)
 {
@@ -64,13 +77,31 @@ static bool rga_check_format(const struct rga_hw_data *data,
 	return matched;
 }
 
+static bool rga_check_align(uint32_t byte_stride, uint32_t format, uint16_t w_stride)
+{
+	uint32_t bit_stride = 0, pixel_stride = 0, align = 0, gcd = 0;
+
+	pixel_stride = rga_get_pixel_stride_from_format(format);
+	if (pixel_stride <= 0)
+		return false;
+
+	bit_stride = pixel_stride * w_stride;
+
+	if (bit_stride % (byte_stride * 8) == 0)
+		return true;
+
+	gcd = GET_GCD(pixel_stride, byte_stride * 8);
+	align = GET_LCM(pixel_stride, byte_stride * 8, gcd) / pixel_stride;
+	if (DEBUGGER_EN(MSG))
+		pr_info("unsupported width stride %d, 0x%x should be %d aligned!",
+				w_stride, format, align);
+
+	return false;
+}
+
 static bool rga_check_src0(const struct rga_hw_data *data,
 			 struct rga_img_info_t *src0)
 {
-	int format;
-
-	user_format_convert(&format, src0->format);
-
 	if (src0->act_w < data->min_input.w ||
 		src0->act_h < data->min_input.h)
 		return false;
@@ -79,7 +110,10 @@ static bool rga_check_src0(const struct rga_hw_data *data,
 		src0->act_h > data->max_input.h)
 		return false;
 
-	if (!rga_check_format(data, src0->rd_mode, format, 0))
+	if (!rga_check_format(data, src0->rd_mode, src0->format, 0))
+		return false;
+
+	if (!rga_check_align(data->byte_stride, src0->format, src0->vir_w))
 		return false;
 
 	return true;
@@ -88,10 +122,6 @@ static bool rga_check_src0(const struct rga_hw_data *data,
 static bool rga_check_src1(const struct rga_hw_data *data,
 			 struct rga_img_info_t *src1)
 {
-	int format;
-
-	user_format_convert(&format, src1->format);
-
 	if (src1->act_w < data->min_input.w ||
 		src1->act_h < data->min_input.h)
 		return false;
@@ -100,7 +130,10 @@ static bool rga_check_src1(const struct rga_hw_data *data,
 		src1->act_h > data->max_input.h)
 		return false;
 
-	if (!rga_check_format(data, src1->rd_mode, format, 1))
+	if (!rga_check_format(data, src1->rd_mode, src1->format, 1))
+		return false;
+
+	if (!rga_check_align(data->byte_stride, src1->format, src1->vir_w))
 		return false;
 
 	return true;
@@ -109,10 +142,6 @@ static bool rga_check_src1(const struct rga_hw_data *data,
 static bool rga_check_dst(const struct rga_hw_data *data,
 			 struct rga_img_info_t *dst)
 {
-	int format;
-
-	user_format_convert(&format, dst->format);
-
 	if (dst->act_w < data->min_output.w ||
 		dst->act_h < data->min_output.h)
 		return false;
@@ -121,7 +150,10 @@ static bool rga_check_dst(const struct rga_hw_data *data,
 		dst->act_h > data->max_output.h)
 		return false;
 
-	if (!rga_check_format(data, dst->rd_mode, format, 2))
+	if (!rga_check_format(data, dst->rd_mode, dst->format, 2))
+		return false;
+
+	if (!rga_check_align(data->byte_stride, dst->format, dst->vir_w))
 		return false;
 
 	return true;
@@ -180,8 +212,9 @@ int rga_job_assign(struct rga_job *job)
 	int feature;
 	int core = RGA_NONE_CORE;
 	int optional_cores = RGA_NONE_CORE;
+	int specified_cores = RGA_NONE_CORE;
 	int i;
-	int min_of_job_count = 0;
+	int min_of_job_count = -1;
 	unsigned long flags;
 
 	/* assigned by userspace */
@@ -189,33 +222,35 @@ int rga_job_assign(struct rga_job *job)
 		if (rga_base->core > RGA_CORE_MASK) {
 			pr_err("invalid setting core by user\n");
 			goto finish;
-		} else if (rga_base->core & RGA_CORE_MASK) {
-			optional_cores = rga_base->core;
-			goto skip_functional_policy;
-		}
+		} else if (rga_base->core & RGA_CORE_MASK)
+			specified_cores = rga_base->core;
 	}
 
 	feature = rga_set_feature(rga_base);
 
 	/* function */
 	for (i = 0; i < rga_drvdata->num_of_scheduler; i++) {
-		data = rga_drvdata->rga_scheduler[i]->data;
-		scheduler = rga_drvdata->rga_scheduler[i];
+		data = rga_drvdata->scheduler[i]->data;
+		scheduler = rga_drvdata->scheduler[i];
+
+		if ((specified_cores != RGA_NONE_CORE) &&
+			(!(scheduler->core & specified_cores)))
+			continue;
 
 		if (DEBUGGER_EN(MSG))
-			pr_err("start policy on core = %d", scheduler->core);
+			pr_info("start policy on core = %d", scheduler->core);
 
 		if (scheduler->core == RGA2_SCHEDULER_CORE0 &&
 		    job->flags & RGA_JOB_UNSUPPORT_RGA2) {
 			if (DEBUGGER_EN(MSG))
-				pr_debug("RGA2 only support under 4G memory!\n");
+				pr_info("RGA2 only support under 4G memory!\n");
 				continue;
 		}
 
 		if (feature > 0) {
 			if (!(feature & data->feature)) {
 				if (DEBUGGER_EN(MSG))
-					pr_err("core = %d, break on feature",
+					pr_info("core = %d, break on feature",
 						scheduler->core);
 				continue;
 			}
@@ -228,7 +263,7 @@ int rga_job_assign(struct rga_job *job)
 					(!(src1->rd_mode & data->win[1].rd_mode)) ||
 					(!(dst->rd_mode & data->win[2].rd_mode))) {
 					if (DEBUGGER_EN(MSG))
-						pr_err("core = %d, ABC break on rd_mode",
+						pr_info("core = %d, ABC break on rd_mode",
 							scheduler->core);
 					continue;
 				}
@@ -236,7 +271,7 @@ int rga_job_assign(struct rga_job *job)
 				if ((!(src0->rd_mode & data->win[0].rd_mode)) ||
 					(!(dst->rd_mode & data->win[2].rd_mode))) {
 					if (DEBUGGER_EN(MSG))
-						pr_err("core = %d, ABB break on rd_mode",
+						pr_info("core = %d, ABB break on rd_mode",
 							scheduler->core);
 					continue;
 				}
@@ -244,14 +279,14 @@ int rga_job_assign(struct rga_job *job)
 
 			if (!rga_check_scale(data, rga_base)) {
 				if (DEBUGGER_EN(MSG))
-					pr_err("core = %d, break on rga_check_scale",
+					pr_info("core = %d, break on rga_check_scale",
 						scheduler->core);
 				continue;
 			}
 
 			if (!rga_check_src0(data, src0)) {
 				if (DEBUGGER_EN(MSG))
-					pr_err("core = %d, break on rga_check_src0",
+					pr_info("core = %d, break on rga_check_src0",
 						scheduler->core);
 				continue;
 			}
@@ -259,8 +294,8 @@ int rga_job_assign(struct rga_job *job)
 			if (src1->yrgb_addr > 0) {
 				if (!rga_check_src1(data, src1)) {
 					if (DEBUGGER_EN(MSG))
-						pr_err("core = %d, break on rga_check_src1",
-						scheduler->core);
+						pr_info("core = %d, break on rga_check_src1",
+							scheduler->core);
 					continue;
 				}
 			}
@@ -268,7 +303,7 @@ int rga_job_assign(struct rga_job *job)
 
 		if (!rga_check_dst(data, dst)) {
 			if (DEBUGGER_EN(MSG))
-				pr_err("core = %d, break on rga_check_dst",
+				pr_info("core = %d, break on rga_check_dst",
 					scheduler->core);
 			continue;
 		}
@@ -285,23 +320,24 @@ int rga_job_assign(struct rga_job *job)
 		goto finish;
 	}
 
-skip_functional_policy:
 	for (i = 0; i < rga_drvdata->num_of_scheduler; i++) {
-		scheduler = rga_drvdata->rga_scheduler[i];
+		scheduler = rga_drvdata->scheduler[i];
 
 		if (optional_cores & scheduler->core) {
 			spin_lock_irqsave(&scheduler->irq_lock, flags);
 
 			if (scheduler->running_job == NULL) {
 				core = scheduler->core;
+				job->scheduler = scheduler;
 				spin_unlock_irqrestore(&scheduler->irq_lock,
 							 flags);
 				break;
 			} else {
-				if ((min_of_job_count > scheduler->job_count) ||
-					(min_of_job_count == 0)) {
+				if ((min_of_job_count == -1) ||
+				    (min_of_job_count > scheduler->job_count)) {
 					min_of_job_count = scheduler->job_count;
 					core = scheduler->core;
+					job->scheduler = scheduler;
 				}
 			}
 

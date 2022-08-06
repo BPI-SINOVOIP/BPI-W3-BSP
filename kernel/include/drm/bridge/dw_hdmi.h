@@ -179,6 +179,7 @@ struct dw_hdmi_plat_data {
 	unsigned long input_bus_format;
 	unsigned long input_bus_encoding;
 	unsigned int max_tmdsclk;
+	int id;
 	bool use_drm_infoframe;
 	bool ycbcr_420_allowed;
 	bool unsupported_yuv_input;
@@ -205,6 +206,12 @@ struct dw_hdmi_plat_data {
 	unsigned int phy_force_vendor;
 	const struct dw_hdmi_audio_tmds_n *tmds_n_table;
 
+	/* split mode */
+	bool split_mode;
+	bool first_screen;
+	struct dw_hdmi_qp *left;
+	struct dw_hdmi_qp *right;
+
 	/* Synopsys PHY support */
 	const struct dw_hdmi_mpll_config *mpll_cfg;
 	const struct dw_hdmi_mpll_config *mpll_cfg_420;
@@ -228,6 +235,9 @@ struct dw_hdmi_plat_data {
 				 struct drm_connector *connector);
 	struct dw_hdmi_link_config *(*get_link_cfg)(void *data);
 	void (*set_grf_cfg)(void *data);
+	void (*convert_to_split_mode)(struct drm_display_mode *mode);
+	void (*convert_to_origin_mode)(struct drm_display_mode *mode);
+	int (*dclk_set)(void *data, bool enable);
 
 	/* Vendor Property support */
 	const struct dw_hdmi_property_ops *property_ops;
@@ -289,8 +299,11 @@ void dw_hdmi_qp_set_cec_adap(struct dw_hdmi_qp *hdmi, struct cec_adapter *adap);
 int dw_hdmi_qp_set_earc(struct dw_hdmi_qp *hdmi);
 void dw_hdmi_qp_set_sample_rate(struct dw_hdmi_qp *hdmi, unsigned int rate);
 void dw_hdmi_qp_set_channel_count(struct dw_hdmi_qp *hdmi, unsigned int cnt);
-void dw_hdmi_qp_set_channel_status(struct dw_hdmi_qp *hdmi, u8 *channel_status);
+void dw_hdmi_qp_set_channel_status(struct dw_hdmi_qp *hdmi, u8 *channel_status,
+				   bool ref2stream);
 void dw_hdmi_qp_set_channel_allocation(struct dw_hdmi_qp *hdmi, unsigned int ca);
+void dw_hdmi_qp_set_audio_infoframe(struct dw_hdmi_qp *hdmi,
+				    struct hdmi_codec_params *hparms);
 void dw_hdmi_qp_audio_enable(struct dw_hdmi_qp *hdmi);
 void dw_hdmi_qp_audio_disable(struct dw_hdmi_qp *hdmi);
 int dw_hdmi_qp_set_plugged_cb(struct dw_hdmi_qp *hdmi, hdmi_codec_plugged_cb fn,

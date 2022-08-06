@@ -141,6 +141,10 @@ public:
                           rk_aiq_error_cb err_cb,
                           rk_aiq_metas_cb metas_cb);
     virtual ~RkAiqManager();
+    void setHwEvtCb(rk_aiq_hwevt_cb hwevt_cb, void* evt_cb_ctx) {
+        mHwEvtCbCtx = evt_cb_ctx;
+        mHwEvtCb = hwevt_cb;
+    };
     void setCamHw(SmartPtr<ICamHw>& camhw);
     void setCamPhyId(int phyId) {mCamPhyId = phyId;}
     int getCamPhyId() { return mCamPhyId;}
@@ -195,6 +199,9 @@ public:
         mIsMain = isMain;
     }
 #endif
+    rk_aiq_working_mode_t getWorkingMode() {
+        return mWorkingMode;
+    }
 protected:
     XCamReturn applyAnalyzerResult(SmartPtr<RkAiqFullParamsProxy>& results);
     XCamReturn swWorkingModeDyn(rk_aiq_working_mode_t mode);
@@ -215,6 +222,8 @@ private:
     SmartPtr<RkLumaCore> mRkLumaAnalyzer;
     rk_aiq_error_cb mErrCb;
     rk_aiq_metas_cb mMetasCb;
+    rk_aiq_hwevt_cb mHwEvtCb;
+    void* mHwEvtCbCtx;
     const char* mSnsEntName;
 #ifdef RKAIQ_ENABLE_PARSER_V1
     const CamCalibDbContext_t* mCalibDb;

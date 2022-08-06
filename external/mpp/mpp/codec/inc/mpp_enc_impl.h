@@ -64,7 +64,6 @@ typedef struct MppEncImpl_t {
     RK_S32              rc_cfg_updated;
     RcApiBrief          rc_brief;
     RcCtx               rc_ctx;
-    EncRcTask           rc_task;
 
     /*
      * thread input / output context
@@ -79,12 +78,19 @@ typedef struct MppEncImpl_t {
     MppFrame            frame;
     MppPacket           packet;
     RK_U32              low_delay_part_mode;
+    RK_U32              low_delay_output;
+    /* output callback for slice output */
+    MppCbCtx            output_cb;
 
     /* base task information */
+    HalTaskGroup        tasks;
+    HalTaskHnd          hnd;
+    EncAsyncTaskInfo    *async;
     RK_U32              task_idx;
     RK_S64              task_pts;
     MppBuffer           frm_buf;
     MppBuffer           pkt_buf;
+    MppBuffer           md_info;
 
     // internal status and protection
     Mutex               lock;
@@ -125,6 +131,10 @@ typedef struct MppEncImpl_t {
     MppEncRefs          refs;
     MppEncRefFrmUsrCfg  frm_cfg;
 
+    /* two-pass deflicker parameters */
+    RK_U32              support_hw_deflicker;
+    EncRcTaskInfo       rc_info_prev;
+
     /* Encoder configure set */
     MppEncCfgSet        cfg;
 } MppEncImpl;
@@ -134,6 +144,8 @@ extern "C" {
 #endif
 
 void *mpp_enc_thread(void *data);
+void *mpp_enc_async_thread(void *data);
+MPP_RET mpp_enc_callback(const char *caller, void *ctx, RK_S32 cmd, void *param);
 
 #ifdef __cplusplus
 }

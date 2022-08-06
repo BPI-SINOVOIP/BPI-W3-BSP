@@ -18,8 +18,8 @@
 
 #include <string.h>
 
-#include "mpp_log.h"
 #include "mpp_mem.h"
+#include "mpp_debug.h"
 #include "mpp_buffer_impl.h"
 
 MPP_RET mpp_buffer_import_with_tag(MppBufferGroup group, MppBufferInfo *info, MppBuffer *buffer,
@@ -77,7 +77,7 @@ MPP_RET mpp_buffer_get_with_tag(MppBufferGroup group, MppBuffer *buffer, size_t 
 
     MppBufferGroupImpl *p = (MppBufferGroupImpl *)group;
     // try unused buffer first
-    MppBufferImpl *buf = mpp_buffer_get_unused(p, size);
+    MppBufferImpl *buf = mpp_buffer_get_unused(p, size, caller);
     if (NULL == buf && MPP_BUFFER_INTERNAL == p->mode) {
         MppBufferInfo info = {
             p->type,

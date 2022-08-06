@@ -8,7 +8,13 @@
 
 ---
 
-## rk3288_linux_release_v2.4.0_20210520.xml Release Note
+## rk3288_linux_release_v2.6.0_20220620.xml Release Note
+
+```
+- Update new SDK
+```
+
+## rk3288_linux_release_v2.5.0_20210930.xml Release Note
 
 ```
 - Update new SDK

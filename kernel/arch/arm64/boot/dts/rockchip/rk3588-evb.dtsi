@@ -104,11 +104,50 @@
 		rockchip,jack-det;
 	};
 
+	dp0_sound: dp0-sound {
+		status = "disabled";
+		compatible = "rockchip,hdmi";
+		rockchip,card-name= "rockchip,dp0";
+		rockchip,mclk-fs = <512>;
+		rockchip,cpu = <&spdif_tx2>;
+		rockchip,codec = <&dp0 1>;
+		rockchip,jack-det;
+	};
+
+	dp1_sound: dp1-sound {
+		status = "disabled";
+		compatible = "rockchip,hdmi";
+		rockchip,card-name= "rockchip,dp1";
+		rockchip,mclk-fs = <512>;
+		rockchip,cpu = <&spdif_tx5>;
+		rockchip,codec = <&dp1 1>;
+		rockchip,jack-det;
+	};
+
 	leds: leds {
 		compatible = "gpio-leds";
 		work_led: work {
 			gpios = <&gpio3 RK_PB7 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "heartbeat";
+		};
+	};
+
+	spdif_tx0_dc: spdif-tx0-dc {
+		status = "disabled";
+		compatible = "linux,spdif-dit";
+		#sound-dai-cells = <0>;
+	};
+
+	spdif_tx0_sound: spdif-tx0-sound {
+		status = "disabled";
+		compatible = "simple-audio-card";
+		simple-audio-card,mclk-fs = <128>;
+		simple-audio-card,name = "rockchip,spdif-tx0";
+		simple-audio-card,cpu {
+			sound-dai = <&spdif_tx0>;
+		};
+		simple-audio-card,codec {
+			sound-dai = <&spdif_tx0_dc>;
 		};
 	};
 
@@ -121,6 +160,7 @@
 	spdif_tx1_sound: spdif-tx1-sound {
 		status = "disabled";
 		compatible = "simple-audio-card";
+		simple-audio-card,mclk-fs = <128>;
 		simple-audio-card,name = "rockchip,spdif-tx1";
 		simple-audio-card,cpu {
 			sound-dai = <&spdif_tx1>;
@@ -172,6 +212,10 @@
 		regulator-max-microvolt = <5000000>;
 		vin-supply = <&vcc5v0_usbdcin>;
 	};
+};
+
+&av1d_mmu {
+	status = "okay";
 };
 
 &cpu_l0 {

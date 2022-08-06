@@ -35,7 +35,16 @@ RKAIQ_BEGIN_DECLARE
 static bool isHDRmode(const rk_aiq_sys_ctx_t* ctx)
 {
     RKAIQ_API_SMART_LOCK(ctx);
-    int mode = ctx->_analyzer->mAlogsComSharedParams.working_mode;
+    int mode = RK_AIQ_WORKING_MODE_NORMAL;
+    if (ctx->cam_type == RK_AIQ_CAM_TYPE_GROUP) {
+#ifdef RKAIQ_ENABLE_CAMGROUP
+        const rk_aiq_camgroup_ctx_t* camgroup_ctx = (rk_aiq_camgroup_ctx_t *)ctx;
+        mode = camgroup_ctx->cam_ctxs_array[0]->_analyzer->mAlogsComSharedParams.working_mode;
+#endif
+    } else {
+        mode = ctx->_analyzer->mAlogsComSharedParams.working_mode;
+    }
+
     if (RK_AIQ_WORKING_MODE_NORMAL == mode)
         return false;
     else
@@ -45,8 +54,18 @@ static bool isHDRmode(const rk_aiq_sys_ctx_t* ctx)
 static int getHDRFrameNum(const rk_aiq_sys_ctx_t* ctx)
 {
     RKAIQ_API_SMART_LOCK(ctx);
-    int FrameNum = 1;
-    switch (ctx->_analyzer->mAlogsComSharedParams.working_mode)
+    int FrameNum = 1, working_mode = RK_AIQ_WORKING_MODE_NORMAL;
+
+    if (ctx->cam_type == RK_AIQ_CAM_TYPE_GROUP) {
+#ifdef RKAIQ_ENABLE_CAMGROUP
+        const rk_aiq_camgroup_ctx_t* camgroup_ctx = (rk_aiq_camgroup_ctx_t *)ctx;
+        working_mode = camgroup_ctx->cam_ctxs_array[0]->_analyzer->mAlogsComSharedParams.working_mode;
+#endif
+    } else {
+        working_mode = ctx->_analyzer->mAlogsComSharedParams.working_mode;
+    }
+
+    switch (working_mode)
     {
     case RK_AIQ_WORKING_MODE_NORMAL:
         FrameNum = 1;
@@ -1562,14 +1581,17 @@ XCamReturn rk_aiq_uapi_setANRStrth(const rk_aiq_sys_ctx_t* ctx, unsigned int lev
         sync.sync_mode =  RK_AIQ_UAPI_MODE_SYNC;
         rk_aiq_ynr_strength_v3_t ynrStrenght;
         ynrStrenght.sync.sync_mode = RK_AIQ_UAPI_MODE_SYNC;
+        ynrStrenght.strength_enable = true;
         ynrStrenght.percent = level / 100.0;
         ret = rk_aiq_user_api_aynrV3_SetStrength(ctx, &ynrStrenght);
         rk_aiq_bayer2dnr_strength_v2_t bayer2dnrV2Strenght;
         bayer2dnrV2Strenght.sync.sync_mode = RK_AIQ_UAPI_MODE_SYNC;
+        bayer2dnrV2Strenght.strength_enable = true;
         bayer2dnrV2Strenght.percent = level / 100.0;
         ret = rk_aiq_user_api_abayer2dnrV2_SetStrength(ctx, &bayer2dnrV2Strenght);
         rk_aiq_bayertnr_strength_v2_t bayertnrV2Strenght;
         bayertnrV2Strenght.sync.sync_mode = RK_AIQ_UAPI_MODE_SYNC;
+        bayertnrV2Strenght.strength_enable = true;
         bayertnrV2Strenght.percent = level / 100.0;
         ret = rk_aiq_user_api_abayertnrV2_SetStrength(ctx, &bayertnrV2Strenght);
     }
@@ -1648,10 +1670,12 @@ XCamReturn rk_aiq_uapi_setMSpaNRStrth(const rk_aiq_sys_ctx_t* ctx, bool on, unsi
         sync.sync_mode =  RK_AIQ_UAPI_MODE_SYNC;
         rk_aiq_ynr_strength_v3_t ynrStrenght;
         ynrStrenght.sync.sync_mode = RK_AIQ_UAPI_MODE_SYNC;
+        ynrStrenght.strength_enable = true;
         ynrStrenght.percent = level / 100.0;
         ret = rk_aiq_user_api_aynrV3_SetStrength(ctx, &ynrStrenght);
         rk_aiq_bayer2dnr_strength_v2_t bayer2dnrV2Strenght;
         bayer2dnrV2Strenght.sync.sync_mode = RK_AIQ_UAPI_MODE_SYNC;
+        bayer2dnrV2Strenght.strength_enable = true;
         bayer2dnrV2Strenght.percent = level / 100.0;
         ret = rk_aiq_user_api_abayer2dnrV2_SetStrength(ctx, &bayer2dnrV2Strenght);
     }
@@ -1732,6 +1756,7 @@ XCamReturn rk_aiq_uapi_setMTNRStrth(const rk_aiq_sys_ctx_t* ctx, bool on, unsign
     if (CHECK_ISP_HW_V30()) {
         rk_aiq_bayertnr_strength_v2_t bayertnrV2Strenght;
         bayertnrV2Strenght.sync.sync_mode = RK_AIQ_UAPI_MODE_SYNC;
+        bayertnrV2Strenght.strength_enable = true;
         bayertnrV2Strenght.percent = level / 100.0;
         ret = rk_aiq_user_api_abayertnrV2_SetStrength(ctx, &bayertnrV2Strenght);
     }
@@ -2194,6 +2219,7 @@ XCamReturn rk_aiq_uapi_setSharpness(const rk_aiq_sys_ctx_t* ctx, unsigned int le
     if (CHECK_ISP_HW_V30()) {
         rk_aiq_sharp_strength_v4_t sharpV4Strenght;
         sharpV4Strenght.sync.sync_mode = RK_AIQ_UAPI_MODE_SYNC;
+        sharpV4Strenght.strength_enable = true;
         sharpV4Strenght.percent = fPercent;
         ret = rk_aiq_user_api_asharpV4_SetStrength(ctx, &sharpV4Strenght);
     }

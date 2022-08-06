@@ -23,10 +23,10 @@
 #include <unistd.h>
 
 #include "mpp_env.h"
-#include "mpp_log.h"
 #include "mpp_mem.h"
 #include "mpp_time.h"
 #include "mpp_list.h"
+#include "mpp_debug.h"
 #include "mpp_common.h"
 
 #include "vpu.h"
@@ -652,7 +652,7 @@ MPP_RET vcodec_service_cmd_send(void *ctx)
     return ret;
 }
 
-MPP_RET vcodec_service_cmd_poll(void *ctx)
+MPP_RET vcodec_service_cmd_poll(void *ctx, MppDevPollCfg *cfg)
 {
     MppDevVcodecService *p = (MppDevVcodecService *)ctx;
     VcodecRegCfg *poll_cfg = &p->regs[p->reg_poll_idx];
@@ -670,6 +670,7 @@ MPP_RET vcodec_service_cmd_poll(void *ctx)
     if (p->reg_poll_idx >= p->max_regs)
         p->reg_poll_idx = 0;
 
+    (void)cfg;
     return ret;
 }
 
@@ -702,9 +703,11 @@ const MppDevApi vcodec_service_api = {
     NULL,
     NULL,
     NULL,
+    NULL,
     vcodec_service_reg_wr,
     vcodec_service_reg_rd,
     vcodec_service_fd_trans,
+    NULL,
     NULL,
     vcodec_service_set_info,
     vcodec_service_cmd_send,

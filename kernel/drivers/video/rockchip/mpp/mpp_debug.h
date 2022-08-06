@@ -56,6 +56,10 @@
 #define PRINT_FUNCTION				0x80000000
 #define PRINT_LINE				0x40000000
 
+/* reuse old debug bit flag */
+#define DEBUG_PART_TIMING			0x00000080
+#define DEBUG_SLICE				0x00000002
+
 extern unsigned int mpp_dev_debug;
 
 #define mpp_debug_unlikely(type)				\
@@ -120,6 +124,13 @@ extern unsigned int mpp_dev_debug;
 #define mpp_dbg_core(fmt, args...)				\
 	do {							\
 		if (unlikely(mpp_dev_debug & DEBUG_CORE)) {	\
+			pr_info(fmt, ##args);			\
+		}						\
+	} while (0)
+
+#define mpp_dbg_slice(fmt, args...)				\
+	do {							\
+		if (unlikely(mpp_dev_debug & DEBUG_SLICE)) {	\
 			pr_info(fmt, ##args);			\
 		}						\
 	} while (0)

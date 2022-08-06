@@ -1,6 +1,0 @@
-config BR2_PACKAGE_ROSMASTER
-	bool "rosmaster"
-	select BR2_PACKAGE_PYTHON_DEFUSEDXML
-	select BR2_PACKAGE_PYTHON_HASHLIB
-	help
-		ROS Master implementation.

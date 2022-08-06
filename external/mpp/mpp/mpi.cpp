@@ -20,13 +20,13 @@
 
 #include "rk_mpi.h"
 
-#include "mpp_log.h"
+#include "mpp_env.h"
 #include "mpp_mem.h"
+#include "mpp_debug.h"
+#include "mpp_common.h"
 
 #include "mpi_impl.h"
 #include "mpp_info.h"
-#include "mpp_common.h"
-#include "mpp_env.h"
 
 RK_U32 mpi_debug = 0;
 
@@ -64,6 +64,9 @@ static MppCodingTypeInfo support_list[] = {
 #endif
 #if HAVE_JPEGD
     {   MPP_CTX_DEC,    MPP_VIDEO_CodingMJPEG,      "dec",  "jpeg",         },
+#endif
+#if HAVE_AV1D
+    {   MPP_CTX_DEC,    MPP_VIDEO_CodingAV1,        "dec",  "av1",          },
 #endif
 #if HAVE_H264E
     {   MPP_CTX_ENC,    MPP_VIDEO_CodingAVC,        "enc",  "h.264/AVC",    },
@@ -429,6 +432,7 @@ static MppApi mpp_api = {
 MPP_RET mpp_create(MppCtx *ctx, MppApi **mpi)
 {
     mpp_env_get_u32("mpi_debug", &mpi_debug, 0);
+    mpp_get_log_level();
 
     if (NULL == ctx || NULL == mpi) {
         mpp_err_f("invalid input ctx %p mpi %p\n", ctx, mpi);

@@ -184,9 +184,6 @@ updateCalibConfig(RkAiqAlgoCom* params)
     ldchCtx->correct_level = calib_ldch->correct_level;
     ldchCtx->correct_level_max = calib_ldch->correct_level_max;
 
-    if (ldchCtx->correct_level_max != 255)
-        ldchCtx->correct_level = MAP_TO_255LEVEL(ldchCtx->correct_level, ldchCtx->correct_level_max);
-
     aiqGenLdchMeshInit(hLDCH);
     bool success = genLDCMeshNLevel(hLDCH->ldchParams, hLDCH->camCoeff,
             ldchCtx->correct_level, hLDCH->lut_mapxy);
@@ -263,9 +260,6 @@ create_context(RkAiqAlgoContext **context, const AlgoCtxInstanceCfg* cfg)
 #endif
     ldchCtx->correct_level = calib_ldch->correct_level;
     ldchCtx->correct_level_max = calib_ldch->correct_level_max;
-
-    if (ldchCtx->correct_level_max != 255)
-        ldchCtx->correct_level = MAP_TO_255LEVEL(ldchCtx->correct_level, ldchCtx->correct_level_max);
 
     LOGI_ALDCH("ldch en %d, meshfile: %s, correct_level-max: %d-%d from xml file",
                calib_ldch->ldch_en,

@@ -65,6 +65,7 @@ cc_library_shared {
         "iq_parser",
         "iq_parser_v2",
         "uAPI",
+        "uAPI/include",
         "uAPI2",
         "ipc_server",
         "include",
@@ -76,7 +77,6 @@ cc_library_shared {
         "include/iq_parser",
         "include/iq_parser_v2",
         "include/iq_parser_v2/j2s",
-        "include/uAPI",
         "include/uAPI2",
         "include/ipc_server",
     ],
@@ -96,10 +96,10 @@ cc_library_shared {
         "aiq_core/RkAiqHandle.cpp",
         "aiq_core/RkAiqCamgroupHandle.cpp",
         "aiq_core/algo_handlers/*.cpp",
+        "aiq_core/algo_camgroup_handlers/*.cpp",
         "aiq_core/RkAiqCore.cpp",
         "aiq_core/RkLumaCore.cpp",
 
-        "aiq_core/RkAiqSharedDataManager.cpp",
         "aiq_core/MessageBus.cpp",
         "aiq_core/RkAiqAnalyzeGroupManager.cpp",
         "aiq_core/RkAiqResourceTranslator.cpp",
@@ -113,7 +113,6 @@ cc_library_shared {
         // COMMON_SRC
         "common/mediactl/mediactl.c",
         "common/gen_mesh/genMesh.cpp",
-        "common/shared_data_api_wrapper.cpp",
         "common/code_to_pixel_format.cpp",
         "common/media_buffer/media_buffer.c",
         "common/media_buffer/media_buffer_pool.c",
@@ -166,11 +165,11 @@ cc_library_shared {
         "iq_parser_v2/edgefilter_xml2json_v1.cpp",
 
         // UAPI_SRC
-        //"uAPI/rk_aiq_user_api_sysctl.cpp",
         "uAPI2/rk_aiq_user_api2_sysctl.cpp",
-        "uAPI/rk_aiq_user_api_debug.cpp",
+        "uAPI2/rk_aiq_user_api2_debug.cpp",
         "uAPI2/rk_aiq_user_api2_helper.cpp",
         "uAPI2/rk_aiq_user_api2_wrapper.cpp",
+        "common/rkaiq_ini.c",
 
         // XCORE_SRC
         "xcore/xcam_common.cpp",
@@ -193,6 +192,7 @@ cc_library_shared {
         "ipc_server/rkaiq_tool_sharp.cpp",
         "ipc_server/rkaiq_tool_sysctl.cpp",
         "ipc_server/command_process.cpp",
+        "ipc_server/MessageParser.cpp",
 
         "RkAiqManager.cpp",
 		"RkAiqCamGroupManager.cpp"
@@ -202,6 +202,7 @@ cc_library_shared {
         "librkaiq_ae",
         "librkaiq_awb",
         "librkaiq_af",
+        "librkaiq_pdaf",
         "librkaiq_amerge",
         "librkaiq_atmo",
         "librkaiq_anr",
@@ -301,6 +302,8 @@ cc_library_shared {
         "-frtti",
         "-std=c++11",
         "-DANDROID_OS",
+        "-DRKAIQ_ENABLE_PARSER_V1",
+        "-DRKAIQ_ENABLE_CAMGROUP",
     ],
 
     export_include_dirs: [
@@ -313,17 +316,19 @@ cc_library_shared {
         "iq_parser",
         "iq_parser_v2",
         "uAPI",
+        "uAPI/include",
         "uAPI2",
         "common",
         "include",
         "include/iq_parser",
         "include/iq_parser_v2",
         "include/iq_parser_v2/j2s",
-        "include/uAPI",
         "include/xcore",
         "include/common",
         "include/common/mediactl",
         "include/xcore/base",
         "include/algos",
+        "include/ipc_server",
+        "ipc_server",
     ],
 }

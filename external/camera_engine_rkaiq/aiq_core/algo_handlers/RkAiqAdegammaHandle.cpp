@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2021 Rockchip Eletronics Co., Ltd.
+ * Copyright (c) 2019-2022 Rockchip Eletronics Co., Ltd.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,9 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#include "RkAiqAdegammaHandle.h"
+
 #include "RkAiqCore.h"
-#include "RkAiqHandle.h"
-#include "RkAiqHandleInt.h"
 
 namespace RkCam {
 
@@ -100,7 +100,7 @@ XCamReturn RkAiqAdegammaHandleInt::prepare() {
     RKAIQCORE_CHECK_RET(ret, "adegamma handle prepare failed");
 
     RkAiqAlgoConfigAdegamma* adegamma_config_int = (RkAiqAlgoConfigAdegamma*)mConfig;
-    RkAiqCore::RkAiqAlgosComShared_t* sharedCom     = &mAiqCore->mAlogsComSharedParams;
+    RkAiqCore::RkAiqAlgosComShared_t* sharedCom  = &mAiqCore->mAlogsComSharedParams;
 
 #ifdef RKAIQ_ENABLE_PARSER_V1
     adegamma_config_int->calib = sharedCom->calib;
@@ -143,9 +143,8 @@ XCamReturn RkAiqAdegammaHandleInt::processing() {
 
     XCamReturn ret = XCAM_RETURN_NO_ERROR;
 
-    RkAiqAlgoProcAdegamma* adegamma_proc_int = (RkAiqAlgoProcAdegamma*)mProcInParam;
-    RkAiqAlgoProcResAdegamma* adegamma_proc_res_int =
-        (RkAiqAlgoProcResAdegamma*)mProcOutParam;
+    RkAiqAlgoProcAdegamma* adegamma_proc_int        = (RkAiqAlgoProcAdegamma*)mProcInParam;
+    RkAiqAlgoProcResAdegamma* adegamma_proc_res_int = (RkAiqAlgoProcResAdegamma*)mProcOutParam;
     RkAiqCore::RkAiqAlgosGroupShared_t* shared =
         (RkAiqCore::RkAiqAlgosGroupShared_t*)(getGroupShared());
     RkAiqCore::RkAiqAlgosComShared_t* sharedCom = &mAiqCore->mAlogsComSharedParams;
@@ -172,9 +171,8 @@ XCamReturn RkAiqAdegammaHandleInt::postProcess() {
 
     XCamReturn ret = XCAM_RETURN_NO_ERROR;
 
-    RkAiqAlgoPostAdegamma* adegamma_post_int = (RkAiqAlgoPostAdegamma*)mPostInParam;
-    RkAiqAlgoPostResAdegamma* adegamma_post_res_int =
-        (RkAiqAlgoPostResAdegamma*)mPostOutParam;
+    RkAiqAlgoPostAdegamma* adegamma_post_int        = (RkAiqAlgoPostAdegamma*)mPostInParam;
+    RkAiqAlgoPostResAdegamma* adegamma_post_res_int = (RkAiqAlgoPostResAdegamma*)mPostOutParam;
     RkAiqCore::RkAiqAlgosGroupShared_t* shared =
         (RkAiqCore::RkAiqAlgosGroupShared_t*)(getGroupShared());
     RkAiqCore::RkAiqAlgosComShared_t* sharedCom = &mAiqCore->mAlogsComSharedParams;

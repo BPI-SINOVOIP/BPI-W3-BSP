@@ -22,6 +22,7 @@
 #include <linux/reset.h>
 #include <linux/irqreturn.h>
 #include <linux/poll.h>
+#include <linux/platform_device.h>
 #include <soc/rockchip/pm_domains.h>
 
 #define MHZ			(1000 * 1000)
@@ -50,7 +51,8 @@ enum MPP_DEVICE_TYPE {
 	MPP_DEVICE_VDPU1	= 0, /* 0x00000001 */
 	MPP_DEVICE_VDPU2	= 1, /* 0x00000002 */
 	MPP_DEVICE_VDPU1_PP	= 2, /* 0x00000004 */
-	MPP_DEVICE_VDPU2_PP     = 3, /* 0x00000008 */
+	MPP_DEVICE_VDPU2_PP	= 3, /* 0x00000008 */
+	MPP_DEVICE_AV1DEC	= 4, /* 0x00000010 */
 
 	MPP_DEVICE_HEVC_DEC	= 8, /* 0x00000100 */
 	MPP_DEVICE_RKVDEC	= 9, /* 0x00000200 */
@@ -83,6 +85,7 @@ enum MPP_DRIVER_TYPE {
 	MPP_DRIVER_JPGDEC,
 	MPP_DRIVER_RKVDEC2,
 	MPP_DRIVER_RKVENC2,
+	MPP_DRIVER_AV1DEC,
 	MPP_DRIVER_BUTT,
 };
 
@@ -107,10 +110,12 @@ enum MPP_DEV_COMMAND_TYPE {
 	MPP_CMD_SET_REG_READ		= MPP_CMD_SEND_BASE + 1,
 	MPP_CMD_SET_REG_ADDR_OFFSET	= MPP_CMD_SEND_BASE + 2,
 	MPP_CMD_SET_RCB_INFO		= MPP_CMD_SEND_BASE + 3,
+	MPP_CMD_SET_SESSION_FD		= MPP_CMD_SEND_BASE + 4,
 	MPP_CMD_SEND_BUTT,
 
 	MPP_CMD_POLL_BASE		= 0x300,
 	MPP_CMD_POLL_HW_FINISH		= MPP_CMD_POLL_BASE + 0,
+	MPP_CMD_POLL_HW_IRQ		= MPP_CMD_POLL_BASE + 1,
 	MPP_CMD_POLL_BUTT,
 
 	MPP_CMD_CONTROL_BASE		= 0x400,
@@ -180,6 +185,11 @@ enum CODEC_INFO_FLAGS {
 	CODEC_INFO_FLAG_BUTT,
 };
 
+struct mpp_task;
+struct mpp_session;
+struct mpp_dma_session;
+struct mpp_taskqueue;
+
 /* data common struct for parse out */
 struct mpp_request {
 	__u32 cmd;
@@ -191,11 +201,26 @@ struct mpp_request {
 
 /* struct use to collect task set and poll message */
 struct mpp_task_msgs {
+	/* for ioctl msgs bat process */
+	struct list_head list;
+	struct list_head list_session;
+
+	struct mpp_session *session;
+	struct mpp_taskqueue *queue;
+	struct mpp_task *task;
+	struct mpp_dev *mpp;
+
+	/* for fd reference */
+	int ext_fd;
+	struct fd f;
+
 	u32 flags;
 	u32 req_cnt;
-	struct mpp_request reqs[MPP_MAX_MSG_NUM];
 	u32 set_cnt;
 	u32 poll_cnt;
+
+	struct mpp_request reqs[MPP_MAX_MSG_NUM];
+	struct mpp_request *poll_req;
 };
 
 struct mpp_grf_info {
@@ -280,9 +305,6 @@ struct mpp_mem_region {
 	bool is_dup;
 };
 
-struct mpp_dma_session;
-
-struct mpp_taskqueue;
 
 struct mpp_dev {
 	struct device *dev;
@@ -302,8 +324,16 @@ struct mpp_dev {
 	 * Default 1 means normal hardware can only accept one task at once.
 	 */
 	u32 task_capacity;
+	/*
+	 * The message capacity is the max message parallel process capacity.
+	 * Default 1 means normal hardware can only accept one message at one
+	 * shot ioctl.
+	 * Multi-core hardware can accept more message at one shot ioctl.
+	 */
+	u32 msgs_cap;
 
 	int irq;
+	bool is_irq_startup;
 	u32 irq_status;
 
 	void __iomem *reg_base;
@@ -321,15 +351,12 @@ struct mpp_dev {
 	struct mpp_taskqueue *queue;
 	struct mpp_reset_group *reset_group;
 	/* point to MPP Service */
-	struct platform_device *pdev_srv;
 	struct mpp_service *srv;
 
 	/* multi-core data */
 	struct list_head queue_link;
 	s32 core_id;
 };
-
-struct mpp_task;
 
 struct mpp_session {
 	enum MPP_DEVICE_TYPE device_type;
@@ -369,6 +396,12 @@ struct mpp_session {
 	int (*wait_result)(struct mpp_session *session,
 			   struct mpp_task_msgs *msgs);
 	void (*deinit)(struct mpp_session *session);
+
+	/* max message count */
+	int msgs_cnt;
+	struct list_head list_msgs;
+	struct list_head list_msgs_idle;
+	spinlock_t lock_msgs;
 };
 
 /* task state in work thread */
@@ -412,10 +445,12 @@ struct mpp_task {
 	struct kref ref;
 
 	/* record context running start time */
-	struct timespec64 start;
+	ktime_t start;
+	ktime_t part;
 	/* hardware info for current task */
 	struct mpp_hw_info *hw_info;
 	u32 task_index;
+	u32 task_id;
 	u32 *reg;
 	/* event for session wait thread */
 	wait_queue_head_t wait;
@@ -437,8 +472,9 @@ struct mpp_taskqueue {
 	struct list_head session_attach;
 	/* link to session session_link for detached sessions */
 	struct list_head session_detach;
-	u32 detach_count;
+	atomic_t detach_count;
 
+	atomic_t task_id;
 	/* lock for pending list */
 	struct mutex pending_lock;
 	struct list_head pending_list;
@@ -597,15 +633,18 @@ int mpp_task_dump_mem_region(struct mpp_dev *mpp,
 			     struct mpp_task *task);
 int mpp_task_dump_reg(struct mpp_dev *mpp,
 		      struct mpp_task *task);
-int mpp_task_dump_hw_reg(struct mpp_dev *mpp,
-			 struct mpp_task *task);
+int mpp_task_dump_hw_reg(struct mpp_dev *mpp);
+void mpp_reg_show(struct mpp_dev *mpp, u32 offset);
 void mpp_free_task(struct kref *ref);
 
-int mpp_session_deinit(struct mpp_session *session);
+void mpp_session_deinit(struct mpp_session *session);
+void mpp_session_cleanup_detach(struct mpp_taskqueue *queue,
+				struct kthread_work *work);
 
 int mpp_dev_probe(struct mpp_dev *mpp,
 		  struct platform_device *pdev);
 int mpp_dev_remove(struct mpp_dev *mpp);
+void mpp_dev_shutdown(struct platform_device *pdev);
 int mpp_dev_register_srv(struct mpp_dev *mpp, struct mpp_service *srv);
 
 int mpp_power_on(struct mpp_dev *mpp);
@@ -625,6 +664,7 @@ int mpp_set_grf(struct mpp_grf_info *grf_info);
 
 int mpp_time_record(struct mpp_task *task);
 int mpp_time_diff(struct mpp_task *task);
+int mpp_time_part_diff(struct mpp_task *task);
 
 int mpp_write_req(struct mpp_dev *mpp, u32 *regs,
 		  u32 start_idx, u32 end_idx, u32 en_idx);
@@ -760,6 +800,13 @@ static inline int mpp_pmu_idle_request(struct mpp_dev *mpp, bool idle)
 	return rockchip_pmu_idle_request(mpp->dev, idle);
 }
 
+static inline struct mpp_dev *
+mpp_get_task_used_device(const struct mpp_task *task,
+			 const struct mpp_session *session)
+{
+	return task->mpp ? task->mpp : session->mpp;
+}
+
 #ifdef CONFIG_ROCKCHIP_MPP_PROC_FS
 struct proc_dir_entry *
 mpp_procfs_create_u32(const char *name, umode_t mode,
@@ -791,5 +838,11 @@ extern struct platform_driver rockchip_iep2_driver;
 extern struct platform_driver rockchip_jpgdec_driver;
 extern struct platform_driver rockchip_rkvdec2_driver;
 extern struct platform_driver rockchip_rkvenc2_driver;
+extern struct platform_driver rockchip_av1dec_driver;
+extern struct platform_driver rockchip_av1_iommu_driver;
+
+extern int av1dec_driver_register(struct platform_driver *drv);
+extern void av1dec_driver_unregister(struct platform_driver *drv);
+extern struct bus_type av1dec_bus;
 
 #endif

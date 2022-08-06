@@ -32,8 +32,15 @@
 
 
 
+Again_result_V2_t gain_get_setting_by_name_json_V2(CalibDbV2_GainV2_t* pCalibdb, char *name,  int *tuning_idx);
 
-Again_result_V2_t gain_fix_transfer_v2(RK_GAIN_Params_V2_Select_t *pSelect, RK_GAIN_Fix_V2_t* pGainFix,  Again_ExpInfo_V2_t *pExpInfo, float gain_ratio);
+Again_result_V2_t gain_init_params_json_V2(RK_GAIN_Params_V2_t *pParams, CalibDbV2_GainV2_t* pCalibdb,  int tuning_idx);
+
+Again_result_V2_t gain_config_setting_param_json_V2(RK_GAIN_Params_V2_t *pParams, CalibDbV2_GainV2_t* pCalibdbV2, char* param_mode, char * snr_name);
+
+Again_result_V2_t gain_select_params_by_ISO_V2(RK_GAIN_Params_V2_t *pParams, RK_GAIN_Select_V2_t *pSelect, Again_ExpInfo_V2_t *pExpInfo);
+
+Again_result_V2_t gain_fix_transfer_v2(RK_GAIN_Select_V2_t *pSelect, RK_GAIN_Fix_V2_t* pGainFix,  Again_ExpInfo_V2_t *pExpInfo, float gain_ratio);
 
 Again_result_V2_t gain_fix_Printf_v2(RK_GAIN_Fix_V2_t  * pFix);
 

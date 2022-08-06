@@ -1332,6 +1332,7 @@ static int scaling_list_data(HEVCContext *s, ScalingList *sl, HEVCSPS *sps)
                  * which should already be in the arrays. */
                 if (delta) {
                     // Copy from previous array.
+                    delta *= (size_id == 3) ? 3 : 1;
                     if (matrix_id < delta) {
                         mpp_err(
                             "Invalid delta in scaling list data: %d.\n", delta);
@@ -1577,17 +1578,38 @@ RK_S32 mpp_hevc_decode_nal_sps(HEVCContext *s)
 
     h265d_dbg(H265D_DBG_SPS, "2 read bit left %d", gb->num_remaining_bits_in_curr_byte_ + gb->bytes_left_ * 8);
     READ_UE(gb, &sps->log2_min_cb_size) ;
+    if (sps->log2_min_cb_size > (LOG2_MAX_CU_SIZE - 3)) {
+        mpp_err( "Invalid value for log2_min_cb_size");
+        ret =  MPP_ERR_STREAM;
+        goto err;
+    }
     sps->log2_min_cb_size += 3;
 
     h265d_dbg(H265D_DBG_SPS, "sps->log2_min_cb_size %d", sps->log2_min_cb_size);
     READ_UE(gb, &sps->log2_diff_max_min_coding_block_size);
+    if (sps->log2_diff_max_min_coding_block_size > (LOG2_MAX_CU_SIZE - LOG2_MIN_CU_SIZE)) {
+        mpp_err( "Invalid value for log2_diff_max_min_coding_block_size");
+        ret =  MPP_ERR_STREAM;
+        goto err;
+    }
 
     h265d_dbg(H265D_DBG_SPS, "sps->log2_diff_max_min_coding_block_size %d", sps->log2_diff_max_min_coding_block_size);
     READ_UE(gb, &sps->log2_min_tb_size);
+    if (sps->log2_min_tb_size > (LOG2_MAX_TU_SIZE - 2)) {
+        mpp_err( "Invalid value for log2_min_tb_size");
+        ret =  MPP_ERR_STREAM;
+        goto err;
+    }
     sps->log2_min_tb_size += 2;
 
     h265d_dbg(H265D_DBG_SPS, "sps->log2_min_tb_size %d", sps->log2_min_tb_size);
     READ_UE(gb, &log2_diff_max_min_transform_block_size);
+    if (log2_diff_max_min_transform_block_size > (LOG2_MAX_TU_SIZE - LOG2_MIN_TU_SIZE)) {
+        mpp_err( "Invalid value for log2_diff_max_min_transform_block_size");
+        ret =  MPP_ERR_STREAM;
+        goto err;
+    }
+
 
     h265d_dbg(H265D_DBG_SPS, "sps->log2_diff_max_min_transform_block_size %d", log2_diff_max_min_transform_block_size);
     sps->log2_max_trafo_size                 = log2_diff_max_min_transform_block_size +
@@ -2147,6 +2169,7 @@ int mpp_hevc_decode_nal_pps(HEVCContext *s)
     }
 
     s->pps_list[pps_id] = (RK_U8 *)pps;
+    s->ps_need_upate = 1;
 
     if (s->pps_list[pps_id])
         s->pps_list_of_updated[pps_id] = 1;

@@ -26,6 +26,7 @@
 #include "awb/rk_aiq_types_awb_algo.h"
 #include "RkAiqCalibDbTypes.h"
 #include "awb_head.h"
+#include "awb_uapi_head.h"
 
 typedef enum rk_aiq_wb_scene_e {
     RK_AIQ_WBCT_INCANDESCENT = 0,

@@ -244,13 +244,15 @@ static XCamReturn groupAsharpProcessing(const RkAiqAlgoCom* inparams, RkAiqAlgoR
             stExpInfoV3.arIso[0] = stExpInfoV3.arAGain[0] * stExpInfoV3.arDGain[0] * 50;
 
         } else {
-            if((rk_aiq_working_mode_t)procParaGroup->working_mode == RK_AIQ_WORKING_MODE_ISP_HDR2)
+            if(procParaGroup->working_mode == RK_AIQ_ISP_HDR_MODE_2_FRAME_HDR
+                    || procParaGroup->working_mode == RK_AIQ_ISP_HDR_MODE_2_LINE_HDR)
                 stExpInfoV3.hdr_mode = 1;
-            else if ((rk_aiq_working_mode_t)procParaGroup->working_mode == RK_AIQ_WORKING_MODE_ISP_HDR3)
+            else if (procParaGroup->working_mode == RK_AIQ_ISP_HDR_MODE_3_FRAME_HDR
+                     || procParaGroup->working_mode == RK_AIQ_ISP_HDR_MODE_3_LINE_HDR)
                 stExpInfoV3.hdr_mode = 2;
             else {
                 stExpInfoV3.hdr_mode = 0;
-                LOGE_ASHARP("mode error\n");
+                LOGE_ANR("mode error\n");
             }
 
             for(int i = 0; i < 3; i++) {
@@ -316,12 +318,13 @@ static XCamReturn groupAsharpProcessing(const RkAiqAlgoCom* inparams, RkAiqAlgoR
                 ret = XCAM_RETURN_ERROR_FAILED;
                 LOGE_ASHARP("%s: processing ASHARP failed (%d)\n", __FUNCTION__, ret);
             }
+            Asharp_GetProcResult_V4(asharp_contex_v4, &stAsharpResultV4);
             stAsharpResultV4.isNeedUpdate = true;
             LOGD_ASHARP("recalculate: %d delta_iso:%d \n ", asharp_contex_v4->isReCalculate, deltaIso);
         } else {
+            stAsharpResultV4 = asharp_contex_v4->stProcResult;
             stAsharpResultV4.isNeedUpdate = false;
         }
-        Asharp_GetProcResult_V4(asharp_contex_v4, &stAsharpResultV4);
         for (int i = 0; i < procResParaGroup->arraySize; i++) {
             *(procResParaGroup->camgroupParmasArray[i]->asharp._asharp_procRes_v4) = stAsharpResultV4.stFix;
         }

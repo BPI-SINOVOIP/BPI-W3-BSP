@@ -448,6 +448,7 @@ static GRSurface* drm_flip(minui_backend* backend) {
                           drm_surfaces[current_buffer]->fb_id, 0, NULL);
     if (ret < 0) {
         printf("drmModePageFlip failed ret=%d\n", ret);
+        return NULL;
     }
     current_buffer = 1 - current_buffer;
     return &(drm_surfaces[current_buffer]->base);

@@ -128,12 +128,16 @@ void MergeAecWinLiteStats(
     rawaelite_stat_t *merge_stats,
     struct isp2x_rawaelite_stat *left_stats,
     struct isp2x_rawaelite_stat *right_stats,
-    WinSplitMode mode
+    WinSplitMode mode,
+    struct isp2x_bls_fixed_val bls1_val,
+    float* bls_ratio
 ) {
-    u8 wnd_num = sqrt(ISP2X_RAWAELITE_MEAN_NUM);
+    u8 wnd_num = sqrt(ISP3X_RAWAELITE_MEAN_NUM);
 
     for(int i = 0; i < wnd_num; i++) {
         for(int j = 0; j < wnd_num; j++) {
+
+            // step1 copy stats
             switch(mode) {
             case LEFT_MODE:
                 merge_stats->channelr_xy[i * wnd_num + j] = left_stats->data[i * wnd_num + j].channelr_xy;
@@ -164,6 +168,12 @@ void MergeAecWinLiteStats(
             default:
                 break;
             }
+
+            // step2 subtract bls1
+            merge_stats->channelr_xy[i * wnd_num + j] = (u16)((merge_stats->channelr_xy[i * wnd_num + j] - bls1_val.r) * bls_ratio[0]);
+            merge_stats->channelg_xy[i * wnd_num + j] = (u16)((merge_stats->channelg_xy[i * wnd_num + j] - bls1_val.gr) * bls_ratio[1]);
+            merge_stats->channelb_xy[i * wnd_num + j] = (u16)((merge_stats->channelb_xy[i * wnd_num + j] - bls1_val.b) * bls_ratio[2]);
+
         }
     }
 }
@@ -171,11 +181,15 @@ void MergeAecWinBigStats(
     rawaebig_stat_t *merge_stats,
     struct isp2x_rawaebig_stat *left_stats,
     struct isp2x_rawaebig_stat *right_stats,
-    WinSplitMode mode
+    WinSplitMode mode,
+    struct isp2x_bls_fixed_val bls1_val,
+    float* bls_ratio
 ) {
-    u8 wnd_num = sqrt(ISP2X_RAWAEBIG_MEAN_NUM);
+    u8 wnd_num = sqrt(ISP3X_RAWAEBIG_MEAN_NUM);
     for(int i = 0; i < wnd_num; i++) {
         for(int j = 0; j < wnd_num; j++) {
+
+            // step1 copy stats
             switch(mode) {
             case LEFT_MODE:
                 merge_stats->channelr_xy[i * wnd_num + j] = left_stats->data[i * wnd_num + j].channelr_xy;
@@ -205,6 +219,12 @@ void MergeAecWinBigStats(
             default:
                 break;
             }
+
+            // step2 subtract bls1
+            merge_stats->channelr_xy[i * wnd_num + j] = (u16)((merge_stats->channelr_xy[i * wnd_num + j] - bls1_val.r) * bls_ratio[0]);
+            merge_stats->channelg_xy[i * wnd_num + j] = (u16)((merge_stats->channelg_xy[i * wnd_num + j] - bls1_val.gr) * bls_ratio[1]);
+            merge_stats->channelb_xy[i * wnd_num + j] = (u16)((merge_stats->channelb_xy[i * wnd_num + j] - bls1_val.b) * bls_ratio[2]);
+
         }
     }
 
@@ -213,38 +233,64 @@ void MergeAecSubWinStats(
     rawaebig_stat_t *merge_stats,
     struct isp2x_rawaebig_stat *left_stats,
     struct isp2x_rawaebig_stat *right_stats,
-    u8 *left_hwi,
-    u8 *right_hwi
+    u8 *left_en,
+    u8 *right_en,
+    struct isp2x_bls_fixed_val bls1_val,
+    float* bls_ratio,
+    u32* pixel_num
 ) {
-    for(int i = 0; i < ISP2X_RAWAEBIG_SUBWIN_NUM; i++) {
+    for(int i = 0; i < ISP3X_RAWAEBIG_SUBWIN_NUM; i++) {
+        // step1 copy stats
+        merge_stats->wndx_sumr[i] = ((left_en[i]) ? left_stats->sumr[i] : 0) + ((right_en[i]) ? right_stats->sumr[i] : 0);
+        merge_stats->wndx_sumg[i] = ((left_en[i]) ? left_stats->sumg[i] : 0) + ((right_en[i]) ? right_stats->sumg[i] : 0);
+        merge_stats->wndx_sumb[i] = ((left_en[i]) ? left_stats->sumb[i] : 0) + ((right_en[i]) ? right_stats->sumb[i] : 0);
 
-        merge_stats->wndx_sumr[i] = ((left_hwi[i]) ? left_stats->sumr[i] : 0) + ((right_hwi[i]) ? right_stats->sumr[i] : 0);
-        merge_stats->wndx_sumg[i] = ((left_hwi[i]) ? left_stats->sumg[i] : 0) + ((right_hwi[i]) ? right_stats->sumg[i] : 0);
-        merge_stats->wndx_sumb[i] = ((left_hwi[i]) ? left_stats->sumb[i] : 0) + ((right_hwi[i]) ? right_stats->sumb[i] : 0);
-
+        // step2 subtract bls1
+        if(left_en[i] == 1 || right_en[i] == 1) {
+            merge_stats->wndx_sumr[i] = (u32)((merge_stats->wndx_sumr[i] - (pixel_num[i] >> 2) * bls1_val.r) * bls_ratio[0]);
+            merge_stats->wndx_sumg[i] = (u32)((merge_stats->wndx_sumg[i] - (pixel_num[i] >> 1) * bls1_val.gr) * bls_ratio[1]);
+            merge_stats->wndx_sumb[i] = (u32)((merge_stats->wndx_sumb[i] - (pixel_num[i] >> 2) * bls1_val.b) * bls_ratio[2]);
+        }
     }
-
 }
 void MergeAecHistBinStats(
     u32 *merge_stats,
     u32 *left_stats,
     u32 *right_stats,
-    WinSplitMode mode
+    WinSplitMode mode,
+    s16   bls1_val,
+    float bls_ratio
 ) {
+    int tmp;
+    memset(merge_stats, 0, ISP3X_HIST_BIN_N_MAX * sizeof(u32));
+
     switch(mode) {
     case LEFT_MODE:
-        for(int i = 0; i < ISP2X_HIST_BIN_N_MAX; i++)
-            merge_stats[i] = left_stats[i];
+        for(int i = 0; i < ISP3X_HIST_BIN_N_MAX; i++) {
+            tmp = (i - bls1_val >= 0) ? (i - bls1_val) * bls_ratio + 0.5 : 0;
+            if(tmp > ISP3X_HIST_BIN_N_MAX - 1)
+                tmp = ISP3X_HIST_BIN_N_MAX - 1;
+            merge_stats[tmp] += left_stats[i];
+        }
         break;
     case RIGHT_MODE:
-        for(int i = 0; i < ISP2X_HIST_BIN_N_MAX; i++)
-            merge_stats[i] = right_stats[i];
+        for(int i = 0; i < ISP3X_HIST_BIN_N_MAX; i++) {
+            tmp = (i - bls1_val >= 0) ? (i - bls1_val) * bls_ratio + 0.5 : 0;
+            if(tmp > ISP3X_HIST_BIN_N_MAX - 1)
+                tmp = ISP3X_HIST_BIN_N_MAX - 1;
+            merge_stats[tmp] += right_stats[i];
+        }
         break;
     case LEFT_AND_RIGHT_MODE:
-        for(int i = 0; i < ISP2X_HIST_BIN_N_MAX; i++)
-            merge_stats[i] = left_stats[i] + right_stats[i];
+        for(int i = 0; i < ISP3X_HIST_BIN_N_MAX; i++) {
+            tmp = (i - bls1_val >= 0) ? (i - bls1_val) * bls_ratio + 0.5 : 0;
+            if(tmp > ISP3X_HIST_BIN_N_MAX - 1)
+                tmp = ISP3X_HIST_BIN_N_MAX - 1;
+            merge_stats[tmp] += left_stats[i] + right_stats[i];
+        }
         break;
     }
+
 }
 
 void MergeAwbWinStats(
@@ -561,72 +607,214 @@ RkAiqResourceTranslatorV3x::translateMultiAecStats(const SmartPtr<VideoBuffer>& 
     JudgeWinLocation(&ispParams.isp_params_v3x[0].meas.rawhist2.win, HistWinSplitMode[2], left_isp_rect_, right_isp_rect_);
     JudgeWinLocation(&ispParams.isp_params_v3x[0].meas.rawhist3.win, HistWinSplitMode[3], left_isp_rect_, right_isp_rect_);
 
+    struct isp21_bls_cfg *bls_cfg = &ispParams.isp_params_v3x[0].others.bls_cfg;
+    struct isp2x_bls_fixed_val bls1_val; //bls1_val = blc1_ori_val * awb * range_ratio
+    float bls_ratio[3] = {1, 1, 1};
+    u32 pixel_num[ISP3X_RAWAEBIG_SUBWIN_NUM] = {0};
+
+    if(bls_cfg->bls1_en) {
+
+        bls1_val.r = bls_cfg->bls1_val.r >> 2;
+        bls1_val.gr = bls_cfg->bls1_val.gr;
+        bls1_val.gb = bls_cfg->bls1_val.gb;
+        bls1_val.b = bls_cfg->bls1_val.b >> 2;
+
+        bls_ratio[0] = (float)((1 << 12) - 1) / ((1 << 12) - 1 - bls_cfg->bls1_val.r);
+        bls_ratio[1] = (float)((1 << 12) - 1) / ((1 << 12) - 1 - bls_cfg->bls1_val.gr);
+        bls_ratio[2] = (float)((1 << 12) - 1) / ((1 << 12) - 1 - bls_cfg->bls1_val.b);
+
+    } else {
+
+        bls1_val.r = 0;
+        bls1_val.gr = 0;
+        bls1_val.gb = 0;
+        bls1_val.b = 0;
+
+    }
+
+#ifdef AE_STATS_DEBUG
+    LOGE("bls1[%d-%d-%d-%d]", bls1_val.r, bls1_val.gr, bls1_val.gb, bls1_val.b);
+    LOGE("bls_ratio[%f-%f-%f]", bls_ratio[0], bls_ratio[1], bls_ratio[2]);
+#endif
+
+    s16   hist_bls1;
+    float hist_bls_ratio;
+
     switch(AeSwapMode)
     {
     case AEC_RAWSWAP_MODE_S_LITE:
+
+        switch(ispParams.isp_params_v3x[0].meas.rawhist0.mode) {
+        case 2:
+            hist_bls1 = (bls1_val.r >> 2);
+            hist_bls_ratio = bls_ratio[0];
+            break;
+        case 3:
+            hist_bls1 = (bls1_val.gr >> 4);
+            hist_bls_ratio = bls_ratio[1];
+            break;
+        case 4:
+            hist_bls1 = (bls1_val.b >> 2);
+            hist_bls_ratio = bls_ratio[2];
+            break;
+        case 5:
+        default:
+            hist_bls1 = (s16)((bls1_val.gr >> 4) * 0.587 + (bls1_val.r >> 2) * 0.299 + (bls1_val.b >> 2) * 0.144 + 0.5);
+            hist_bls_ratio = (float)((1 << 8) - 1) / ((1 << 8) - 1 - hist_bls1);
+            break;
+        }
+
         meas_type = ((left_stats->meas_type >> 7) & (0x01)) & ((left_stats->meas_type >> 11) & (0x01));
         statsInt->aec_stats_valid = (meas_type & 0x01) ? true : false;
 
         //chn 0 => rawae0 rawhist0
-        MergeAecWinLiteStats(&statsInt->aec_stats.ae_data.chn[0].rawae_lite, &left_stats->params.rawae0, &right_stats->params.rawae0, AeWinSplitMode[0]);
-        MergeAecHistBinStats(statsInt->aec_stats.ae_data.chn[0].rawhist_lite.bins, left_stats->params.rawhist0.hist_bin, right_stats->params.rawhist0.hist_bin, HistWinSplitMode[0]);
+        MergeAecWinLiteStats(&statsInt->aec_stats.ae_data.chn[0].rawae_lite, &left_stats->params.rawae0, &right_stats->params.rawae0, AeWinSplitMode[0], bls1_val, bls_ratio);
+        MergeAecHistBinStats(statsInt->aec_stats.ae_data.chn[0].rawhist_lite.bins, left_stats->params.rawhist0.hist_bin,
+                             right_stats->params.rawhist0.hist_bin, HistWinSplitMode[0], hist_bls1, hist_bls_ratio);
 
         //chn 1 => rawae1 rawhist1
-        MergeAecWinBigStats(&statsInt->aec_stats.ae_data.chn[1].rawae_big, &left_stats->params.rawae1, &right_stats->params.rawae1, AeWinSplitMode[1]);
+        MergeAecWinBigStats(&statsInt->aec_stats.ae_data.chn[1].rawae_big, &left_stats->params.rawae1, &right_stats->params.rawae1, AeWinSplitMode[1], bls1_val, bls_ratio);
+        pixel_num[0] = ispParams.isp_params_v3x[0].meas.rawae1.subwin[0].h_size * ispParams.isp_params_v3x[0].meas.rawae1.subwin[0].v_size;
+        pixel_num[1] = ispParams.isp_params_v3x[0].meas.rawae1.subwin[1].h_size * ispParams.isp_params_v3x[0].meas.rawae1.subwin[1].v_size;
+        pixel_num[2] = ispParams.isp_params_v3x[0].meas.rawae1.subwin[2].h_size * ispParams.isp_params_v3x[0].meas.rawae1.subwin[2].v_size;
+        pixel_num[3] = ispParams.isp_params_v3x[0].meas.rawae1.subwin[3].h_size * ispParams.isp_params_v3x[0].meas.rawae1.subwin[3].v_size;
         MergeAecSubWinStats(&statsInt->aec_stats.ae_data.chn[1].rawae_big, &left_stats->params.rawae1, &right_stats->params.rawae1,
-                            ispParams.isp_params_v3x[1].meas.rawae1.subwin_en, ispParams.isp_params_v3x[2].meas.rawae1.subwin_en);
-        MergeAecHistBinStats(statsInt->aec_stats.ae_data.chn[1].rawhist_big.bins, left_stats->params.rawhist1.hist_bin, right_stats->params.rawhist1.hist_bin, HistWinSplitMode[1]);
+                            ispParams.isp_params_v3x[1].meas.rawae1.subwin_en, ispParams.isp_params_v3x[2].meas.rawae1.subwin_en,
+                            bls1_val, bls_ratio, pixel_num);
+
+        MergeAecHistBinStats(statsInt->aec_stats.ae_data.chn[1].rawhist_big.bins, left_stats->params.rawhist1.hist_bin,
+                             right_stats->params.rawhist1.hist_bin, HistWinSplitMode[1], hist_bls1, hist_bls_ratio);
 
 
         //chn 2 => rawae2 rawhist2
-        MergeAecWinBigStats(&statsInt->aec_stats.ae_data.chn[2].rawae_big, &left_stats->params.rawae2, &right_stats->params.rawae2, AeWinSplitMode[2]);
+        MergeAecWinBigStats(&statsInt->aec_stats.ae_data.chn[2].rawae_big, &left_stats->params.rawae2, &right_stats->params.rawae2, AeWinSplitMode[2], bls1_val, bls_ratio);
+        pixel_num[0] = ispParams.isp_params_v3x[0].meas.rawae2.subwin[0].h_size * ispParams.isp_params_v3x[0].meas.rawae2.subwin[0].v_size;
+        pixel_num[1] = ispParams.isp_params_v3x[0].meas.rawae2.subwin[1].h_size * ispParams.isp_params_v3x[0].meas.rawae2.subwin[1].v_size;
+        pixel_num[2] = ispParams.isp_params_v3x[0].meas.rawae2.subwin[2].h_size * ispParams.isp_params_v3x[0].meas.rawae2.subwin[2].v_size;
+        pixel_num[3] = ispParams.isp_params_v3x[0].meas.rawae2.subwin[3].h_size * ispParams.isp_params_v3x[0].meas.rawae2.subwin[3].v_size;
+
         MergeAecSubWinStats(&statsInt->aec_stats.ae_data.chn[2].rawae_big, &left_stats->params.rawae2, &right_stats->params.rawae2,
-                            ispParams.isp_params_v3x[1].meas.rawae2.subwin_en, ispParams.isp_params_v3x[2].meas.rawae2.subwin_en);
-        MergeAecHistBinStats(statsInt->aec_stats.ae_data.chn[2].rawhist_big.bins, left_stats->params.rawhist2.hist_bin, right_stats->params.rawhist2.hist_bin, HistWinSplitMode[2]);
+                            ispParams.isp_params_v3x[1].meas.rawae2.subwin_en, ispParams.isp_params_v3x[2].meas.rawae2.subwin_en,
+                            bls1_val, bls_ratio, pixel_num);
+
+
+        MergeAecHistBinStats(statsInt->aec_stats.ae_data.chn[2].rawhist_big.bins, left_stats->params.rawhist2.hist_bin,
+                             right_stats->params.rawhist2.hist_bin, HistWinSplitMode[2], hist_bls1, hist_bls_ratio);
 
         break;
 
     case AEC_RAWSWAP_MODE_M_LITE:
+        switch(ispParams.isp_params_v3x[0].meas.rawhist1.mode) {
+        case 2:
+            hist_bls1 = (bls1_val.r >> 2);
+            hist_bls_ratio = bls_ratio[0];
+            break;
+        case 3:
+            hist_bls1 = (bls1_val.gr >> 4);
+            hist_bls_ratio = bls_ratio[1];
+            break;
+        case 4:
+            hist_bls1 = (bls1_val.b >> 2);
+            hist_bls_ratio = bls_ratio[2];
+            break;
+        case 5:
+        default:
+            hist_bls1 = (s16)((bls1_val.gr >> 4) * 0.587 + (bls1_val.r >> 2) * 0.299 + (bls1_val.b >> 2) * 0.144 + 0.5);
+            hist_bls_ratio = (float)((1 << 8) - 1) / ((1 << 8) - 1 - hist_bls1);
+            break;
+        }
+
         meas_type = ((left_stats->meas_type >> 8) & (0x01)) & ((left_stats->meas_type >> 12) & (0x01));
         statsInt->aec_stats_valid = (meas_type & 0x01) ? true : false;
 
         //chn 0 => rawae1 rawhist1
-        MergeAecWinBigStats(&statsInt->aec_stats.ae_data.chn[0].rawae_big, &left_stats->params.rawae1, &right_stats->params.rawae1, AeWinSplitMode[1]);
+        MergeAecWinBigStats(&statsInt->aec_stats.ae_data.chn[0].rawae_big, &left_stats->params.rawae1, &right_stats->params.rawae1, AeWinSplitMode[1], bls1_val, bls_ratio);
+
+        pixel_num[0] = ispParams.isp_params_v3x[0].meas.rawae1.subwin[0].h_size * ispParams.isp_params_v3x[0].meas.rawae1.subwin[0].v_size;
+        pixel_num[1] = ispParams.isp_params_v3x[0].meas.rawae1.subwin[1].h_size * ispParams.isp_params_v3x[0].meas.rawae1.subwin[1].v_size;
+        pixel_num[2] = ispParams.isp_params_v3x[0].meas.rawae1.subwin[2].h_size * ispParams.isp_params_v3x[0].meas.rawae1.subwin[2].v_size;
+        pixel_num[3] = ispParams.isp_params_v3x[0].meas.rawae1.subwin[3].h_size * ispParams.isp_params_v3x[0].meas.rawae1.subwin[3].v_size;
+
         MergeAecSubWinStats(&statsInt->aec_stats.ae_data.chn[0].rawae_big, &left_stats->params.rawae1, &right_stats->params.rawae1,
-                            ispParams.isp_params_v3x[1].meas.rawae1.subwin_en, ispParams.isp_params_v3x[2].meas.rawae1.subwin_en);
-        MergeAecHistBinStats(statsInt->aec_stats.ae_data.chn[0].rawhist_big.bins, left_stats->params.rawhist1.hist_bin, right_stats->params.rawhist1.hist_bin, HistWinSplitMode[1]);
+                            ispParams.isp_params_v3x[1].meas.rawae1.subwin_en, ispParams.isp_params_v3x[2].meas.rawae1.subwin_en,
+                            bls1_val, bls_ratio, pixel_num);
+        MergeAecHistBinStats(statsInt->aec_stats.ae_data.chn[0].rawhist_big.bins, left_stats->params.rawhist1.hist_bin,
+                             right_stats->params.rawhist1.hist_bin, HistWinSplitMode[1], hist_bls1, hist_bls_ratio);
 
         //chn 1 => rawae0 rawhist0
-        MergeAecWinLiteStats(&statsInt->aec_stats.ae_data.chn[1].rawae_lite, &left_stats->params.rawae0, &right_stats->params.rawae0, AeWinSplitMode[0]);
-        MergeAecHistBinStats(statsInt->aec_stats.ae_data.chn[1].rawhist_lite.bins, left_stats->params.rawhist0.hist_bin, right_stats->params.rawhist0.hist_bin, HistWinSplitMode[0]);
+        MergeAecWinLiteStats(&statsInt->aec_stats.ae_data.chn[1].rawae_lite, &left_stats->params.rawae0, &right_stats->params.rawae0, AeWinSplitMode[0], bls1_val, bls_ratio);
+        MergeAecHistBinStats(statsInt->aec_stats.ae_data.chn[1].rawhist_lite.bins, left_stats->params.rawhist0.hist_bin,
+                             right_stats->params.rawhist0.hist_bin, HistWinSplitMode[0], hist_bls1, hist_bls_ratio);
 
         //chn 2 => rawae2 rawhist2
-        MergeAecWinBigStats(&statsInt->aec_stats.ae_data.chn[2].rawae_big, &left_stats->params.rawae2, &right_stats->params.rawae2, AeWinSplitMode[2]);
+        MergeAecWinBigStats(&statsInt->aec_stats.ae_data.chn[2].rawae_big, &left_stats->params.rawae2, &right_stats->params.rawae2, AeWinSplitMode[2], bls1_val, bls_ratio);
+
+        pixel_num[0] = ispParams.isp_params_v3x[0].meas.rawae2.subwin[0].h_size * ispParams.isp_params_v3x[0].meas.rawae2.subwin[0].v_size;
+        pixel_num[1] = ispParams.isp_params_v3x[0].meas.rawae2.subwin[1].h_size * ispParams.isp_params_v3x[0].meas.rawae2.subwin[1].v_size;
+        pixel_num[2] = ispParams.isp_params_v3x[0].meas.rawae2.subwin[2].h_size * ispParams.isp_params_v3x[0].meas.rawae2.subwin[2].v_size;
+        pixel_num[3] = ispParams.isp_params_v3x[0].meas.rawae2.subwin[3].h_size * ispParams.isp_params_v3x[0].meas.rawae2.subwin[3].v_size;
+
         MergeAecSubWinStats(&statsInt->aec_stats.ae_data.chn[2].rawae_big, &left_stats->params.rawae2, &right_stats->params.rawae2,
-                            ispParams.isp_params_v3x[1].meas.rawae2.subwin_en, ispParams.isp_params_v3x[2].meas.rawae2.subwin_en);
-        MergeAecHistBinStats(statsInt->aec_stats.ae_data.chn[2].rawhist_big.bins, left_stats->params.rawhist2.hist_bin, right_stats->params.rawhist2.hist_bin, HistWinSplitMode[2]);
+                            ispParams.isp_params_v3x[1].meas.rawae2.subwin_en, ispParams.isp_params_v3x[2].meas.rawae2.subwin_en,
+                            bls1_val, bls_ratio, pixel_num);
+        MergeAecHistBinStats(statsInt->aec_stats.ae_data.chn[2].rawhist_big.bins, left_stats->params.rawhist2.hist_bin,
+                             right_stats->params.rawhist2.hist_bin, HistWinSplitMode[2], hist_bls1, hist_bls_ratio);
 
         break;
 
     case AEC_RAWSWAP_MODE_L_LITE:
+        switch(ispParams.isp_params_v3x[0].meas.rawhist2.mode) {
+        case 2:
+            hist_bls1 = (bls1_val.r >> 2);
+            hist_bls_ratio = bls_ratio[0];
+            break;
+        case 3:
+            hist_bls1 = (bls1_val.gr >> 4);
+            hist_bls_ratio = bls_ratio[1];
+            break;
+        case 4:
+            hist_bls1 = (bls1_val.b >> 2);
+            hist_bls_ratio = bls_ratio[2];
+            break;
+        case 5:
+        default:
+            hist_bls1 = (s16)((bls1_val.gr >> 4) * 0.587 + (bls1_val.r >> 2) * 0.299 + (bls1_val.b >> 2) * 0.144 + 0.5);
+            hist_bls_ratio = (float)((1 << 8) - 1) / ((1 << 8) - 1 - hist_bls1);
+            break;
+        }
+
         meas_type = ((left_stats->meas_type >> 9) & (0x01)) & ((left_stats->meas_type >> 13) & (0x01));
         statsInt->aec_stats_valid = (meas_type & 0x01) ? true : false;
 
         //chn 0 => rawae2 rawhist2
-        MergeAecWinBigStats(&statsInt->aec_stats.ae_data.chn[0].rawae_big, &left_stats->params.rawae2, &right_stats->params.rawae2, AeWinSplitMode[2]);
+        MergeAecWinBigStats(&statsInt->aec_stats.ae_data.chn[0].rawae_big, &left_stats->params.rawae2, &right_stats->params.rawae2, AeWinSplitMode[2], bls1_val, bls_ratio);
+        pixel_num[0] = ispParams.isp_params_v3x[0].meas.rawae2.subwin[0].h_size * ispParams.isp_params_v3x[0].meas.rawae2.subwin[0].v_size;
+        pixel_num[1] = ispParams.isp_params_v3x[0].meas.rawae2.subwin[1].h_size * ispParams.isp_params_v3x[0].meas.rawae2.subwin[1].v_size;
+        pixel_num[2] = ispParams.isp_params_v3x[0].meas.rawae2.subwin[2].h_size * ispParams.isp_params_v3x[0].meas.rawae2.subwin[2].v_size;
+        pixel_num[3] = ispParams.isp_params_v3x[0].meas.rawae2.subwin[3].h_size * ispParams.isp_params_v3x[0].meas.rawae2.subwin[3].v_size;
         MergeAecSubWinStats(&statsInt->aec_stats.ae_data.chn[0].rawae_big, &left_stats->params.rawae2, &right_stats->params.rawae2,
-                            ispParams.isp_params_v3x[1].meas.rawae2.subwin_en, ispParams.isp_params_v3x[2].meas.rawae2.subwin_en);
-        MergeAecHistBinStats(statsInt->aec_stats.ae_data.chn[0].rawhist_big.bins, left_stats->params.rawhist2.hist_bin, right_stats->params.rawhist2.hist_bin, HistWinSplitMode[2]);
+                            ispParams.isp_params_v3x[1].meas.rawae2.subwin_en, ispParams.isp_params_v3x[2].meas.rawae2.subwin_en,
+                            bls1_val, bls_ratio, pixel_num);
+        MergeAecHistBinStats(statsInt->aec_stats.ae_data.chn[0].rawhist_big.bins, left_stats->params.rawhist2.hist_bin,
+                             right_stats->params.rawhist2.hist_bin, HistWinSplitMode[2], hist_bls1, hist_bls_ratio);
 
         //chn 1 => rawae1 rawhist1
-        MergeAecWinBigStats(&statsInt->aec_stats.ae_data.chn[1].rawae_big, &left_stats->params.rawae1, &right_stats->params.rawae1, AeWinSplitMode[1]);
+        MergeAecWinBigStats(&statsInt->aec_stats.ae_data.chn[1].rawae_big, &left_stats->params.rawae1, &right_stats->params.rawae1, AeWinSplitMode[1], bls1_val, bls_ratio);
+
+        pixel_num[0] = ispParams.isp_params_v3x[0].meas.rawae1.subwin[0].h_size * ispParams.isp_params_v3x[0].meas.rawae1.subwin[0].v_size;
+        pixel_num[1] = ispParams.isp_params_v3x[0].meas.rawae1.subwin[1].h_size * ispParams.isp_params_v3x[0].meas.rawae1.subwin[1].v_size;
+        pixel_num[2] = ispParams.isp_params_v3x[0].meas.rawae1.subwin[2].h_size * ispParams.isp_params_v3x[0].meas.rawae1.subwin[2].v_size;
+        pixel_num[3] = ispParams.isp_params_v3x[0].meas.rawae1.subwin[3].h_size * ispParams.isp_params_v3x[0].meas.rawae1.subwin[3].v_size;
         MergeAecSubWinStats(&statsInt->aec_stats.ae_data.chn[1].rawae_big, &left_stats->params.rawae1, &right_stats->params.rawae1,
-                            ispParams.isp_params_v3x[1].meas.rawae1.subwin_en, ispParams.isp_params_v3x[2].meas.rawae1.subwin_en);
-        MergeAecHistBinStats(statsInt->aec_stats.ae_data.chn[1].rawhist_big.bins, left_stats->params.rawhist1.hist_bin, right_stats->params.rawhist1.hist_bin, HistWinSplitMode[1]);
+                            ispParams.isp_params_v3x[1].meas.rawae1.subwin_en, ispParams.isp_params_v3x[2].meas.rawae1.subwin_en,
+                            bls1_val, bls_ratio, pixel_num);
+        MergeAecHistBinStats(statsInt->aec_stats.ae_data.chn[1].rawhist_big.bins, left_stats->params.rawhist1.hist_bin,
+                             right_stats->params.rawhist1.hist_bin, HistWinSplitMode[1], hist_bls1, hist_bls_ratio);
 
         //chn 2 => rawae0 rawhist0
-        MergeAecWinLiteStats(&statsInt->aec_stats.ae_data.chn[2].rawae_lite, &left_stats->params.rawae0, &right_stats->params.rawae0, AeWinSplitMode[0]);
-        MergeAecHistBinStats(statsInt->aec_stats.ae_data.chn[2].rawhist_lite.bins, left_stats->params.rawhist0.hist_bin, right_stats->params.rawhist0.hist_bin, HistWinSplitMode[0]);
+        MergeAecWinLiteStats(&statsInt->aec_stats.ae_data.chn[2].rawae_lite, &left_stats->params.rawae0, &right_stats->params.rawae0, AeWinSplitMode[0], bls1_val, bls_ratio);
+        MergeAecHistBinStats(statsInt->aec_stats.ae_data.chn[2].rawhist_lite.bins, left_stats->params.rawhist0.hist_bin,
+                             right_stats->params.rawhist0.hist_bin, HistWinSplitMode[0], hist_bls1, hist_bls_ratio);
 
         break;
 
@@ -641,42 +829,67 @@ RkAiqResourceTranslatorV3x::translateMultiAecStats(const SmartPtr<VideoBuffer>& 
     if(!AfUseAeBig) {
         switch(AeSelMode) {
         case AEC_RAWSEL_MODE_CHN_0:
-
-            //chn 0 => rawae3 rawhist3
-            MergeAecWinBigStats(&statsInt->aec_stats.ae_data.chn[0].rawae_big, &left_stats->params.rawae3, &right_stats->params.rawae3, AeWinSplitMode[3]);
-            MergeAecSubWinStats(&statsInt->aec_stats.ae_data.chn[0].rawae_big, &left_stats->params.rawae3, &right_stats->params.rawae3,
-                                ispParams.isp_params_v3x[1].meas.rawae3.subwin_en, ispParams.isp_params_v3x[2].meas.rawae3.subwin_en);
-            MergeAecHistBinStats(statsInt->aec_stats.ae_data.chn[0].rawhist_big.bins, left_stats->params.rawhist3.hist_bin, right_stats->params.rawhist3.hist_bin, HistWinSplitMode[3]);
-
-            break;
-
         case AEC_RAWSEL_MODE_CHN_1:
-
-            //chn 1 => rawae3 rawhist3
-            MergeAecWinBigStats(&statsInt->aec_stats.ae_data.chn[1].rawae_big, &left_stats->params.rawae3, &right_stats->params.rawae3, AeWinSplitMode[3]);
-            MergeAecSubWinStats(&statsInt->aec_stats.ae_data.chn[1].rawae_big, &left_stats->params.rawae3, &right_stats->params.rawae3,
-                                ispParams.isp_params_v3x[1].meas.rawae3.subwin_en, ispParams.isp_params_v3x[2].meas.rawae3.subwin_en);
-            MergeAecHistBinStats(statsInt->aec_stats.ae_data.chn[1].rawhist_big.bins, left_stats->params.rawhist3.hist_bin, right_stats->params.rawhist3.hist_bin, HistWinSplitMode[3]);
-
-            break;
-
         case AEC_RAWSEL_MODE_CHN_2:
+            //chn 0 => rawae3 rawhist3
+            switch(ispParams.isp_params_v3x[0].meas.rawhist3.mode) {
+            case 2:
+                hist_bls1 = (bls1_val.r >> 2);
+                hist_bls_ratio = bls_ratio[0];
+                break;
+            case 3:
+                hist_bls1 = (bls1_val.gr >> 4);
+                hist_bls_ratio = bls_ratio[1];
+                break;
+            case 4:
+                hist_bls1 = (bls1_val.b >> 2);
+                hist_bls_ratio = bls_ratio[2];
+                break;
+            case 5:
+            default:
+                hist_bls1 = (s16)((bls1_val.gr >> 4) * 0.587 + (bls1_val.r >> 2) * 0.299 + (bls1_val.b >> 2) * 0.144 + 0.5);
+                hist_bls_ratio = (float)((1 << 8) - 1) / ((1 << 8) - 1 - hist_bls1);
+                break;
+            }
 
-            //chn 2 => rawae3 rawhist3
-            MergeAecWinBigStats(&statsInt->aec_stats.ae_data.chn[2].rawae_big, &left_stats->params.rawae3, &right_stats->params.rawae3, AeWinSplitMode[3]);
-            MergeAecSubWinStats(&statsInt->aec_stats.ae_data.chn[2].rawae_big, &left_stats->params.rawae3, &right_stats->params.rawae3,
-                                ispParams.isp_params_v3x[1].meas.rawae3.subwin_en, ispParams.isp_params_v3x[2].meas.rawae3.subwin_en);
-            MergeAecHistBinStats(statsInt->aec_stats.ae_data.chn[2].rawhist_big.bins, left_stats->params.rawhist3.hist_bin, right_stats->params.rawhist3.hist_bin, HistWinSplitMode[3]);
+            MergeAecWinBigStats(&statsInt->aec_stats.ae_data.chn[AeSelMode].rawae_big, &left_stats->params.rawae3, &right_stats->params.rawae3, AeWinSplitMode[3], bls1_val, bls_ratio);
+            pixel_num[0] = ispParams.isp_params_v3x[0].meas.rawae3.subwin[0].h_size * ispParams.isp_params_v3x[0].meas.rawae3.subwin[0].v_size;
+            pixel_num[1] = ispParams.isp_params_v3x[0].meas.rawae3.subwin[1].h_size * ispParams.isp_params_v3x[0].meas.rawae3.subwin[1].v_size;
+            pixel_num[2] = ispParams.isp_params_v3x[0].meas.rawae3.subwin[2].h_size * ispParams.isp_params_v3x[0].meas.rawae3.subwin[2].v_size;
+            pixel_num[3] = ispParams.isp_params_v3x[0].meas.rawae3.subwin[3].h_size * ispParams.isp_params_v3x[0].meas.rawae3.subwin[3].v_size;
+            MergeAecSubWinStats(&statsInt->aec_stats.ae_data.chn[AeSelMode].rawae_big, &left_stats->params.rawae3, &right_stats->params.rawae3,
+                                ispParams.isp_params_v3x[1].meas.rawae3.subwin_en, ispParams.isp_params_v3x[2].meas.rawae3.subwin_en,
+                                bls1_val, bls_ratio, pixel_num);
+
+            MergeAecHistBinStats(statsInt->aec_stats.ae_data.chn[AeSelMode].rawhist_big.bins, left_stats->params.rawhist3.hist_bin,
+                                 right_stats->params.rawhist3.hist_bin, HistWinSplitMode[3], hist_bls1, hist_bls_ratio);
 
             break;
-
         case AEC_RAWSEL_MODE_TMO:
 
+            bls1_val.r = 0;
+            bls1_val.gr = 0;
+            bls1_val.gb = 0;
+            bls1_val.b = 0;
+
+            bls_ratio[0] = 1;
+            bls_ratio[1] = 1;
+            bls_ratio[2] = 1;
+
             //extra => rawae3 rawhist3
-            MergeAecWinBigStats(&statsInt->aec_stats.ae_data.extra.rawae_big, &left_stats->params.rawae3, &right_stats->params.rawae3, AeWinSplitMode[3]);
+            MergeAecWinBigStats(&statsInt->aec_stats.ae_data.extra.rawae_big, &left_stats->params.rawae3, &right_stats->params.rawae3, AeWinSplitMode[3], bls1_val, bls_ratio);
+            pixel_num[0] = ispParams.isp_params_v3x[0].meas.rawae3.subwin[0].h_size * ispParams.isp_params_v3x[0].meas.rawae3.subwin[0].v_size;
+            pixel_num[1] = ispParams.isp_params_v3x[0].meas.rawae3.subwin[1].h_size * ispParams.isp_params_v3x[0].meas.rawae3.subwin[1].v_size;
+            pixel_num[2] = ispParams.isp_params_v3x[0].meas.rawae3.subwin[2].h_size * ispParams.isp_params_v3x[0].meas.rawae3.subwin[2].v_size;
+            pixel_num[3] = ispParams.isp_params_v3x[0].meas.rawae3.subwin[3].h_size * ispParams.isp_params_v3x[0].meas.rawae3.subwin[3].v_size;
             MergeAecSubWinStats(&statsInt->aec_stats.ae_data.extra.rawae_big, &left_stats->params.rawae3, &right_stats->params.rawae3,
-                                ispParams.isp_params_v3x[1].meas.rawae3.subwin_en, ispParams.isp_params_v3x[2].meas.rawae3.subwin_en);
-            MergeAecHistBinStats(statsInt->aec_stats.ae_data.extra.rawhist_big.bins, left_stats->params.rawhist3.hist_bin, right_stats->params.rawhist3.hist_bin, HistWinSplitMode[3]);
+                                ispParams.isp_params_v3x[1].meas.rawae3.subwin_en, ispParams.isp_params_v3x[2].meas.rawae3.subwin_en,
+                                bls1_val, bls_ratio, pixel_num);
+            hist_bls1 = 0;
+            hist_bls_ratio = 1;
+
+            MergeAecHistBinStats(statsInt->aec_stats.ae_data.extra.rawhist_big.bins, left_stats->params.rawhist3.hist_bin,
+                                 right_stats->params.rawhist3.hist_bin, HistWinSplitMode[3], hist_bls1, hist_bls_ratio);
 
             break;
 
@@ -687,7 +900,6 @@ RkAiqResourceTranslatorV3x::translateMultiAecStats(const SmartPtr<VideoBuffer>& 
     }
 
 #ifdef AE_STATS_DEBUG
-
     if(AeSwapMode != 0) {
         for(int i = 0; i < 15; i++) {
             for(int j = 0; j < 15; j++) {
@@ -708,6 +920,7 @@ RkAiqResourceTranslatorV3x::translateMultiAecStats(const SmartPtr<VideoBuffer>& 
         printf("====================hist_result========================\n");
         for(int i = 0; i < 256; i++)
             printf("bin[%d]= 0x%08x\n", i, statsInt->aec_stats.ae_data.chn[0].rawhist_big.bins[i]);
+
     } else {
         for(int i = 0; i < 5; i++) {
             for(int j = 0; j < 5; j++) {
@@ -723,13 +936,13 @@ RkAiqResourceTranslatorV3x::translateMultiAecStats(const SmartPtr<VideoBuffer>& 
             printf("bin[%d]= 0x%08x\n", i, statsInt->aec_stats.ae_data.chn[0].rawhist_lite.bins[i]);
 
     }
-
 #endif
 
     //expsoure params
     if (expParams.ptr()) {
 
         statsInt->aec_stats.ae_exp = expParams->data()->aecExpInfo;
+
         /*
          * printf("%s: L: [0x%x-0x%x], M: [0x%x-0x%x], S: [0x%x-0x%x]\n",
          *        __func__,
@@ -809,7 +1022,8 @@ XCamReturn RkAiqResourceTranslatorV3x::translateMultiAwbStats(const SmartPtr<Vid
         LOGE("fail to get ispParams ,ignore\n");
         return XCAM_RETURN_BYPASS;
     }
-
+    rk_aiq_isp_blc_t *bls_cfg = &ispParams.blc_cfg.v0;
+    statsInt->blc_cfg_effect = ispParams.blc_cfg.v0;
     //awb30
     statsInt->awb_stats_v3x.awb_cfg_effect_v201 = ispParams.awb_cfg_v3x;
     statsInt->awb_cfg_effect_valid = true;
@@ -879,11 +1093,24 @@ XCamReturn RkAiqResourceTranslatorV3x::translateMultiAwbStats(const SmartPtr<Vid
     MergeAwbExcWpStats( statsInt->awb_stats_v3x.excWpRangeResult, &left_stats->params.rawawb, &right_stats->params.rawawb, AwbWinSplitMode);
 
 #endif
+
+    LOG1_AWB("bls_cfg %p", bls_cfg);
+    if(bls_cfg) {
+        LOG1_AWB("bls1_enalbe: %d, b r gb gr:[ %d %d %d %d]", bls_cfg->blc1_enable, bls_cfg->blc1_b,
+                 bls_cfg->blc1_r, bls_cfg->blc1_gb, bls_cfg->blc1_gr);
+    }
+    if(bls_cfg && bls_cfg->blc1_enable && (bls_cfg->blc1_b > 0 || bls_cfg->blc1_r > 0 || bls_cfg->blc1_gb > 0 || bls_cfg->blc1_gr > 0)) {
+
+        for(int i = 0; i < RK_AIQ_AWB_GRID_NUM_TOTAL; i++) {
+            statsInt->awb_stats_v3x.blockResult[i].Rvalue -=  (statsInt->awb_stats_v3x.blockResult[i].WpNo * bls_cfg->blc1_r + 8) >> 4 ;
+            statsInt->awb_stats_v3x.blockResult[i].Gvalue -=  (statsInt->awb_stats_v3x.blockResult[i].WpNo * (bls_cfg->blc1_gr + bls_cfg->blc1_gb) + 16) >> 5 ;
+            statsInt->awb_stats_v3x.blockResult[i].Bvalue -= (statsInt->awb_stats_v3x.blockResult[i].WpNo * bls_cfg->blc1_b + 8) >> 4 ; ;
+        }
+    }
+
     //statsInt->awb_stats_valid = ISP2X_STAT_RAWAWB(left_stats->meas_type)? true:false;
     statsInt->awb_stats_valid = left_stats->meas_type >> 5 & 1;
     to->set_sequence(left_stats->frame_id);
-
-
     return ret;
 
 }
@@ -984,104 +1211,246 @@ RkAiqResourceTranslatorV3x::translateAecStats (const SmartPtr<VideoBuffer> &from
     statsInt->frame_id = stats->frame_id;
 
     /*rawae stats*/
+    struct isp3x_isp_meas_cfg* isp_params = &ispParams.isp_params_v3x[0].meas;
     uint8_t AeSwapMode, AeSelMode, AfUseAeBig;
-    AeSwapMode = ispParams.isp_params_v3x[0].meas.rawae0.rawae_sel;
-    AeSelMode = ispParams.isp_params_v3x[0].meas.rawae3.rawae_sel;
-    AfUseAeBig = ispParams.isp_params_v3x[0].meas.rawaf.ae_mode;
+    AeSwapMode = isp_params->rawae0.rawae_sel;
+    AeSelMode = isp_params->rawae3.rawae_sel;
+    AfUseAeBig = isp_params->rawaf.ae_mode;
     unsigned int meas_type = 0;
+
+    struct isp21_bls_cfg *bls_cfg = &ispParams.isp_params_v3x[0].others.bls_cfg;
+    struct isp2x_bls_fixed_val bls1_val; //bls1_val = blc1_ori_val * awb * range_ratio
+    float bls_ratio[3] = {1, 1, 1};
+    u32 pixel_num = 0;
+
+    if(bls_cfg->bls1_en) {
+
+        bls1_val.r = bls_cfg->bls1_val.r >> 2;
+        bls1_val.gr = bls_cfg->bls1_val.gr;
+        bls1_val.gb = bls_cfg->bls1_val.gb;
+        bls1_val.b = bls_cfg->bls1_val.b >> 2;
+
+        bls_ratio[0] = (float)((1 << 12) - 1) / ((1 << 12) - 1 - bls_cfg->bls1_val.r);
+        bls_ratio[1] = (float)((1 << 12) - 1) / ((1 << 12) - 1 - bls_cfg->bls1_val.gr);
+        bls_ratio[2] = (float)((1 << 12) - 1) / ((1 << 12) - 1 - bls_cfg->bls1_val.b);
+
+    } else {
+
+        bls1_val.r = 0;
+        bls1_val.gr = 0;
+        bls1_val.gb = 0;
+        bls1_val.b = 0;
+
+    }
+
+#ifdef AE_STATS_DEBUG
+    LOGE("bls1[%d-%d-%d-%d]", bls1_val.r, bls1_val.gr, bls1_val.gb, bls1_val.b);
+    LOGE("bls_ratio[%f-%f-%f]", bls_ratio[0], bls_ratio[1], bls_ratio[2]);
+#endif
 
     switch(AeSwapMode) {
     case AEC_RAWSWAP_MODE_S_LITE:
         meas_type = ((stats->meas_type >> 7) & (0x01)) & ((stats->meas_type >> 11) & (0x01));
         statsInt->aec_stats_valid = (meas_type & 0x01) ? true : false;
 
-        for(int i = 0; i < ISP2X_RAWAEBIG_MEAN_NUM; i++) {
-            if(i < ISP2X_RAWAELITE_MEAN_NUM) {
-                statsInt->aec_stats.ae_data.chn[0].rawae_lite.channelr_xy[i] = stats->params.rawae0.data[i].channelr_xy;
-                statsInt->aec_stats.ae_data.chn[0].rawae_lite.channelg_xy[i] = stats->params.rawae0.data[i].channelg_xy;
-                statsInt->aec_stats.ae_data.chn[0].rawae_lite.channelb_xy[i] = stats->params.rawae0.data[i].channelb_xy;
+        for(int i = 0; i < ISP3X_RAWAEBIG_MEAN_NUM; i++) {
+            if(i < ISP3X_RAWAELITE_MEAN_NUM) {
+                statsInt->aec_stats.ae_data.chn[0].rawae_lite.channelr_xy[i] = (u16)((stats->params.rawae0.data[i].channelr_xy - bls1_val.r) * bls_ratio[0]);
+                statsInt->aec_stats.ae_data.chn[0].rawae_lite.channelg_xy[i] = (u16)((stats->params.rawae0.data[i].channelg_xy - bls1_val.gr) * bls_ratio[1]);
+                statsInt->aec_stats.ae_data.chn[0].rawae_lite.channelb_xy[i] = (u16)((stats->params.rawae0.data[i].channelb_xy - bls1_val.b) * bls_ratio[2]);
             }
-            statsInt->aec_stats.ae_data.chn[1].rawae_big.channelr_xy[i] = stats->params.rawae1.data[i].channelr_xy;
-            statsInt->aec_stats.ae_data.chn[1].rawae_big.channelg_xy[i] = stats->params.rawae1.data[i].channelg_xy;
-            statsInt->aec_stats.ae_data.chn[1].rawae_big.channelb_xy[i] = stats->params.rawae1.data[i].channelb_xy;
-            statsInt->aec_stats.ae_data.chn[2].rawae_big.channelr_xy[i] = stats->params.rawae2.data[i].channelr_xy;
-            statsInt->aec_stats.ae_data.chn[2].rawae_big.channelg_xy[i] = stats->params.rawae2.data[i].channelg_xy;
-            statsInt->aec_stats.ae_data.chn[2].rawae_big.channelb_xy[i] = stats->params.rawae2.data[i].channelb_xy;
+            statsInt->aec_stats.ae_data.chn[1].rawae_big.channelr_xy[i] = (u16)((stats->params.rawae1.data[i].channelr_xy - bls1_val.r) * bls_ratio[0]);
+            statsInt->aec_stats.ae_data.chn[1].rawae_big.channelg_xy[i] = (u16)((stats->params.rawae1.data[i].channelg_xy - bls1_val.gr) * bls_ratio[1]);
+            statsInt->aec_stats.ae_data.chn[1].rawae_big.channelb_xy[i] = (u16)((stats->params.rawae1.data[i].channelb_xy - bls1_val.b) * bls_ratio[2]);
+            statsInt->aec_stats.ae_data.chn[2].rawae_big.channelr_xy[i] = (u16)((stats->params.rawae2.data[i].channelr_xy - bls1_val.r) * bls_ratio[0]);
+            statsInt->aec_stats.ae_data.chn[2].rawae_big.channelg_xy[i] = (u16)((stats->params.rawae2.data[i].channelg_xy - bls1_val.gr) * bls_ratio[1]);
+            statsInt->aec_stats.ae_data.chn[2].rawae_big.channelb_xy[i] = (u16)((stats->params.rawae2.data[i].channelb_xy - bls1_val.b) * bls_ratio[2]);
 
-            if(i < ISP2X_RAWAEBIG_SUBWIN_NUM) {
-                statsInt->aec_stats.ae_data.chn[1].rawae_big.wndx_sumr[i] = stats->params.rawae1.sumr[i];
-                statsInt->aec_stats.ae_data.chn[1].rawae_big.wndx_sumg[i] = stats->params.rawae1.sumg[i];
-                statsInt->aec_stats.ae_data.chn[1].rawae_big.wndx_sumb[i] = stats->params.rawae1.sumb[i];
-                statsInt->aec_stats.ae_data.chn[2].rawae_big.wndx_sumr[i] = stats->params.rawae2.sumr[i];
-                statsInt->aec_stats.ae_data.chn[2].rawae_big.wndx_sumg[i] = stats->params.rawae2.sumg[i];
-                statsInt->aec_stats.ae_data.chn[2].rawae_big.wndx_sumb[i] = stats->params.rawae2.sumb[i];
+            if(i < ISP3X_RAWAEBIG_SUBWIN_NUM) {
+                pixel_num = isp_params->rawae1.subwin[i].h_size * isp_params->rawae1.subwin[i].v_size;
+                statsInt->aec_stats.ae_data.chn[1].rawae_big.wndx_sumr[i] = (u32)((stats->params.rawae1.sumr[i] - (pixel_num >> 2) * bls1_val.r) * bls_ratio[0]);
+                statsInt->aec_stats.ae_data.chn[1].rawae_big.wndx_sumg[i] = (u32)((stats->params.rawae1.sumg[i] - (pixel_num >> 1) * bls1_val.gr) * bls_ratio[1]);
+                statsInt->aec_stats.ae_data.chn[1].rawae_big.wndx_sumb[i] = (u32)((stats->params.rawae1.sumb[i] - (pixel_num >> 2) * bls1_val.b) * bls_ratio[2]);
+                pixel_num = isp_params->rawae2.subwin[i].h_size * isp_params->rawae2.subwin[i].v_size;
+                statsInt->aec_stats.ae_data.chn[2].rawae_big.wndx_sumr[i] = (u32)((stats->params.rawae2.sumr[i] - (pixel_num >> 2) * bls1_val.r) * bls_ratio[0]);
+                statsInt->aec_stats.ae_data.chn[2].rawae_big.wndx_sumg[i] = (u32)((stats->params.rawae2.sumg[i] - (pixel_num >> 1) * bls1_val.gr) * bls_ratio[1]);
+                statsInt->aec_stats.ae_data.chn[2].rawae_big.wndx_sumb[i] = (u32)((stats->params.rawae2.sumb[i] - (pixel_num >> 2) * bls1_val.b) * bls_ratio[2]);
             }
         }
-        memcpy(statsInt->aec_stats.ae_data.chn[0].rawhist_lite.bins, stats->params.rawhist0.hist_bin, ISP2X_HIST_BIN_N_MAX * sizeof(u32));
-        memcpy(statsInt->aec_stats.ae_data.chn[1].rawhist_big.bins, stats->params.rawhist1.hist_bin, ISP2X_HIST_BIN_N_MAX * sizeof(u32));
-        memcpy(statsInt->aec_stats.ae_data.chn[2].rawhist_big.bins, stats->params.rawhist2.hist_bin, ISP2X_HIST_BIN_N_MAX * sizeof(u32));
+
+        if(bls_cfg->bls1_en) {
+
+            memset(statsInt->aec_stats.ae_data.chn[0].rawhist_lite.bins, 0, ISP3X_HIST_BIN_N_MAX * sizeof(u32));
+            memset(statsInt->aec_stats.ae_data.chn[1].rawhist_big.bins, 0, ISP3X_HIST_BIN_N_MAX * sizeof(u32));
+            memset(statsInt->aec_stats.ae_data.chn[2].rawhist_lite.bins, 0, ISP3X_HIST_BIN_N_MAX * sizeof(u32));
+            for(int i = 0; i < ISP3X_HIST_BIN_N_MAX; i++) {
+                int tmp;
+                switch(isp_params->rawhist0.mode) {
+                case 2:
+                    tmp = (i - (bls1_val.r >> 2) > 0) ? (i - (bls1_val.r >> 2)) * bls_ratio[0] + 0.5 : 0;
+                    break;
+                case 3:
+                    tmp = (i - (bls1_val.gr >> 4) > 0) ? (i - (bls1_val.gr >> 4)) * bls_ratio[1] + 0.5 : 0;
+                    break;
+                case 4:
+                    tmp = (i - (bls1_val.b >> 2) > 0) ? (i - (bls1_val.b >> 2)) * bls_ratio[2] + 0.5 : 0;
+                    break;
+                case 5:
+                default:
+                    s16 hist_bls1 = (s16)((bls1_val.gr >> 4) * 0.587 + (bls1_val.r >> 2) * 0.299 + (bls1_val.b >> 2) * 0.144 + 0.5);
+                    float hist_bls_ratio = (float)((1 << 8) - 1) / ((1 << 8) - 1 - hist_bls1);
+                    tmp = (i - hist_bls1) ? (i - hist_bls1) * hist_bls_ratio + 0.5 : 0;
+                    break;
+                }
+                if(tmp > ISP3X_HIST_BIN_N_MAX - 1)
+                    tmp = ISP3X_HIST_BIN_N_MAX - 1;
+                statsInt->aec_stats.ae_data.chn[0].rawhist_lite.bins[tmp] += stats->params.rawhist0.hist_bin[i];
+                statsInt->aec_stats.ae_data.chn[1].rawhist_big.bins[tmp] += stats->params.rawhist1.hist_bin[i];
+                statsInt->aec_stats.ae_data.chn[2].rawhist_big.bins[tmp] += stats->params.rawhist2.hist_bin[i];
+            }
+        } else {
+            memcpy(statsInt->aec_stats.ae_data.chn[0].rawhist_lite.bins, stats->params.rawhist0.hist_bin, ISP3X_HIST_BIN_N_MAX * sizeof(u32));
+            memcpy(statsInt->aec_stats.ae_data.chn[1].rawhist_big.bins, stats->params.rawhist1.hist_bin, ISP3X_HIST_BIN_N_MAX * sizeof(u32));
+            memcpy(statsInt->aec_stats.ae_data.chn[2].rawhist_big.bins, stats->params.rawhist2.hist_bin, ISP3X_HIST_BIN_N_MAX * sizeof(u32));
+        }
+
         break;
 
     case AEC_RAWSWAP_MODE_M_LITE:
         meas_type = ((stats->meas_type >> 8) & (0x01)) & ((stats->meas_type >> 12) & (0x01));
         statsInt->aec_stats_valid = (meas_type & 0x01) ? true : false;
 
-        for(int i = 0; i < ISP2X_RAWAEBIG_MEAN_NUM; i++) {
-            if(i < ISP2X_RAWAELITE_MEAN_NUM) {
-                statsInt->aec_stats.ae_data.chn[1].rawae_lite.channelr_xy[i] = stats->params.rawae0.data[i].channelr_xy;
-                statsInt->aec_stats.ae_data.chn[1].rawae_lite.channelg_xy[i] = stats->params.rawae0.data[i].channelg_xy;
-                statsInt->aec_stats.ae_data.chn[1].rawae_lite.channelb_xy[i] = stats->params.rawae0.data[i].channelb_xy;
+        for(int i = 0; i < ISP3X_RAWAEBIG_MEAN_NUM; i++) {
+            if(i < ISP3X_RAWAELITE_MEAN_NUM) {
+                statsInt->aec_stats.ae_data.chn[1].rawae_lite.channelr_xy[i] = (u16)((stats->params.rawae0.data[i].channelr_xy - bls1_val.r) * bls_ratio[0]);
+                statsInt->aec_stats.ae_data.chn[1].rawae_lite.channelg_xy[i] = (u16)((stats->params.rawae0.data[i].channelg_xy - bls1_val.gr) * bls_ratio[1]);
+                statsInt->aec_stats.ae_data.chn[1].rawae_lite.channelb_xy[i] = (u16)((stats->params.rawae0.data[i].channelb_xy - bls1_val.b) * bls_ratio[2]);
             }
-            statsInt->aec_stats.ae_data.chn[0].rawae_big.channelr_xy[i] = stats->params.rawae1.data[i].channelr_xy;
-            statsInt->aec_stats.ae_data.chn[0].rawae_big.channelg_xy[i] = stats->params.rawae1.data[i].channelg_xy;
-            statsInt->aec_stats.ae_data.chn[0].rawae_big.channelb_xy[i] = stats->params.rawae1.data[i].channelb_xy;
-            statsInt->aec_stats.ae_data.chn[2].rawae_big.channelr_xy[i] = stats->params.rawae2.data[i].channelr_xy;
-            statsInt->aec_stats.ae_data.chn[2].rawae_big.channelg_xy[i] = stats->params.rawae2.data[i].channelg_xy;
-            statsInt->aec_stats.ae_data.chn[2].rawae_big.channelb_xy[i] = stats->params.rawae2.data[i].channelb_xy;
+            statsInt->aec_stats.ae_data.chn[0].rawae_big.channelr_xy[i] = (u16)((stats->params.rawae1.data[i].channelr_xy - bls1_val.r) * bls_ratio[0]);
+            statsInt->aec_stats.ae_data.chn[0].rawae_big.channelg_xy[i] = (u16)((stats->params.rawae1.data[i].channelg_xy - bls1_val.gr) * bls_ratio[1]);
+            statsInt->aec_stats.ae_data.chn[0].rawae_big.channelb_xy[i] = (u16)((stats->params.rawae1.data[i].channelb_xy - bls1_val.b) * bls_ratio[2]);
+            statsInt->aec_stats.ae_data.chn[2].rawae_big.channelr_xy[i] = (u16)((stats->params.rawae2.data[i].channelr_xy - bls1_val.r) * bls_ratio[0]);
+            statsInt->aec_stats.ae_data.chn[2].rawae_big.channelg_xy[i] = (u16)((stats->params.rawae2.data[i].channelg_xy - bls1_val.gr) * bls_ratio[1]);
+            statsInt->aec_stats.ae_data.chn[2].rawae_big.channelb_xy[i] = (u16)((stats->params.rawae2.data[i].channelb_xy - bls1_val.b) * bls_ratio[2]);
 
-            if(i < ISP2X_RAWAEBIG_SUBWIN_NUM) {
-                statsInt->aec_stats.ae_data.chn[0].rawae_big.wndx_sumr[i] = stats->params.rawae1.sumr[i];
-                statsInt->aec_stats.ae_data.chn[0].rawae_big.wndx_sumg[i] = stats->params.rawae1.sumg[i];
-                statsInt->aec_stats.ae_data.chn[0].rawae_big.wndx_sumb[i] = stats->params.rawae1.sumb[i];
-                statsInt->aec_stats.ae_data.chn[2].rawae_big.wndx_sumr[i] = stats->params.rawae2.sumr[i];
-                statsInt->aec_stats.ae_data.chn[2].rawae_big.wndx_sumg[i] = stats->params.rawae2.sumg[i];
-                statsInt->aec_stats.ae_data.chn[2].rawae_big.wndx_sumb[i] = stats->params.rawae2.sumb[i];
+            if(i < ISP3X_RAWAEBIG_SUBWIN_NUM) {
+                pixel_num = isp_params->rawae1.subwin[i].h_size * isp_params->rawae1.subwin[i].v_size;
+                statsInt->aec_stats.ae_data.chn[0].rawae_big.wndx_sumr[i] = (u32)((stats->params.rawae1.sumr[i] - (pixel_num >> 2) * bls1_val.r) * bls_ratio[0]);
+                statsInt->aec_stats.ae_data.chn[0].rawae_big.wndx_sumg[i] = (u32)((stats->params.rawae1.sumg[i] - (pixel_num >> 1) * bls1_val.gr) * bls_ratio[1]);
+                statsInt->aec_stats.ae_data.chn[0].rawae_big.wndx_sumb[i] = (u32)((stats->params.rawae1.sumb[i] - (pixel_num >> 2) * bls1_val.b) * bls_ratio[2]);
+
+                pixel_num = isp_params->rawae2.subwin[i].h_size * isp_params->rawae2.subwin[i].v_size;
+                statsInt->aec_stats.ae_data.chn[2].rawae_big.wndx_sumr[i] = (u32)((stats->params.rawae2.sumr[i] - (pixel_num >> 2) * bls1_val.r) * bls_ratio[0]);
+                statsInt->aec_stats.ae_data.chn[2].rawae_big.wndx_sumg[i] = (u32)((stats->params.rawae2.sumg[i] - (pixel_num >> 1) * bls1_val.gr) * bls_ratio[1]);
+                statsInt->aec_stats.ae_data.chn[2].rawae_big.wndx_sumb[i] = (u32)((stats->params.rawae2.sumb[i] - (pixel_num >> 2) * bls1_val.b) * bls_ratio[2]);
             }
         }
-        memcpy(statsInt->aec_stats.ae_data.chn[0].rawhist_big.bins, stats->params.rawhist1.hist_bin, ISP2X_HIST_BIN_N_MAX * sizeof(u32));
-        memcpy(statsInt->aec_stats.ae_data.chn[1].rawhist_lite.bins, stats->params.rawhist0.hist_bin, ISP2X_HIST_BIN_N_MAX * sizeof(u32));
-        memcpy(statsInt->aec_stats.ae_data.chn[2].rawhist_big.bins, stats->params.rawhist2.hist_bin, ISP2X_HIST_BIN_N_MAX * sizeof(u32));
+
+        if(bls_cfg->bls1_en) {
+
+            memset(statsInt->aec_stats.ae_data.chn[0].rawhist_big.bins, 0, ISP3X_HIST_BIN_N_MAX * sizeof(u32));
+            memset(statsInt->aec_stats.ae_data.chn[1].rawhist_lite.bins, 0, ISP3X_HIST_BIN_N_MAX * sizeof(u32));
+            memset(statsInt->aec_stats.ae_data.chn[2].rawhist_big.bins, 0, ISP3X_HIST_BIN_N_MAX * sizeof(u32));
+
+            for(int i = 0; i < ISP3X_HIST_BIN_N_MAX; i++) {
+                int tmp;
+                switch(isp_params->rawhist1.mode) {
+                case 2:
+                    tmp = (i - (bls1_val.r >> 2) > 0) ? (i - (bls1_val.r >> 2)) * bls_ratio[0] + 0.5 : 0;
+                    break;
+                case 3:
+                    tmp = (i - (bls1_val.gr >> 4) > 0) ? (i - (bls1_val.gr >> 4)) * bls_ratio[1] + 0.5 : 0;
+                    break;
+                case 4:
+                    tmp = (i - (bls1_val.b >> 2) > 0) ? (i - (bls1_val.b >> 2)) * bls_ratio[2] + 0.5 : 0;
+                    break;
+                case 5:
+                default:
+                    s16 hist_bls1 = (s16)((bls1_val.gr >> 4) * 0.587 + (bls1_val.r >> 2) * 0.299 + (bls1_val.b >> 2) * 0.144 + 0.5);
+                    float hist_bls_ratio = (float)((1 << 8) - 1) / ((1 << 8) - 1 - hist_bls1);
+                    tmp = (i - hist_bls1) ? (i - hist_bls1) * hist_bls_ratio + 0.5 : 0;
+                    break;
+                }
+                if(tmp > ISP3X_HIST_BIN_N_MAX - 1)
+                    tmp = ISP3X_HIST_BIN_N_MAX - 1;
+                statsInt->aec_stats.ae_data.chn[0].rawhist_big.bins[tmp] += stats->params.rawhist1.hist_bin[i];
+                statsInt->aec_stats.ae_data.chn[1].rawhist_lite.bins[tmp] += stats->params.rawhist0.hist_bin[i];
+                statsInt->aec_stats.ae_data.chn[2].rawhist_big.bins[tmp] += stats->params.rawhist2.hist_bin[i];
+            }
+        } else {
+            memcpy(statsInt->aec_stats.ae_data.chn[0].rawhist_big.bins, stats->params.rawhist1.hist_bin, ISP3X_HIST_BIN_N_MAX * sizeof(u32));
+            memcpy(statsInt->aec_stats.ae_data.chn[1].rawhist_lite.bins, stats->params.rawhist0.hist_bin, ISP3X_HIST_BIN_N_MAX * sizeof(u32));
+            memcpy(statsInt->aec_stats.ae_data.chn[2].rawhist_big.bins, stats->params.rawhist2.hist_bin, ISP3X_HIST_BIN_N_MAX * sizeof(u32));
+        }
+
         break;
 
     case AEC_RAWSWAP_MODE_L_LITE:
         meas_type = ((stats->meas_type >> 9) & (0x01)) & ((stats->meas_type >> 13) & (0x01));
         statsInt->aec_stats_valid = (meas_type & 0x01) ? true : false;
 
-        for(int i = 0; i < ISP2X_RAWAEBIG_MEAN_NUM; i++) {
-            if(i < ISP2X_RAWAELITE_MEAN_NUM) {
-                statsInt->aec_stats.ae_data.chn[2].rawae_lite.channelr_xy[i] = stats->params.rawae0.data[i].channelr_xy;
-                statsInt->aec_stats.ae_data.chn[2].rawae_lite.channelg_xy[i] = stats->params.rawae0.data[i].channelg_xy;
-                statsInt->aec_stats.ae_data.chn[2].rawae_lite.channelb_xy[i] = stats->params.rawae0.data[i].channelb_xy;
+        for(int i = 0; i < ISP3X_RAWAEBIG_MEAN_NUM; i++) {
+            if(i < ISP3X_RAWAELITE_MEAN_NUM) {
+                statsInt->aec_stats.ae_data.chn[2].rawae_lite.channelr_xy[i] = (u16)((stats->params.rawae0.data[i].channelr_xy - bls1_val.r) * bls_ratio[0]);
+                statsInt->aec_stats.ae_data.chn[2].rawae_lite.channelg_xy[i] = (u16)((stats->params.rawae0.data[i].channelg_xy - bls1_val.gr) * bls_ratio[1]);
+                statsInt->aec_stats.ae_data.chn[2].rawae_lite.channelb_xy[i] = (u16)((stats->params.rawae0.data[i].channelb_xy - bls1_val.b) * bls_ratio[2]);
             }
-            statsInt->aec_stats.ae_data.chn[0].rawae_big.channelr_xy[i] = stats->params.rawae2.data[i].channelr_xy;
-            statsInt->aec_stats.ae_data.chn[0].rawae_big.channelg_xy[i] = stats->params.rawae2.data[i].channelg_xy;
-            statsInt->aec_stats.ae_data.chn[0].rawae_big.channelb_xy[i] = stats->params.rawae2.data[i].channelb_xy;
-            statsInt->aec_stats.ae_data.chn[1].rawae_big.channelr_xy[i] = stats->params.rawae1.data[i].channelr_xy;
-            statsInt->aec_stats.ae_data.chn[1].rawae_big.channelg_xy[i] = stats->params.rawae1.data[i].channelg_xy;
-            statsInt->aec_stats.ae_data.chn[1].rawae_big.channelb_xy[i] = stats->params.rawae1.data[i].channelb_xy;
+            statsInt->aec_stats.ae_data.chn[0].rawae_big.channelr_xy[i] = (u16)((stats->params.rawae2.data[i].channelr_xy - bls1_val.r) * bls_ratio[0]);
+            statsInt->aec_stats.ae_data.chn[0].rawae_big.channelg_xy[i] = (u16)((stats->params.rawae2.data[i].channelg_xy - bls1_val.gr) * bls_ratio[1]);
+            statsInt->aec_stats.ae_data.chn[0].rawae_big.channelb_xy[i] = (u16)((stats->params.rawae2.data[i].channelb_xy - bls1_val.b) * bls_ratio[2]);
+            statsInt->aec_stats.ae_data.chn[1].rawae_big.channelr_xy[i] = (u16)((stats->params.rawae1.data[i].channelr_xy - bls1_val.r) * bls_ratio[0]);
+            statsInt->aec_stats.ae_data.chn[1].rawae_big.channelg_xy[i] = (u16)((stats->params.rawae1.data[i].channelg_xy - bls1_val.gr) * bls_ratio[1]);
+            statsInt->aec_stats.ae_data.chn[1].rawae_big.channelb_xy[i] = (u16)((stats->params.rawae1.data[i].channelb_xy - bls1_val.b) * bls_ratio[2]);
 
-            if(i < ISP2X_RAWAEBIG_SUBWIN_NUM) {
-                statsInt->aec_stats.ae_data.chn[0].rawae_big.wndx_sumr[i] = stats->params.rawae2.sumr[i];
-                statsInt->aec_stats.ae_data.chn[0].rawae_big.wndx_sumg[i] = stats->params.rawae2.sumg[i];
-                statsInt->aec_stats.ae_data.chn[0].rawae_big.wndx_sumb[i] = stats->params.rawae2.sumb[i];
-                statsInt->aec_stats.ae_data.chn[1].rawae_big.wndx_sumr[i] = stats->params.rawae1.sumr[i];
-                statsInt->aec_stats.ae_data.chn[1].rawae_big.wndx_sumg[i] = stats->params.rawae1.sumg[i];
-                statsInt->aec_stats.ae_data.chn[1].rawae_big.wndx_sumb[i] = stats->params.rawae1.sumb[i];
+            if(i < ISP3X_RAWAEBIG_SUBWIN_NUM) {
+                pixel_num = isp_params->rawae2.subwin[i].h_size * isp_params->rawae2.subwin[i].v_size;
+                statsInt->aec_stats.ae_data.chn[0].rawae_big.wndx_sumr[i] = (u32)((stats->params.rawae2.sumr[i] - (pixel_num >> 2) * bls1_val.r) * bls_ratio[0]);
+                statsInt->aec_stats.ae_data.chn[0].rawae_big.wndx_sumg[i] = (u32)((stats->params.rawae2.sumg[i] - (pixel_num >> 1) * bls1_val.gr) * bls_ratio[1]);
+                statsInt->aec_stats.ae_data.chn[0].rawae_big.wndx_sumb[i] = (u32)((stats->params.rawae2.sumb[i] - (pixel_num >> 2) * bls1_val.b) * bls_ratio[2]);
+
+                pixel_num = isp_params->rawae1.subwin[i].h_size * isp_params->rawae1.subwin[i].v_size;
+                statsInt->aec_stats.ae_data.chn[1].rawae_big.wndx_sumr[i] = (u32)((stats->params.rawae1.sumr[i] - (pixel_num >> 2) * bls1_val.r) * bls_ratio[0]);
+                statsInt->aec_stats.ae_data.chn[1].rawae_big.wndx_sumg[i] = (u32)((stats->params.rawae1.sumg[i] - (pixel_num >> 1) * bls1_val.gr) * bls_ratio[1]);
+                statsInt->aec_stats.ae_data.chn[1].rawae_big.wndx_sumb[i] = (u32)((stats->params.rawae1.sumb[i] - (pixel_num >> 2) * bls1_val.b) * bls_ratio[2]);
             }
         }
-        memcpy(statsInt->aec_stats.ae_data.chn[0].rawhist_big.bins, stats->params.rawhist2.hist_bin, ISP2X_HIST_BIN_N_MAX * sizeof(u32));
-        memcpy(statsInt->aec_stats.ae_data.chn[1].rawhist_big.bins, stats->params.rawhist1.hist_bin, ISP2X_HIST_BIN_N_MAX * sizeof(u32));
-        memcpy(statsInt->aec_stats.ae_data.chn[2].rawhist_lite.bins, stats->params.rawhist0.hist_bin, ISP2X_HIST_BIN_N_MAX * sizeof(u32));
+
+        if(bls_cfg->bls1_en) {
+
+            memset(statsInt->aec_stats.ae_data.chn[0].rawhist_big.bins, 0, ISP3X_HIST_BIN_N_MAX * sizeof(u32));
+            memset(statsInt->aec_stats.ae_data.chn[1].rawhist_big.bins, 0, ISP3X_HIST_BIN_N_MAX * sizeof(u32));
+            memset(statsInt->aec_stats.ae_data.chn[2].rawhist_lite.bins, 0, ISP3X_HIST_BIN_N_MAX * sizeof(u32));
+
+            for(int i = 0; i < ISP3X_HIST_BIN_N_MAX; i++) {
+                int tmp;
+                switch(isp_params->rawhist2.mode) {
+                case 2:
+                    tmp = (i - (bls1_val.r >> 2) > 0) ? (i - (bls1_val.r >> 2)) * bls_ratio[0] + 0.5 : 0;
+                    break;
+                case 3:
+                    tmp = (i - (bls1_val.gr >> 4) > 0) ? (i - (bls1_val.gr >> 4)) * bls_ratio[1] + 0.5 : 0;
+                    break;
+                case 4:
+                    tmp = (i - (bls1_val.b >> 2) > 0) ? (i - (bls1_val.b >> 2)) * bls_ratio[2] + 0.5 : 0;
+                    break;
+                case 5:
+                default:
+                    s16 hist_bls1 = (s16)((bls1_val.gr >> 4) * 0.587 + (bls1_val.r >> 2) * 0.299 + (bls1_val.b >> 2) * 0.144 + 0.5);
+                    float hist_bls_ratio = (float)((1 << 8) - 1) / ((1 << 8) - 1 - hist_bls1);
+                    tmp = (i - hist_bls1) ? (i - hist_bls1) * hist_bls_ratio + 0.5 : 0;
+                    break;
+                }
+                if(tmp > ISP3X_HIST_BIN_N_MAX - 1)
+                    tmp = ISP3X_HIST_BIN_N_MAX - 1;
+                statsInt->aec_stats.ae_data.chn[0].rawhist_big.bins[tmp] += stats->params.rawhist2.hist_bin[i];
+                statsInt->aec_stats.ae_data.chn[1].rawhist_big.bins[tmp] += stats->params.rawhist1.hist_bin[i];
+                statsInt->aec_stats.ae_data.chn[2].rawhist_lite.bins[tmp] += stats->params.rawhist0.hist_bin[i];
+            }
+        } else {
+            memcpy(statsInt->aec_stats.ae_data.chn[0].rawhist_big.bins, stats->params.rawhist2.hist_bin, ISP3X_HIST_BIN_N_MAX * sizeof(u32));
+            memcpy(statsInt->aec_stats.ae_data.chn[1].rawhist_big.bins, stats->params.rawhist1.hist_bin, ISP3X_HIST_BIN_N_MAX * sizeof(u32));
+            memcpy(statsInt->aec_stats.ae_data.chn[2].rawhist_lite.bins, stats->params.rawhist0.hist_bin, ISP3X_HIST_BIN_N_MAX * sizeof(u32));
+        }
         break;
 
     default:
@@ -1095,67 +1464,65 @@ RkAiqResourceTranslatorV3x::translateAecStats (const SmartPtr<VideoBuffer> &from
     if(!AfUseAeBig) {
         switch(AeSelMode) {
         case AEC_RAWSEL_MODE_CHN_0:
-            for(int i = 0; i < ISP2X_RAWAEBIG_MEAN_NUM; i++) {
-
-                statsInt->aec_stats.ae_data.chn[0].rawae_big.channelr_xy[i] = stats->params.rawae3.data[i].channelr_xy;
-                statsInt->aec_stats.ae_data.chn[0].rawae_big.channelg_xy[i] = stats->params.rawae3.data[i].channelg_xy;
-                statsInt->aec_stats.ae_data.chn[0].rawae_big.channelb_xy[i] = stats->params.rawae3.data[i].channelb_xy;
-
-                if(i < ISP2X_RAWAEBIG_SUBWIN_NUM) {
-                    statsInt->aec_stats.ae_data.chn[0].rawae_big.wndx_sumr[i] = stats->params.rawae3.sumr[i];
-                    statsInt->aec_stats.ae_data.chn[0].rawae_big.wndx_sumg[i] = stats->params.rawae3.sumg[i];
-                    statsInt->aec_stats.ae_data.chn[0].rawae_big.wndx_sumb[i] = stats->params.rawae3.sumb[i];
-                }
-            }
-            memcpy(statsInt->aec_stats.ae_data.chn[0].rawhist_big.bins, stats->params.rawhist3.hist_bin, ISP2X_HIST_BIN_N_MAX * sizeof(u32));
-            break;
-
         case AEC_RAWSEL_MODE_CHN_1:
-            for(int i = 0; i < ISP2X_RAWAEBIG_MEAN_NUM; i++) {
-
-                statsInt->aec_stats.ae_data.chn[1].rawae_big.channelr_xy[i] = stats->params.rawae3.data[i].channelr_xy;
-                statsInt->aec_stats.ae_data.chn[1].rawae_big.channelg_xy[i] = stats->params.rawae3.data[i].channelg_xy;
-                statsInt->aec_stats.ae_data.chn[1].rawae_big.channelb_xy[i] = stats->params.rawae3.data[i].channelb_xy;
-
-                if(i < ISP2X_RAWAEBIG_SUBWIN_NUM) {
-                    statsInt->aec_stats.ae_data.chn[1].rawae_big.wndx_sumr[i] = stats->params.rawae3.sumr[i];
-                    statsInt->aec_stats.ae_data.chn[1].rawae_big.wndx_sumg[i] = stats->params.rawae3.sumg[i];
-                    statsInt->aec_stats.ae_data.chn[1].rawae_big.wndx_sumb[i] = stats->params.rawae3.sumb[i];
-                }
-            }
-            memcpy(statsInt->aec_stats.ae_data.chn[1].rawhist_big.bins, stats->params.rawhist3.hist_bin, ISP2X_HIST_BIN_N_MAX * sizeof(u32));
-            break;
-
         case AEC_RAWSEL_MODE_CHN_2:
-            for(int i = 0; i < ISP2X_RAWAEBIG_MEAN_NUM; i++) {
+            for(int i = 0; i < ISP3X_RAWAEBIG_MEAN_NUM; i++) {
 
-                statsInt->aec_stats.ae_data.chn[2].rawae_big.channelr_xy[i] = stats->params.rawae3.data[i].channelr_xy;
-                statsInt->aec_stats.ae_data.chn[2].rawae_big.channelg_xy[i] = stats->params.rawae3.data[i].channelg_xy;
-                statsInt->aec_stats.ae_data.chn[2].rawae_big.channelb_xy[i] = stats->params.rawae3.data[i].channelb_xy;
+                statsInt->aec_stats.ae_data.chn[AeSelMode].rawae_big.channelr_xy[i] = (u16)((stats->params.rawae3.data[i].channelr_xy - bls1_val.r) * bls_ratio[0]);
+                statsInt->aec_stats.ae_data.chn[AeSelMode].rawae_big.channelg_xy[i] = (u16)((stats->params.rawae3.data[i].channelg_xy - bls1_val.gr) * bls_ratio[1]);
+                statsInt->aec_stats.ae_data.chn[AeSelMode].rawae_big.channelb_xy[i] = (u16)((stats->params.rawae3.data[i].channelb_xy - bls1_val.b) * bls_ratio[2]);
 
-                if(i < ISP2X_RAWAEBIG_SUBWIN_NUM) {
-                    statsInt->aec_stats.ae_data.chn[2].rawae_big.wndx_sumr[i] = stats->params.rawae3.sumr[i];
-                    statsInt->aec_stats.ae_data.chn[2].rawae_big.wndx_sumg[i] = stats->params.rawae3.sumg[i];
-                    statsInt->aec_stats.ae_data.chn[2].rawae_big.wndx_sumb[i] = stats->params.rawae3.sumb[i];
+                if(i < ISP3X_RAWAEBIG_SUBWIN_NUM) {
+                    pixel_num = isp_params->rawae3.subwin[i].h_size * isp_params->rawae3.subwin[i].v_size;
+                    statsInt->aec_stats.ae_data.chn[AeSelMode].rawae_big.wndx_sumr[i] = (u32)((stats->params.rawae3.sumr[i] - (pixel_num >> 2) * bls1_val.r) * bls_ratio[0]);
+                    statsInt->aec_stats.ae_data.chn[AeSelMode].rawae_big.wndx_sumg[i] = (u32)((stats->params.rawae3.sumg[i] - (pixel_num >> 1) * bls1_val.gr) * bls_ratio[1]);
+                    statsInt->aec_stats.ae_data.chn[AeSelMode].rawae_big.wndx_sumb[i] = (u32)((stats->params.rawae3.sumb[i] - (pixel_num >> 2) * bls1_val.b) * bls_ratio[2]);
                 }
             }
-            memcpy(statsInt->aec_stats.ae_data.chn[2].rawhist_big.bins, stats->params.rawhist3.hist_bin, ISP2X_HIST_BIN_N_MAX * sizeof(u32));
-            break;
 
+            if(bls_cfg->bls1_en) {
+                memset(statsInt->aec_stats.ae_data.chn[AeSelMode].rawhist_big.bins, 0, ISP3X_HIST_BIN_N_MAX * sizeof(u32));
+                for(int i = 0; i < ISP3X_HIST_BIN_N_MAX; i++) {
+                    int tmp;
+                    switch(isp_params->rawhist3.mode) {
+                    case 2:
+                        tmp = (i - (bls1_val.r >> 2) > 0) ? (i - (bls1_val.r >> 2)) * bls_ratio[0] + 0.5 : 0;
+                        break;
+                    case 3:
+                        tmp = (i - (bls1_val.gr >> 4) > 0) ? (i - (bls1_val.gr >> 4)) * bls_ratio[1] + 0.5 : 0;
+                        break;
+                    case 4:
+                        tmp = (i - (bls1_val.b >> 2) > 0) ? (i - (bls1_val.b >> 2)) * bls_ratio[2] + 0.5 : 0;
+                        break;
+                    case 5:
+                    default:
+                        s16 hist_bls1 = (s16)((bls1_val.gr >> 4) * 0.587 + (bls1_val.r >> 2) * 0.299 + (bls1_val.b >> 2) * 0.144 + 0.5);
+                        float hist_bls_ratio = (float)((1 << 8) - 1) / ((1 << 8) - 1 - hist_bls1);
+                        tmp = (i - hist_bls1) ? (i - hist_bls1) * hist_bls_ratio + 0.5 : 0;
+                        break;
+                    }
+                    if(tmp > ISP3X_HIST_BIN_N_MAX - 1)
+                        tmp = ISP3X_HIST_BIN_N_MAX - 1;
+                    statsInt->aec_stats.ae_data.chn[AeSelMode].rawhist_big.bins[tmp] += stats->params.rawhist3.hist_bin[i];
+                }
+            } else {
+                memcpy(statsInt->aec_stats.ae_data.chn[AeSelMode].rawhist_big.bins, stats->params.rawhist3.hist_bin, ISP3X_HIST_BIN_N_MAX * sizeof(u32));
+            }
+            break;
         case AEC_RAWSEL_MODE_TMO:
-            for(int i = 0; i < ISP2X_RAWAEBIG_MEAN_NUM; i++) {
+            for(int i = 0; i < ISP3X_RAWAEBIG_MEAN_NUM; i++) {
 
                 statsInt->aec_stats.ae_data.extra.rawae_big.channelr_xy[i] = stats->params.rawae3.data[i].channelr_xy;
                 statsInt->aec_stats.ae_data.extra.rawae_big.channelg_xy[i] = stats->params.rawae3.data[i].channelg_xy;
                 statsInt->aec_stats.ae_data.extra.rawae_big.channelb_xy[i] = stats->params.rawae3.data[i].channelb_xy;
 
-                if(i < ISP2X_RAWAEBIG_SUBWIN_NUM) {
+                if(i < ISP3X_RAWAEBIG_SUBWIN_NUM) {
                     statsInt->aec_stats.ae_data.extra.rawae_big.wndx_sumr[i] = stats->params.rawae3.sumr[i];
                     statsInt->aec_stats.ae_data.extra.rawae_big.wndx_sumg[i] = stats->params.rawae3.sumg[i];
                     statsInt->aec_stats.ae_data.extra.rawae_big.wndx_sumb[i] = stats->params.rawae3.sumb[i];
                 }
             }
-            memcpy(statsInt->aec_stats.ae_data.extra.rawhist_big.bins, stats->params.rawhist3.hist_bin, ISP2X_HIST_BIN_N_MAX * sizeof(u32));
+            memcpy(statsInt->aec_stats.ae_data.extra.rawhist_big.bins, stats->params.rawhist3.hist_bin, ISP3X_HIST_BIN_N_MAX * sizeof(u32));
             break;
 
         default:
@@ -1164,6 +1531,45 @@ RkAiqResourceTranslatorV3x::translateAecStats (const SmartPtr<VideoBuffer> &from
         }
     }
 
+#ifdef AE_STATS_DEBUG
+    if(AeSwapMode != 0) {
+        for(int i = 0; i < 15; i++) {
+            for(int j = 0; j < 15; j++) {
+                printf("chn0[%d,%d]:r 0x%x, g 0x%x, b 0x%x\n", i, j,
+                       statsInt->aec_stats.ae_data.chn[0].rawae_big.channelr_xy[i * 15 + j],
+                       statsInt->aec_stats.ae_data.chn[0].rawae_big.channelg_xy[i * 15 + j],
+                       statsInt->aec_stats.ae_data.chn[0].rawae_big.channelb_xy[i * 15 + j]);
+            }
+        }
+        printf("====================sub-win-result======================\n");
+
+        for(int i = 0; i < 4; i++)
+            printf("chn0_subwin[%d]:sumr 0x%08lx, sumg 0x%08lx, sumb 0x%08lx\n", i,
+                   statsInt->aec_stats.ae_data.chn[0].rawae_big.wndx_sumr[i],
+                   statsInt->aec_stats.ae_data.chn[0].rawae_big.wndx_sumg[i],
+                   statsInt->aec_stats.ae_data.chn[0].rawae_big.wndx_sumb[i]);
+
+        printf("====================hist_result========================\n");
+
+        for(int i = 0; i < 256; i++)
+            printf("bin[%d]= 0x%08x\n", i, statsInt->aec_stats.ae_data.chn[0].rawhist_big.bins[i]);
+
+    } else {
+        for(int i = 0; i < 5; i++) {
+            for(int j = 0; j < 5; j++) {
+                printf("chn0[%d,%d]:r 0x%x, g 0x%x, b 0x%x\n", i, j,
+                       statsInt->aec_stats.ae_data.chn[0].rawae_lite.channelr_xy[i * 5 + j],
+                       statsInt->aec_stats.ae_data.chn[0].rawae_lite.channelg_xy[i * 5 + j],
+                       statsInt->aec_stats.ae_data.chn[0].rawae_lite.channelb_xy[i * 5 + j]);
+            }
+        }
+        printf("====================hist_result========================\n");
+        for(int i = 0; i < 256; i++)
+            printf("bin[%d]= 0x%08x\n", i, statsInt->aec_stats.ae_data.chn[0].rawhist_lite.bins[i]);
+    }
+
+#endif
+
     //rotate stats for group ae
     if(mIsGroupMode) {
         RkAiqAecHwStatsRes_t* temp = (RkAiqAecHwStatsRes_t*)calloc(1, sizeof(RkAiqAecHwStatsRes_t));
@@ -1171,7 +1577,7 @@ RkAiqResourceTranslatorV3x::translateAecStats (const SmartPtr<VideoBuffer> &from
             //1) clockwise 90
             for(int i = 0; i < 3; i++) {
                 //BIG
-                uint8_t colnum = sqrt(ISP2X_RAWAEBIG_MEAN_NUM);
+                uint8_t colnum = sqrt(ISP3X_RAWAEBIG_MEAN_NUM);
                 for(int row = 0; row < colnum; row++) {
                     for(int col = 0; col < colnum; col++) {
                         temp->chn[i].rawae_big.channelr_xy[row * colnum + col] = \
@@ -1183,7 +1589,7 @@ RkAiqResourceTranslatorV3x::translateAecStats (const SmartPtr<VideoBuffer> &from
                     }
                 }
                 //LITE
-                colnum = sqrt(ISP2X_RAWAELITE_MEAN_NUM);
+                colnum = sqrt(ISP3X_RAWAELITE_MEAN_NUM);
                 for(int row = 0; row < colnum; row++) {
                     for(int col = 0; col < colnum; col++) {
                         temp->chn[i].rawae_lite.channelr_xy[row * colnum + col] = \
@@ -1199,7 +1605,7 @@ RkAiqResourceTranslatorV3x::translateAecStats (const SmartPtr<VideoBuffer> &from
             }
 
             if(!AfUseAeBig) {
-                uint8_t colnum = sqrt(ISP2X_RAWAEBIG_MEAN_NUM);
+                uint8_t colnum = sqrt(ISP3X_RAWAEBIG_MEAN_NUM);
                 for(int row = 0; row < colnum; row++) {
                     for(int col = 0; col < colnum; col++) {
                         temp->extra.rawae_big.channelr_xy[row * colnum + col] = \
@@ -1216,7 +1622,7 @@ RkAiqResourceTranslatorV3x::translateAecStats (const SmartPtr<VideoBuffer> &from
             //2) counter clockwise 90
             for(int i = 0; i < 3; i++) {
                 //BIG
-                uint8_t colnum = sqrt(ISP2X_RAWAEBIG_MEAN_NUM);
+                uint8_t colnum = sqrt(ISP3X_RAWAEBIG_MEAN_NUM);
                 for(int row = 0; row < colnum; row++) {
                     for(int col = 0; col < colnum; col++) {
                         temp->chn[i].rawae_big.channelr_xy[row * colnum + col] = \
@@ -1228,7 +1634,7 @@ RkAiqResourceTranslatorV3x::translateAecStats (const SmartPtr<VideoBuffer> &from
                     }
                 }
                 //LITE
-                colnum = sqrt(ISP2X_RAWAELITE_MEAN_NUM);
+                colnum = sqrt(ISP3X_RAWAELITE_MEAN_NUM);
                 for(int row = 0; row < colnum; row++) {
                     for(int col = 0; col < colnum; col++) {
                         temp->chn[i].rawae_lite.channelr_xy[row * colnum + col] = \
@@ -1245,7 +1651,7 @@ RkAiqResourceTranslatorV3x::translateAecStats (const SmartPtr<VideoBuffer> &from
             }
 
             if(!AfUseAeBig) {
-                uint8_t colnum = sqrt(ISP2X_RAWAEBIG_MEAN_NUM);
+                uint8_t colnum = sqrt(ISP3X_RAWAEBIG_MEAN_NUM);
                 for(int row = 0; row < colnum; row++) {
                     for(int col = 0; col < colnum; col++) {
                         temp->extra.rawae_big.channelr_xy[row * colnum + col] = \
@@ -1268,21 +1674,26 @@ RkAiqResourceTranslatorV3x::translateAecStats (const SmartPtr<VideoBuffer> &from
 
     /*
      *         unsigned long chn0_mean = 0, chn1_mean = 0;
-     *         for(int i = 0; i < ISP2X_RAWAEBIG_MEAN_NUM; i++) {
+     *         for(int i = 0; i < ISP3X_RAWAEBIG_MEAN_NUM; i++) {
      *             chn0_mean += stats->params.rawae1.data[i].channelg_xy;
      *             chn1_mean += stats->params.rawae3.data[i].channelg_xy;
      *         }
      *
      *
      *         printf("frame[%d]: chn[0-1]_g_mean_xy: %ld-%ld\n",
-     *                 stats->frame_id, chn0_mean/ISP2X_RAWAEBIG_MEAN_NUM,
-     *                 chn1_mean/ISP2X_RAWAEBIG_MEAN_NUM);
+     *                 stats->frame_id, chn0_mean/ISP3X_RAWAEBIG_MEAN_NUM,
+     *                 chn1_mean/ISP3X_RAWAEBIG_MEAN_NUM);
      */
 
     //expsoure params
     if (expParams.ptr()) {
 
         statsInt->aec_stats.ae_exp = expParams->data()->aecExpInfo;
+        /*printf("frame[%d],gain=%d,time=%d\n", stats->frame_id,
+               expParams->data()->aecExpInfo.LinearExp.exp_sensor_params.analog_gain_code_global,
+               expParams->data()->aecExpInfo.LinearExp.exp_sensor_params.coarse_integration_time);*/
+
+
         /*
          * printf("%s: L: [0x%x-0x%x], M: [0x%x-0x%x], S: [0x%x-0x%x]\n",
          *        __func__,
@@ -1326,22 +1737,22 @@ void RotationDegAwbBlkStas(rk_aiq_awb_stat_blk_res_v201_t *blockResult, int degr
 {
 
     rk_aiq_awb_stat_blk_res_v201_t blockResult_old[RK_AIQ_AWB_GRID_NUM_TOTAL];
-    if(degree == 3 /*RK_PS_SrcOverlapPosition_270*/){
-        memcpy(blockResult_old,blockResult,sizeof(rk_aiq_awb_stat_blk_res_v201_t)*RK_AIQ_AWB_GRID_NUM_TOTAL);
-        for(int i=0;i<RK_AIQ_AWB_GRID_NUM_VERHOR;i++){
-            for(int j=0;j<RK_AIQ_AWB_GRID_NUM_VERHOR;j++){
-                memcpy(&blockResult[(RK_AIQ_AWB_GRID_NUM_VERHOR-j-1)*RK_AIQ_AWB_GRID_NUM_VERHOR+i],&blockResult_old[i*RK_AIQ_AWB_GRID_NUM_VERHOR+j],sizeof(rk_aiq_awb_stat_blk_res_v201_t));
+    if(degree == 3 /*RK_PS_SrcOverlapPosition_270*/) {
+        memcpy(blockResult_old, blockResult, sizeof(rk_aiq_awb_stat_blk_res_v201_t)*RK_AIQ_AWB_GRID_NUM_TOTAL);
+        for(int i = 0; i < RK_AIQ_AWB_GRID_NUM_VERHOR; i++) {
+            for(int j = 0; j < RK_AIQ_AWB_GRID_NUM_VERHOR; j++) {
+                memcpy(&blockResult[(RK_AIQ_AWB_GRID_NUM_VERHOR - j - 1)*RK_AIQ_AWB_GRID_NUM_VERHOR + i], &blockResult_old[i * RK_AIQ_AWB_GRID_NUM_VERHOR + j], sizeof(rk_aiq_awb_stat_blk_res_v201_t));
             }
         }
-    }else if(degree == 1 /*RK_PS_SrcOverlapPosition_90*/){
-        memcpy(blockResult_old,blockResult,sizeof(rk_aiq_awb_stat_blk_res_v201_t)*RK_AIQ_AWB_GRID_NUM_TOTAL);
-        for(int i=0;i<RK_AIQ_AWB_GRID_NUM_VERHOR;i++){
-            for(int j=0;j<RK_AIQ_AWB_GRID_NUM_VERHOR;j++){
-               memcpy(&blockResult[j*RK_AIQ_AWB_GRID_NUM_VERHOR+(RK_AIQ_AWB_GRID_NUM_VERHOR-i-1)],&blockResult_old[i*RK_AIQ_AWB_GRID_NUM_VERHOR+j],sizeof(rk_aiq_awb_stat_blk_res_v201_t));
+    } else if(degree == 1 /*RK_PS_SrcOverlapPosition_90*/) {
+        memcpy(blockResult_old, blockResult, sizeof(rk_aiq_awb_stat_blk_res_v201_t)*RK_AIQ_AWB_GRID_NUM_TOTAL);
+        for(int i = 0; i < RK_AIQ_AWB_GRID_NUM_VERHOR; i++) {
+            for(int j = 0; j < RK_AIQ_AWB_GRID_NUM_VERHOR; j++) {
+                memcpy(&blockResult[j * RK_AIQ_AWB_GRID_NUM_VERHOR + (RK_AIQ_AWB_GRID_NUM_VERHOR - i - 1)], &blockResult_old[i * RK_AIQ_AWB_GRID_NUM_VERHOR + j], sizeof(rk_aiq_awb_stat_blk_res_v201_t));
             }
         }
-    }else{
-        LOGW_AWBGROUP("not support mModuleRotation %d, abandon to rotate awb blk stas !!!!",degree);
+    } else {
+        LOGW_AWBGROUP("not support mModuleRotation %d, abandon to rotate awb blk stas !!!!", degree);
     }
 }
 
@@ -1489,9 +1900,9 @@ RkAiqResourceTranslatorV3x::translateAwbStats (const SmartPtr<VideoBuffer> &from
             statsInt->awb_stats_v3x.blockResult[i].Bvalue -= (statsInt->awb_stats_v3x.blockResult[i].WpNo * bls_cfg->blc1_b + 8) >> 4 ; ;
         }
     }
-    LOGV_AWBGROUP("mIsGroupMode %d, mCamPhyId %d,mModuleRotation %d",mIsGroupMode,mCamPhyId,mModuleRotation);
-    if(mIsGroupMode){
-        RotationDegAwbBlkStas(statsInt->awb_stats_v3x.blockResult,mModuleRotation);
+    LOGV_AWBGROUP("mIsGroupMode %d, mCamPhyId %d,mModuleRotation %d", mIsGroupMode, mCamPhyId, mModuleRotation);
+    if(mIsGroupMode) {
+        RotationDegAwbBlkStas(statsInt->awb_stats_v3x.blockResult, mModuleRotation);
     }
     //statsInt->awb_stats_valid = ISP2X_STAT_RAWAWB(stats->meas_type)? true:false;
     statsInt->awb_stats_valid = stats->meas_type >> 5 & 1;

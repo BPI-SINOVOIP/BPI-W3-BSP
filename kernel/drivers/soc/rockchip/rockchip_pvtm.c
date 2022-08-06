@@ -353,6 +353,12 @@ disable_clks:
 	return val;
 }
 
+static void rv1106_core_pvtm_set_ring_sel(struct rockchip_pvtm *pvtm,
+					  unsigned int ring_sel)
+{
+	writel_relaxed(wr_mask_bit(ring_sel + 4, 0x2, 0x7), pvtm->base + pvtm->con);
+}
+
 static void rv1126_pvtm_set_ring_sel(struct rockchip_pvtm *pvtm,
 				     unsigned int ring_sel)
 {
@@ -690,6 +696,35 @@ static const struct rockchip_pvtm_data rk3588_pmu_pvtm = {
 	},
 };
 
+static const struct rockchip_pvtm_info rv1106_corepvtm_infos[] = {
+	PVTM(0, "core", 2, 0, 1, 0x4, 0, 0x4),
+};
+
+static const struct rockchip_pvtm_data rv1106_corepvtm = {
+	.con = 0x4,
+	.sta = 0x80,
+	.num_pvtms = ARRAY_SIZE(rv1106_corepvtm_infos),
+	.infos = rv1106_corepvtm_infos,
+	.ops = {
+		.get_value = rv1126_pvtm_get_value,
+		.set_ring_sel = rv1106_core_pvtm_set_ring_sel,
+	},
+};
+
+static const struct rockchip_pvtm_info rv1106_pmupvtm_infos[] = {
+	PVTM(1, "pmu", 1, 0, 1, 0x4, 0, 0x4),
+};
+
+static const struct rockchip_pvtm_data rv1106_pmupvtm = {
+	.con = 0x4,
+	.sta = 0x80,
+	.num_pvtms = ARRAY_SIZE(rv1106_pmupvtm_infos),
+	.infos = rv1106_pmupvtm_infos,
+	.ops = {
+		.get_value = rv1126_pvtm_get_value,
+	},
+};
+
 static const struct rockchip_pvtm_info rv1126_cpupvtm_infos[] = {
 	PVTM(0, "cpu", 7, 0, 1, 0x4, 0, 0x4),
 };
@@ -735,6 +770,7 @@ static const struct rockchip_pvtm_data rv1126_pmupvtm = {
 };
 
 static const struct of_device_id rockchip_pvtm_match[] = {
+#ifdef CONFIG_CPU_PX30
 	{
 		.compatible = "rockchip,px30-pvtm",
 		.data = (void *)&px30_pvtm,
@@ -743,6 +779,8 @@ static const struct of_device_id rockchip_pvtm_match[] = {
 		.compatible = "rockchip,px30-pmu-pvtm",
 		.data = (void *)&px30_pmupvtm,
 	},
+#endif
+#ifdef CONFIG_CPU_RK1808
 	{
 		.compatible = "rockchip,rk1808-pvtm",
 		.data = (void *)&rk1808_pvtm,
@@ -755,10 +793,14 @@ static const struct of_device_id rockchip_pvtm_match[] = {
 		.compatible = "rockchip,rk1808-npu-pvtm",
 		.data = (void *)&rk1808_npupvtm,
 	},
+#endif
+#ifdef CONFIG_CPU_RK3288
 	{
 		.compatible = "rockchip,rk3288-pvtm",
 		.data = (void *)&rk3288_pvtm,
 	},
+#endif
+#ifdef CONFIG_CPU_RK3308
 	{
 		.compatible = "rockchip,rk3308-pvtm",
 		.data = (void *)&px30_pvtm,
@@ -767,6 +809,8 @@ static const struct of_device_id rockchip_pvtm_match[] = {
 		.compatible = "rockchip,rk3308-pmu-pvtm",
 		.data = (void *)&rk3308_pmupvtm,
 	},
+#endif
+#ifdef CONFIG_CPU_RK3399
 	{
 		.compatible = "rockchip,rk3399-pvtm",
 		.data = (void *)&rk3399_pvtm,
@@ -775,6 +819,8 @@ static const struct of_device_id rockchip_pvtm_match[] = {
 		.compatible = "rockchip,rk3399-pmu-pvtm",
 		.data = (void *)&rk3399_pmupvtm,
 	},
+#endif
+#ifdef CONFIG_CPU_RK3568
 	{
 		.compatible = "rockchip,rK3568-core-pvtm",
 		.data = (void *)&rk3568_corepvtm,
@@ -787,6 +833,8 @@ static const struct of_device_id rockchip_pvtm_match[] = {
 		.compatible = "rockchip,rk3568-npu-pvtm",
 		.data = (void *)&rk3568_npupvtm,
 	},
+#endif
+#ifdef CONFIG_CPU_RK3588
 	{
 		.compatible = "rockchip,rk3588-bigcore0-pvtm",
 		.data = (void *)&rk3588_bigcore0_pvtm,
@@ -811,6 +859,18 @@ static const struct of_device_id rockchip_pvtm_match[] = {
 		.compatible = "rockchip,rk3588-pmu-pvtm",
 		.data = (void *)&rk3588_pmu_pvtm,
 	},
+#endif
+#ifdef CONFIG_CPU_RV1106
+	{
+		.compatible = "rockchip,rv1106-core-pvtm",
+		.data = (void *)&rv1106_corepvtm,
+	},
+	{
+		.compatible = "rockchip,rv1106-pmu-pvtm",
+		.data = (void *)&rv1106_pmupvtm,
+	},
+#endif
+#ifdef CONFIG_CPU_RV1126
 	{
 		.compatible = "rockchip,rv1126-cpu-pvtm",
 		.data = (void *)&rv1126_cpupvtm,
@@ -823,6 +883,7 @@ static const struct of_device_id rockchip_pvtm_match[] = {
 		.compatible = "rockchip,rv1126-pmu-pvtm",
 		.data = (void *)&rv1126_pmupvtm,
 	},
+#endif
 	{ /* sentinel */ },
 };
 MODULE_DEVICE_TABLE(of, rockchip_pvtm_match);

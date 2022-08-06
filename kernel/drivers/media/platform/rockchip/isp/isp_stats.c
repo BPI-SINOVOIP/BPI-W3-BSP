@@ -5,6 +5,7 @@
 #include <media/v4l2-common.h>
 #include <media/v4l2-ioctl.h>
 #include <media/videobuf2-core.h>
+#include <media/videobuf2-dma-sg.h>
 #include <media/videobuf2-vmalloc.h>	/* for ISP statistics */
 #include "dev.h"
 #include "isp_stats.h"
@@ -12,6 +13,7 @@
 #include "isp_stats_v2x.h"
 #include "isp_stats_v21.h"
 #include "isp_stats_v3x.h"
+#include "isp_stats_v32.h"
 
 #define STATS_NAME DRIVER_NAME "-statistics"
 #define RKISP_ISP_STATS_REQ_BUFS_MIN 2
@@ -59,7 +61,7 @@ static int rkisp_stats_querycap(struct file *file,
 		 stats_vdev->dev->isp_ver >> 4);
 	strlcpy(cap->card, vdev->name, sizeof(cap->card));
 	strlcpy(cap->bus_info, "platform: " DRIVER_NAME, sizeof(cap->bus_info));
-
+	cap->version = RKISP_DRIVER_VERSION;
 	return 0;
 }
 
@@ -140,10 +142,17 @@ static void rkisp_stats_vb2_buf_queue(struct vb2_buffer *vb)
 	struct rkisp_buffer *stats_buf = to_rkisp_buffer(vbuf);
 	struct vb2_queue *vq = vb->vb2_queue;
 	struct rkisp_isp_stats_vdev *stats_dev = vq->drv_priv;
+	u32 size = stats_dev->vdev_fmt.fmt.meta.buffersize;
 	unsigned long flags;
 
 	stats_buf->vaddr[0] = vb2_plane_vaddr(vb, 0);
+	if (stats_dev->dev->isp_ver == ISP_V32) {
+		struct sg_table *sgt = vb2_dma_sg_plane_desc(vb, 0);
 
+		stats_buf->buff_addr[0] = sg_dma_address(sgt->sgl);
+	}
+	if (stats_buf->vaddr[0])
+		memset(stats_buf->vaddr[0], 0, size);
 	spin_lock_irqsave(&stats_dev->rd_lock, flags);
 	list_add_tail(&stats_buf->queue, &stats_dev->stat);
 	spin_unlock_irqrestore(&stats_dev->rd_lock, flags);
@@ -172,9 +181,20 @@ static void rkisp_stats_vb2_stop_streaming(struct vb2_queue *vq)
 		list_del(&buf->queue);
 		vb2_buffer_done(&buf->vb.vb2_buf, VB2_BUF_STATE_ERROR);
 	}
-	if (stats_vdev->cur_buf)
+	if (stats_vdev->cur_buf) {
 		vb2_buffer_done(&stats_vdev->cur_buf->vb.vb2_buf, VB2_BUF_STATE_ERROR);
+		if (stats_vdev->cur_buf == stats_vdev->nxt_buf)
+			stats_vdev->nxt_buf = NULL;
+		stats_vdev->cur_buf = NULL;
+	}
+	if (stats_vdev->nxt_buf) {
+		vb2_buffer_done(&stats_vdev->nxt_buf->vb.vb2_buf, VB2_BUF_STATE_ERROR);
+		stats_vdev->nxt_buf = NULL;
+	}
 	spin_unlock_irqrestore(&stats_vdev->rd_lock, flags);
+
+	stats_vdev->ae_meas_done_next = false;
+	stats_vdev->af_meas_done_next = false;
 }
 
 static int
@@ -208,12 +228,17 @@ static int rkisp_stats_init_vb2_queue(struct vb2_queue *q,
 	q->io_modes = VB2_MMAP | VB2_USERPTR;
 	q->drv_priv = stats_vdev;
 	q->ops = &rkisp_stats_vb2_ops;
-	q->mem_ops = &vb2_vmalloc_memops;
+	if (stats_vdev->dev->isp_ver == ISP_V32) {
+		q->mem_ops = stats_vdev->dev->hw_dev->mem_ops;
+		if (stats_vdev->dev->hw_dev->is_dma_contig)
+			q->dma_attrs = DMA_ATTR_FORCE_CONTIGUOUS;
+	} else {
+		q->mem_ops = &vb2_vmalloc_memops;
+	}
 	q->buf_struct_size = sizeof(struct rkisp_buffer);
 	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 	q->lock = &stats_vdev->dev->iqlock;
 	q->dev = stats_vdev->dev->dev;
-
 	return vb2_queue_init(q);
 }
 
@@ -247,8 +272,10 @@ static void rkisp_init_stats_vdev(struct rkisp_isp_stats_vdev *stats_vdev)
 		rkisp_init_stats_vdev_v21(stats_vdev);
 	else if (stats_vdev->dev->isp_ver == ISP_V20)
 		rkisp_init_stats_vdev_v2x(stats_vdev);
-	else
+	else if (stats_vdev->dev->isp_ver == ISP_V30)
 		rkisp_init_stats_vdev_v3x(stats_vdev);
+	else
+		rkisp_init_stats_vdev_v32(stats_vdev);
 }
 
 static void rkisp_uninit_stats_vdev(struct rkisp_isp_stats_vdev *stats_vdev)
@@ -259,8 +286,10 @@ static void rkisp_uninit_stats_vdev(struct rkisp_isp_stats_vdev *stats_vdev)
 		rkisp_uninit_stats_vdev_v21(stats_vdev);
 	else if (stats_vdev->dev->isp_ver == ISP_V20)
 		rkisp_uninit_stats_vdev_v2x(stats_vdev);
-	else
+	else if (stats_vdev->dev->isp_ver == ISP_V30)
 		rkisp_uninit_stats_vdev_v3x(stats_vdev);
+	else
+		rkisp_uninit_stats_vdev_v32(stats_vdev);
 }
 
 void rkisp_stats_rdbk_enable(struct rkisp_isp_stats_vdev *stats_vdev, bool en)
@@ -276,6 +305,14 @@ void rkisp_stats_first_ddr_config(struct rkisp_isp_stats_vdev *stats_vdev)
 		rkisp_stats_first_ddr_config_v21(stats_vdev);
 	else if (stats_vdev->dev->isp_ver == ISP_V30)
 		rkisp_stats_first_ddr_config_v3x(stats_vdev);
+	else if (stats_vdev->dev->isp_ver == ISP_V32)
+		rkisp_stats_first_ddr_config_v32(stats_vdev);
+}
+
+void rkisp_stats_next_ddr_config(struct rkisp_isp_stats_vdev *stats_vdev)
+{
+	if (stats_vdev->dev->isp_ver == ISP_V32)
+		rkisp_stats_next_ddr_config_v32(stats_vdev);
 }
 
 void rkisp_stats_isr(struct rkisp_isp_stats_vdev *stats_vdev,

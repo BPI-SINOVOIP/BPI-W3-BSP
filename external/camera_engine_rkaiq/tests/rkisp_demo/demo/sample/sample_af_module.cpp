@@ -43,6 +43,8 @@ static void sample_af_usage()
     printf("\t l) AF:         setFocusMeasCfg sync.\n");
     printf("\t m) AF:         setFocusMeasCfg async.\n");
     printf("\t n) AF:         getAfAttrib.\n");
+    printf("\t o) AF:         get_customAfRes.\n");
+    printf("\t p) AF:         set_customAfRes.\n");
     printf("\t q) AF:         return to main sample screen.\n");
 
     printf("\n");
@@ -163,6 +165,187 @@ void sample_set_anglez(const rk_aiq_sys_ctx_t* ctx)
     rk_aiq_uapi2_setAngleZ(ctx, angleZ);
     printf("setAngleZ %f degree\n", angleZ);
 }
+
+void sample_get_customAfRes(const rk_aiq_sys_ctx_t* ctx)
+{
+    rk_tool_customAf_res_t att;
+    int i;
+
+    rk_aiq_uapi2_getCustomAfRes(ctx, &att);
+    printf("af_en %d\n", att.af_en);
+    printf("rawaf_sel %d\n", att.rawaf_sel);
+    printf("gamma_en %d\n", att.gamma_en);
+    printf("gaus_en %d\n", att.gaus_en);
+    printf("v1_fir_sel %d\n", att.v1_fir_sel);
+    printf("hiir_en %d\n", att.hiir_en);
+    printf("viir_en %d\n", att.viir_en);
+    printf("v1_fv_outmode %d\n", att.v1_fv_outmode);
+    printf("v2_fv_outmode %d\n", att.v2_fv_outmode);
+    printf("h1_fv_outmode %d\n", att.h1_fv_outmode);
+    printf("h2_fv_outmode %d\n", att.h2_fv_outmode);
+    printf("ldg_en %d\n", att.ldg_en);
+    printf("ae_mode %d\n", att.ae_mode);
+    printf("y_mode %d\n", att.y_mode);
+
+    printf("window_num %d\n", att.window_num);
+    printf("wina_h_offs %d\n", att.wina_h_offs);
+    printf("wina_v_offs %d\n", att.wina_v_offs);
+    printf("wina_h_size %d\n", att.wina_h_size);
+    printf("wina_v_size %d\n", att.wina_v_size);
+    printf("winb_h_offs %d\n", att.winb_h_offs);
+    printf("winb_v_offs %d\n", att.winb_v_offs);
+    printf("winb_h_size %d\n", att.winb_h_size);
+    printf("winb_v_size %d\n", att.winb_v_size);
+
+    for (i = 0; i < 17; i++)
+        printf("gamma_y[%d] %d\n", i, att.gamma_y[i]);
+
+    printf("thres %d\n", att.thres);
+    printf("shift_sum_b %d\n", att.shift_sum_b);
+    printf("shift_y_b %d\n", att.shift_y_b);
+
+    for (i = 0; i < 9; i++)
+        printf("v1_iir_coe[%d] %d\n", i, att.v1_iir_coe[i]);
+    for (i = 0; i < 3; i++) {
+        printf("v1_fir_coe[%d] %d\n", i, att.v1_fir_coe[i]);
+        printf("v2_iir_coe[%d] %d\n", i, att.v2_iir_coe[i]);
+        printf("v2_fir_coe[%d] %d\n", i, att.v2_fir_coe[i]);
+    }
+
+    for (i = 0; i < 6; i++) {
+        printf("h1_iir1_coe[%d] %d\n", i, att.h1_iir1_coe[i]);
+        printf("h2_iir1_coe[%d] %d\n", i, att.h2_iir1_coe[i]);
+        printf("h1_iir2_coe[%d] %d\n", i, att.h1_iir2_coe[i]);
+        printf("h2_iir2_coe[%d] %d\n", i, att.h2_iir2_coe[i]);
+    }
+
+    for (i = 0; i < 2; i++) {
+        printf("h_ldg_lumth[%d] %d\n", i, att.h_ldg_lumth[i]);
+        printf("h_ldg_gain[%d] %d\n", i, att.h_ldg_gain[i]);
+        printf("h_ldg_gslp[%d] %d\n", i, att.h_ldg_gslp[i]);
+        printf("v_ldg_lumth[%d] %d\n", i, att.v_ldg_lumth[i]);
+        printf("v_ldg_gain[%d] %d\n", i, att.v_ldg_gain[i]);
+        printf("v_ldg_gslp[%d] %d\n", i, att.v_ldg_gslp[i]);
+    }
+
+    printf("v_fv_thresh %d\n", att.v_fv_thresh);
+    printf("h_fv_thresh %d\n", att.h_fv_thresh);
+    printf("v1_fv_shift %d\n", att.v1_fv_shift);
+    printf("v2_fv_shift %d\n", att.v2_fv_shift);
+    printf("h1_fv_shift %d\n", att.h1_fv_shift);
+    printf("h2_fv_shift %d\n", att.h2_fv_shift);
+    printf("highlit_thresh %d\n", att.highlit_thresh);
+}
+
+void sample_set_customAfRes(const rk_aiq_sys_ctx_t* ctx)
+{
+    uint16_t gamma_y[RKAIQ_RAWAF_GAMMA_NUM] =
+        {0, 45, 108, 179, 245, 344, 409, 459, 500, 567, 622, 676, 759, 833, 896, 962, 1023};
+    rk_tool_customAf_res_t attr;
+    int i;
+
+    memset(&attr, 0, sizeof(attr));
+    attr.af_en = 1;
+    attr.rawaf_sel = 0; // normal = 0; hdr = 1
+    attr.accu_8bit_mode = 1;
+    attr.ae_mode = 1;
+
+    attr.window_num = 2;
+    attr.wina_h_offs = 2;
+    attr.wina_v_offs = 2;
+    attr.wina_h_size = 2580;
+    attr.wina_v_size = 1935;
+
+    attr.winb_h_offs = 500;
+    attr.winb_v_offs = 600;
+    attr.winb_h_size = 300;
+    attr.winb_v_size = 300;
+
+    attr.gamma_en = 1;
+    memcpy(attr.gamma_y, gamma_y, RKAIQ_RAWAF_GAMMA_NUM * sizeof(uint16_t));
+
+    // param for winb
+    attr.thres = 4;
+    attr.shift_sum_a = 0;
+    attr.shift_y_a = 0;
+    attr.shift_sum_b = 1;
+    attr.shift_y_b = 1;
+
+    // Vertical filter
+    // lowlit [0.025, 0.075], max=0.5
+    int ver_flt_lowlit[6] =
+        { 503, 8, 9, -1997, 0, 1997 };
+
+    // normal [0.042, 0.14], max=0.5
+    int ver_flt_normal[6] =
+        { 483, 28, 28, -1186, 0, 1186 };
+
+    attr.gaus_en = 1;
+    attr.v1_fir_sel = 1; // 0:old 1:new
+    attr.viir_en = 1;
+    attr.v1_fv_outmode = 0; // 0 square, 1 absolute
+    attr.v2_fv_outmode = 0; // 0 square, 1 absolute
+    attr.v1_fv_shift = 1; //only for sel1
+    attr.v2_fv_shift = 1;
+    attr.v_fv_thresh = 0;
+    attr.v1_iir_coe[1] = ver_flt_lowlit[0];
+    attr.v1_iir_coe[4] = ver_flt_lowlit[1];
+    attr.v1_iir_coe[7] = ver_flt_lowlit[2];
+    for (int i = 0; i < 3; i++) {
+        attr.v1_fir_coe[i] = ver_flt_lowlit[i + 3];
+        attr.v2_iir_coe[i] = ver_flt_normal[i];
+        attr.v2_fir_coe[i] = ver_flt_normal[i + 3];
+    }
+
+    // Horizontal filter
+    // lowlit [0.025, 0.075], max=0.5
+    int hor_flt_lowlit[2][6] =
+    {
+        { 203, 811, -375, 673, 0, -673 },
+        { 31,  945, -448, 323, 0, -323 },
+    };
+    // normal [0.042, 0.14], max=0.5
+    int hor_flt_normal[2][6] =
+    {
+        { 512, 557, -276, 460, 0, -460 },
+        { 100, 870, -399, 191, 0, -191 },
+    };
+
+    attr.hiir_en = 1;
+    attr.h1_fv_outmode = 0; // 0 square, 1 absolute
+    attr.h2_fv_outmode = 0; // 0 square, 1 absolute
+    attr.h1_fv_shift = 1;
+    attr.h2_fv_shift = 1;
+    attr.h_fv_thresh = 0;
+    for (int i = 0; i < 6; i++) {
+        attr.h1_iir1_coe[i] = hor_flt_lowlit[0][i];
+        attr.h1_iir2_coe[i] = hor_flt_lowlit[1][i];
+        attr.h2_iir1_coe[i] = hor_flt_normal[0][i];
+        attr.h2_iir2_coe[i] = hor_flt_normal[1][i];
+    }
+
+    // level depended gain
+    attr.ldg_en = 0;
+    attr.h_ldg_lumth[0] = 64;
+    attr.h_ldg_gain[0]  = 28;
+    attr.h_ldg_gslp[0]  = (255-28)*255/45;
+    attr.h_ldg_lumth[1] = 185;
+    attr.h_ldg_gain[1]  = 8;
+    attr.h_ldg_gslp[1]  = (255-8)*255/45;
+    attr.v_ldg_lumth[0] = 64;
+    attr.v_ldg_gain[0]  = 28;
+    attr.v_ldg_gslp[0]  = (255-28)*255/45;
+    attr.v_ldg_lumth[1] = 185;
+    attr.v_ldg_gain[1]  = 8;
+    attr.v_ldg_gslp[1]  = (255-8)*255/45;
+
+    // High light
+    attr.highlit_thresh = 912;
+
+    rk_aiq_uapi2_setCustomAfRes(ctx, &attr);
+    printf("setCustomAfRes\n");
+}
+
 
 void sample_add_zoom_position(const rk_aiq_sys_ctx_t* ctx)
 {
@@ -320,10 +503,6 @@ void sample_set_af_manual_meascfg(const rk_aiq_sys_ctx_t* ctx, rk_aiq_uapi_mode_
         attr.manual_meascfg_v30.shift_y_b = 1;
 
         // Vertical filter
-        // face [0.025, 0.06], max=0.5
-        int ver_flt_face[6] =
-            { 503, 8, 9, -1997, 0, 1997 };
-
         // lowlit [0.025, 0.075], max=0.5
         int ver_flt_lowlit[6] =
             { 503, 8, 9, -1997, 0, 1997 };
@@ -331,18 +510,6 @@ void sample_set_af_manual_meascfg(const rk_aiq_sys_ctx_t* ctx, rk_aiq_uapi_mode_
         // normal [0.042, 0.14], max=0.5
         int ver_flt_normal[6] =
             { 483, 28, 28, -1186, 0, 1186 };
-
-        // high [0.055, 0.125], max=0.5
-        int ver_flt_high[6] =
-            { 483, 27, 28, -1212, 0, 1212 };
-
-        // dotlight [0.1 0.175], max=0.5
-        int ver_flt_dotlight[6] =
-            { 445, 63, 64, -531, 0, 531 };
-
-        // full [0.025, 0.175], max=0.5
-        int ver_flt_full[6] =
-            { 476, 33, 34, -985, 0, 985 };
 
         attr.manual_meascfg_v30.gaus_en = 1;
         attr.manual_meascfg_v30.v1_fir_sel = 1; // 0:old 1:new
@@ -362,48 +529,19 @@ void sample_set_af_manual_meascfg(const rk_aiq_sys_ctx_t* ctx, rk_aiq_uapi_mode_
         }
 
         // Horizontal filter
-        // low [0.0125, 0.03], max=0.5
-        int hor_flt_low[2][6] =
-        {
-            { 248, 960, -462, 201, 0, -201 },
-            { 46, 994, -486, 83, 0, -83 },
-        };
-        // face [0.025, 0.06], max=0.5
-        int hor_flt_face[2][6] =
-        {
-            { 512, 877, -417, 184, 0, -184 },
-            { 181, 957, -460, 42, 0, -42 },
-        };
         // lowlit [0.025, 0.075], max=0.5
         int hor_flt_lowlit[2][6] =
         {
-            { 512, 811, -375, 266, 0, -266 },
-            { 250, 945, -448, 41, 0, -41 },
+            { 203, 811, -375, 673, 0, -673 },
+            { 31,  945, -448, 323, 0, -323 },
         };
         // normal [0.042, 0.14], max=0.5
         int hor_flt_normal[2][6] =
         {
             { 512, 557, -276, 460, 0, -460 },
-            { 512, 870, -399, 37, 0, -37 },
+            { 100, 870, -399, 191, 0, -191 },
         };
-        // high [0.055, 0.125], max=0.5
-        int hor_flt_high[2][6] =
-        {
-            { 512, 648, -344, 327, 0, -327 },
-            { 512, 854, -409, 29, 0, -29 },
-        };
-        // dotlight [0.1 0.175], max=0.5
-        int hor_flt_dotlight[2][6] =
-        {
-            { 512, 447, -349, 319, 0, -319 },
-            { 512, 698, -386, 34, 0, -34 },
-        };
-        // full [0.025, 0.175], max=0.5
-        int hor_flt_full[2][6] =
-        {
-            { 512, 362, -171, 512, 0, -512 },
-            { 512, 915, -417, 67, 0, -67 },
-        };
+
         attr.manual_meascfg_v30.hiir_en = 1;
         attr.manual_meascfg_v30.h1_fv_outmode = 0; // 0 square, 1 absolute
         attr.manual_meascfg_v30.h2_fv_outmode = 0; // 0 square, 1 absolute
@@ -549,6 +687,12 @@ XCamReturn sample_af_module(const void *arg)
                 break;
             case 'n':
                 sample_get_af_attrib(ctx);
+                break;
+            case 'o':
+                sample_get_customAfRes(ctx);
+                break;
+            case 'p':
+                sample_set_customAfRes(ctx);
                 break;
             default:
                 break;

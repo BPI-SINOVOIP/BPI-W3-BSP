@@ -73,6 +73,15 @@ typedef struct CalibDbV2_Bayer2dnr_V2_TuningPara_Setting_ISO_s {
     // M4_NUMBER_DESC("weight", "f32", M4_RANGE(0, 1.0), "1.0", M4_DIGIT(2))
     float weight;
 
+    // M4_NUMBER_DESC("hdr_dgain_scale_s", "f32", M4_RANGE(0, 128.0), "1.0", M4_DIGIT(2))
+    float hdr_dgain_scale_s;
+
+    // M4_NUMBER_DESC("hdr_dgain_scale_m", "f32", M4_RANGE(0, 128.0), "1.0", M4_DIGIT(2))
+    float hdr_dgain_scale_m;
+
+
+
+
 } CalibDbV2_Bayer2dnr_V2_TuningPara_Setting_ISO_t;
 
 typedef struct CalibDbV2_Bayer2dnr_V2_TuningPara_Setting_s {
@@ -85,9 +94,12 @@ typedef struct CalibDbV2_Bayer2dnr_V2_TuningPara_Setting_s {
     int Tuning_ISO_len;
 } CalibDbV2_Bayer2dnr_V2_TuningPara_Setting_t;
 
+
 typedef struct CalibDbV2_Bayer2dnr_V2_TuningPara_s {
     // M4_BOOL_DESC("enable", "1")
     bool enable;
+    // M4_BOOL_DESC("hdrdgain_ctrl_en", "1")
+    bool hdrdgain_ctrl_en;
     // M4_STRUCT_LIST_DESC("Setting", M4_SIZE_DYNAMIC, "double_index_list")
     CalibDbV2_Bayer2dnr_V2_TuningPara_Setting_t *Setting;
     int Setting_len;

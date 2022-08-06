@@ -44,8 +44,44 @@
 #define DRIVER_MAJOR	3
 #define DRIVER_MINOR	0
 
+#if IS_ENABLED(CONFIG_DRM_ROCKCHIP_VVOP)
+static bool is_support_iommu = false;
+#else
 static bool is_support_iommu = true;
+#endif
+
 static struct drm_driver rockchip_drm_driver;
+
+/**
+ * rockchip_drm_wait_vact_end
+ * @crtc: CRTC to enable line flag
+ * @mstimeout: millisecond for timeout
+ *
+ * Wait for vact_end line flag irq or timeout.
+ *
+ * Returns:
+ * Zero on success, negative errno on failure.
+ */
+int rockchip_drm_wait_vact_end(struct drm_crtc *crtc, unsigned int mstimeout)
+{
+	struct rockchip_drm_private *priv;
+	int pipe, ret = 0;
+
+	if (!crtc)
+		return -ENODEV;
+
+	if (mstimeout <= 0)
+		return -EINVAL;
+
+	priv = crtc->dev->dev_private;
+	pipe = drm_crtc_index(crtc);
+
+	if (priv->crtc_funcs[pipe] && priv->crtc_funcs[pipe]->wait_vact_end)
+		ret = priv->crtc_funcs[pipe]->wait_vact_end(crtc, mstimeout);
+
+	return ret;
+}
+EXPORT_SYMBOL(rockchip_drm_wait_vact_end);
 
 void drm_mode_convert_to_split_mode(struct drm_display_mode *mode)
 {
@@ -883,6 +919,17 @@ void rockchip_drm_dma_detach_device(struct drm_device *drm_dev,
 	iommu_detach_device(domain, dev);
 }
 
+void rockchip_drm_crtc_standby(struct drm_crtc *crtc, bool standby)
+{
+	struct rockchip_drm_private *priv = crtc->dev->dev_private;
+	int pipe = drm_crtc_index(crtc);
+
+	if (pipe < ROCKCHIP_MAX_CRTC &&
+	    priv->crtc_funcs[pipe] &&
+	    priv->crtc_funcs[pipe]->crtc_standby)
+		priv->crtc_funcs[pipe]->crtc_standby(crtc, standby);
+}
+
 int rockchip_register_crtc_funcs(struct drm_crtc *crtc,
 				 const struct rockchip_crtc_funcs *crtc_funcs)
 {
@@ -1366,7 +1413,8 @@ static void rockchip_drm_lastclose(struct drm_device *dev)
 }
 
 static struct drm_pending_vblank_event *
-rockchip_drm_add_vcnt_event(struct drm_crtc *crtc, struct drm_file *file_priv)
+rockchip_drm_add_vcnt_event(struct drm_crtc *crtc, union drm_wait_vblank *vblwait,
+			    struct drm_file *file_priv)
 {
 	struct drm_pending_vblank_event *e;
 	struct drm_device *dev = crtc->dev;
@@ -1380,8 +1428,7 @@ rockchip_drm_add_vcnt_event(struct drm_crtc *crtc, struct drm_file *file_priv)
 	e->event.base.type = DRM_EVENT_ROCKCHIP_CRTC_VCNT;
 	e->event.base.length = sizeof(e->event.vbl);
 	e->event.vbl.crtc_id = crtc->base.id;
-	/* store crtc pipe id */
-	e->event.vbl.user_data = e->pipe;
+	e->event.vbl.user_data = vblwait->request.signal;
 
 	spin_lock_irqsave(&dev->event_lock, flags);
 	drm_event_reserve_init_locked(dev, file_priv, &e->base, &e->event.base);
@@ -1409,7 +1456,7 @@ static int rockchip_drm_get_vcnt_event_ioctl(struct drm_device *dev, void *data,
 	crtc = drm_crtc_from_index(dev, pipe);
 
 	if (flags & _DRM_ROCKCHIP_VCNT_EVENT) {
-		e = rockchip_drm_add_vcnt_event(crtc, file_priv);
+		e = rockchip_drm_add_vcnt_event(crtc, vblwait, file_priv);
 		priv->vcnt[pipe].event = e;
 	}
 
@@ -1780,8 +1827,10 @@ static int rockchip_drm_platform_probe(struct platform_device *pdev)
 	int ret;
 
 	ret = rockchip_drm_platform_of_probe(dev);
+#if !IS_ENABLED(CONFIG_DRM_ROCKCHIP_VVOP)
 	if (ret)
 		return ret;
+#endif
 
 	match = rockchip_drm_match_add(dev);
 	if (IS_ERR(match))
@@ -1845,8 +1894,11 @@ static int __init rockchip_drm_init(void)
 	int ret;
 
 	num_rockchip_sub_drivers = 0;
-	ADD_ROCKCHIP_SUB_DRIVER(vop_platform_driver, CONFIG_DRM_ROCKCHIP);
-	ADD_ROCKCHIP_SUB_DRIVER(vop2_platform_driver, CONFIG_DRM_ROCKCHIP);
+#if IS_ENABLED(CONFIG_DRM_ROCKCHIP_VVOP)
+	ADD_ROCKCHIP_SUB_DRIVER(vvop_platform_driver, CONFIG_DRM_ROCKCHIP_VVOP);
+#else
+	ADD_ROCKCHIP_SUB_DRIVER(vop_platform_driver, CONFIG_ROCKCHIP_VOP);
+	ADD_ROCKCHIP_SUB_DRIVER(vop2_platform_driver, CONFIG_ROCKCHIP_VOP2);
 	ADD_ROCKCHIP_SUB_DRIVER(vconn_platform_driver, CONFIG_ROCKCHIP_VCONN);
 	ADD_ROCKCHIP_SUB_DRIVER(rockchip_lvds_driver,
 				CONFIG_ROCKCHIP_LVDS);
@@ -1865,6 +1917,7 @@ static int __init rockchip_drm_init(void)
 	ADD_ROCKCHIP_SUB_DRIVER(rockchip_rgb_driver, CONFIG_ROCKCHIP_RGB);
 	ADD_ROCKCHIP_SUB_DRIVER(dw_dp_driver, CONFIG_ROCKCHIP_DW_DP);
 
+#endif
 	ret = platform_register_drivers(rockchip_sub_drivers,
 					num_rockchip_sub_drivers);
 	if (ret)

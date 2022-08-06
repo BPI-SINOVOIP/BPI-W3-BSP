@@ -1,13 +1,14 @@
 config BR2_PACKAGE_QT5WAYLAND
 	bool "qt5wayland"
-	select BR2_PACKAGE_WAYLAND
+	depends on BR2_PACKAGE_WAYLAND
+	default y
 	help
 	  Qt is a cross-platform application and UI framework for
 	  developers using C++.
 
 	  This package corresponds to the qt5wayland module.
 
-	  https://qt.io
+	  http://qt.io
 
 if BR2_PACKAGE_QT5WAYLAND
 

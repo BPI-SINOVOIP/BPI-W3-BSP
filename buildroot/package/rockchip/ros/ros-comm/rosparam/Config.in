@@ -1,6 +1,0 @@
-config BR2_PACKAGE_ROSPARAM
-    bool "rosparam"
-    help
-        The rosparam command-line tool for getting and setting
-        ROS Parameters on the Parameter Server using YAML-
-        encoded files

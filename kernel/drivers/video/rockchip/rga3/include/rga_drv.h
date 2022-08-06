@@ -13,7 +13,6 @@
 #include <linux/debugfs.h>
 #include <linux/delay.h>
 #include <linux/device.h>
-#include <linux/dma-buf-cache.h>
 #include <linux/dma-mapping.h>
 #include <linux/err.h>
 #include <linux/fb.h>
@@ -41,25 +40,37 @@
 #include <linux/uaccess.h>
 #include <linux/version.h>
 #include <linux/wait.h>
-#include <linux/wakelock.h>
 #include <linux/pm_runtime.h>
 #include <linux/sched/mm.h>
+#include <linux/string_helpers.h>
 
 #include <asm/cacheflush.h>
 
 #include <linux/iommu.h>
 #include <linux/iova.h>
 #include <linux/dma-iommu.h>
+
+#ifdef CONFIG_DMABUF_CACHE
+#include <linux/dma-buf-cache.h>
+#else
+#include <linux/dma-buf.h>
+#endif
+
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0))
 #include <linux/dma-map-ops.h>
+#endif
+
 #include <linux/hrtimer.h>
 
 #include "rga.h"
-#include "rga_debugger.h"
 
 #define RGA_CORE_REG_OFFSET 0x10000
 
-/* sample interval: 1000ms */
-#define RGA_LOAD_INTERVAL 1000000000
+/* load interval: 1000ms */
+#define RGA_LOAD_INTERVAL_US 1000000
+
+/* timer interval: 1000ms */
+#define RGA_TIMER_INTERVAL_NS 1000000000
 
 #if ((defined(CONFIG_RK_IOMMU) || defined(CONFIG_ROCKCHIP_IOMMU)) \
 	&& defined(CONFIG_ION_ROCKCHIP))
@@ -75,7 +86,7 @@
 
 #define DRIVER_MAJOR_VERISON		1
 #define DRIVER_MINOR_VERSION		2
-#define DRIVER_REVISION_VERSION		0
+#define DRIVER_REVISION_VERSION		14
 
 #define DRIVER_VERSION (STR(DRIVER_MAJOR_VERISON) "." STR(DRIVER_MINOR_VERSION) \
 			"." STR(DRIVER_REVISION_VERSION))
@@ -109,22 +120,14 @@ enum {
 	RGA_NONE_CORE			 = 0x0,
 };
 
+enum {
+	RGA_CMD_SLAVE		= 1,
+	RGA_CMD_MASTER		= 2,
+};
+
 enum iommu_dma_cookie_type {
 	IOMMU_DMA_IOVA_COOKIE,
 	IOMMU_DMA_MSI_COOKIE,
-};
-
-struct rga_fence_context {
-	unsigned int context;
-	unsigned int seqno;
-	spinlock_t spinlock;
-};
-
-struct rga_fence_waiter {
-	/* Base sync driver waiter structure */
-	struct dma_fence_cb waiter;
-
-	struct rga_job *job;
 };
 
 struct rga_iommu_dma_cookie {
@@ -132,39 +135,6 @@ struct rga_iommu_dma_cookie {
 
 	/* Full allocator for IOMMU_DMA_IOVA_COOKIE */
 	struct iova_domain  iovad;
-};
-
-/*
- * legacy: Wait for the import process to completely replace the current
- * dma_map and remove it
- */
-struct rga_dma_buffer_t {
-	/* DMABUF information */
-	struct dma_buf *dma_buf;
-	struct dma_buf_attachment *attach;
-	struct sg_table *sgt;
-
-	dma_addr_t iova;
-	unsigned long size;
-	void *vaddr;
-	enum dma_data_direction dir;
-
-	/* It indicates whether the buffer is cached */
-	bool cached;
-
-	struct list_head link;
-	struct kref refcount;
-
-	struct iommu_domain *domain;
-	struct rga_iommu_dma_cookie *cookie;
-
-	/*
-	 * use dma_buf directly,
-	 * do not call dma_buf_put, such as mpi
-	 */
-	bool use_dma_buf;
-
-	bool use_viraddr;
 };
 
 struct rga_dma_buffer {
@@ -181,9 +151,17 @@ struct rga_dma_buffer {
 
 	dma_addr_t iova;
 	unsigned long size;
+	/*
+	 * The offset of the first page of the sgt.
+	 * Since alloc iova must be page aligned, the offset of the first page is
+	 * identified separately.
+	 */
+	size_t offset;
 
 	/* The core of the mapping */
 	int core;
+
+	struct device *dev;
 };
 
 struct rga_virt_addr {
@@ -193,6 +171,9 @@ struct rga_virt_addr {
 	int pages_order;
 	int page_count;
 	unsigned long size;
+
+	/* The offset of the first page of the virtual address */
+	size_t offset;
 
 	int result;
 };
@@ -208,6 +189,9 @@ struct rga_internal_buffer {
 	/* physical address */
 	uint64_t phys_addr;
 
+	/* buffer size */
+	unsigned long size;
+
 	struct rga_memory_parm memory_parm;
 
 
@@ -221,65 +205,80 @@ struct rga_internal_buffer {
 	uint32_t mm_flag;
 
 	struct kref refcount;
+	struct rga_session *session;
 };
 
-/*
- * yqw add:
- * In order to use the virtual address to refresh the cache,
- * it may be merged into sgt later.
- */
-struct rga2_mmu_other_t {
-	uint32_t *MMU_src0_base;
-	uint32_t *MMU_src1_base;
-	uint32_t *MMU_dst_base;
-	uint32_t MMU_src0_count;
-	uint32_t MMU_src1_count;
-	uint32_t MMU_dst_count;
+struct rga_scheduler_t;
 
-	uint32_t MMU_len;
-	bool MMU_map;
+struct rga_session {
+	int id;
+
+	pid_t tgid;
+
+	char *pname;
+};
+
+struct rga_job_buffer {
+	union {
+		struct {
+			struct rga_external_buffer *ex_y_addr;
+			struct rga_external_buffer *ex_uv_addr;
+			struct rga_external_buffer *ex_v_addr;
+		};
+		struct rga_external_buffer *ex_addr;
+	};
+
+	union {
+		struct {
+			struct rga_internal_buffer *y_addr;
+			struct rga_internal_buffer *uv_addr;
+			struct rga_internal_buffer *v_addr;
+		};
+		struct rga_internal_buffer *addr;
+	};
+
+	uint32_t *page_table;
+	int order;
+	int page_count;
 };
 
 struct rga_job {
 	struct list_head head;
+
+	struct rga_scheduler_t *scheduler;
+	struct rga_session *session;
+
 	struct rga_req rga_command_base;
 	uint32_t cmd_reg[32 * 8];
-	uint32_t csc_reg[12];
+	struct rga_full_csc full_csc;
+	struct rga_pre_intr_info pre_intr_info;
 
-	struct rga_dma_buffer_t *rga_dma_buffer_src0;
-	struct rga_dma_buffer_t *rga_dma_buffer_src1;
-	struct rga_dma_buffer_t *rga_dma_buffer_dst;
+	struct rga_job_buffer src_buffer;
+	struct rga_job_buffer src1_buffer;
+	struct rga_job_buffer dst_buffer;
 	/* used by rga2 */
-	struct rga_dma_buffer_t *rga_dma_buffer_els;
-
-	struct rga_internal_buffer *src_buffer;
-	struct rga_internal_buffer *src1_buffer;
-	struct rga_internal_buffer *dst_buffer;
-	/* used by rga2 */
-	struct rga_internal_buffer *els_buffer;
-
-	struct dma_buf *dma_buf_src0;
-	struct dma_buf *dma_buf_src1;
-	struct dma_buf *dma_buf_dst;
-	struct dma_buf *dma_buf_els;
+	struct rga_job_buffer els_buffer;
 
 	/* for rga2 virtual_address */
 	struct mm_struct *mm;
-	struct rga2_mmu_other_t vir_page_table;
 
 	struct dma_fence *out_fence;
 	struct dma_fence *in_fence;
 	spinlock_t fence_lock;
+	/* job time stamp */
 	ktime_t timestamp;
-	ktime_t running_time;
+	/* The time when the job is actually executed on the hardware */
+	ktime_t hw_running_time;
+	/* The time only for hrtimer to calculate the load */
+	ktime_t hw_recoder_time;
 	unsigned int flags;
-	int job_id;
+	int request_id;
 	int priority;
 	int core;
 	int ret;
+	pid_t pid;
+	bool use_batch_mode;
 };
-
-struct rga_scheduler_t;
 
 struct rga_backend_ops {
 	int (*get_version)(struct rga_scheduler_t *scheduler);
@@ -316,21 +315,75 @@ struct rga_scheduler_t {
 	struct rga_timer timer;
 };
 
+struct rga_request {
+	struct rga_req *task_list;
+	int task_count;
+	uint32_t finished_task_count;
+
+	bool use_batch_mode;
+	bool is_running;
+	uint32_t sync_mode;
+
+	int32_t acquire_fence_fd;
+	int32_t release_fence_fd;
+	struct dma_fence *release_fence;
+	spinlock_t fence_lock;
+
+	wait_queue_head_t finished_wq;
+
+	int flags;
+	uint8_t mpi_config_flags;
+	int id;
+	struct rga_session *session;
+
+	spinlock_t lock;
+	struct kref refcount;
+
+	pid_t pid;
+	/* TODO: add some common work */
+};
+
+struct rga_pending_request_manager {
+	struct mutex lock;
+
+	/*
+	 * @request_idr:
+	 *
+	 * Mapping of request id to object pointers. Used by the GEM
+	 * subsystem. Protected by @lock.
+	 */
+	struct idr request_idr;
+
+	int request_count;
+};
+
+struct rga_session_manager {
+	struct mutex lock;
+
+	struct idr ctx_id_idr;
+
+	int session_cnt;
+};
+
 struct rga_drvdata_t {
-	struct miscdevice miscdev;
-
-	struct rga_fence_context *fence_ctx;
-
 	/* used by rga2's mmu lock */
 	struct mutex lock;
 
-	struct rga_scheduler_t *rga_scheduler[RGA_MAX_SCHEDULER];
+	struct rga_scheduler_t *scheduler[RGA_MAX_SCHEDULER];
 	int num_of_scheduler;
 
 	struct delayed_work power_off_work;
-	struct wake_lock wake_lock;
 
 	struct rga_mm *mm;
+
+	/* rga_job pending manager, import by RGA_START_CONFIG */
+	struct rga_pending_request_manager *pend_request_manager;
+
+	struct rga_session_manager *session_manager;
+
+#ifdef CONFIG_ROCKCHIP_RGA_ASYNC
+	struct rga_fence_context *fence_ctx;
+#endif
 
 #ifdef CONFIG_ROCKCHIP_RGA_DEBUGGER
 	struct rga_debugger *debugger;
@@ -350,17 +403,19 @@ struct rga_match_data_t {
 	int num_irqs;
 };
 
-static inline int rga_read(int offset, struct rga_scheduler_t *rga_scheduler)
+static inline int rga_read(int offset, struct rga_scheduler_t *scheduler)
 {
-	return readl(rga_scheduler->rga_base + offset);
+	return readl(scheduler->rga_base + offset);
 }
 
-static inline void rga_write(int value, int offset, struct rga_scheduler_t *rga_scheduler)
+static inline void rga_write(int value, int offset, struct rga_scheduler_t *scheduler)
 {
-	writel(value, rga_scheduler->rga_base + offset);
+	writel(value, scheduler->rga_base + offset);
 }
 
-int rga_power_enable(struct rga_scheduler_t *rga_scheduler);
-int rga_power_disable(struct rga_scheduler_t *rga_scheduler);
+int rga_power_enable(struct rga_scheduler_t *scheduler);
+int rga_power_disable(struct rga_scheduler_t *scheduler);
+
+int rga_kernel_commit(struct rga_req *cmd);
 
 #endif /* __LINUX_RGA_FENCE_H_ */

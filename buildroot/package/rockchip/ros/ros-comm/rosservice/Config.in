@@ -1,5 +1,0 @@
-config BR2_PACKAGE_ROSSERVICE
-    bool "rosservice"
-    help
-        rosservice contains the rosservice command-line tool
-        for listing and querying ROS Services

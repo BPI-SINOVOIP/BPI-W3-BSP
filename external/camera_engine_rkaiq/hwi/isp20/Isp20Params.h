@@ -54,6 +54,11 @@ public:
     void reset();
     XCamReturn start();
     void stop();
+    void setCamPhyId(int phyId) {
+        mCamPhyId = phyId;
+    }
+protected:
+    int mCamPhyId;
 private:
     XCAM_DEAD_COPY(IspParamsAssembler);
     XCamReturn queue_locked(SmartPtr<cam3aResult>& result);

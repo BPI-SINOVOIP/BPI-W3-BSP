@@ -27,6 +27,7 @@
 #include "RkAiqCalibDbTypes.h"
 #include "acnr2/rk_aiq_types_acnr_algo_v2.h"
 #include "cnr_head_v2.h"
+#include "cnr_uapi_head_v2.h"
 
 
 //RKAIQ_BEGIN_DECLARE
@@ -59,7 +60,7 @@
 
 #define     RK_CNR_V2_SIGMA_FIX_BIT         8
 
-#define     RKCNR_V2_SGM_ADJ_TABLE_LEN      13
+//#define     RKCNR_V2_SGM_ADJ_TABLE_LEN      13
 
 #define     RKCNR_V2_SIGMA_FIX_BIT          8
 #define     RKCNR_V2_LOCAL_GAIN_FIX_BITS    4
@@ -165,6 +166,7 @@ typedef struct RK_CNR_Params_V2_s
     float kernel_5x5[5];
 } RK_CNR_Params_V2_t;
 
+#if 0
 typedef struct RK_CNR_Params_V2_Select_s
 {
     int enable;
@@ -216,7 +218,7 @@ typedef struct RK_CNR_Params_V2_Select_s
     float kernel_5x5[5];
 
 } RK_CNR_Params_V2_Select_t;
-
+#endif
 
 typedef struct Acnr_Manual_Attr_V2_s
 {
@@ -267,6 +269,7 @@ typedef struct rk_aiq_cnr_attrib_v2_s {
 typedef struct rk_aiq_cnr_strength_v2_s {
     rk_aiq_uapi_sync_t sync;
     float percent;
+    bool strength_enable;
 } rk_aiq_cnr_strength_v2_t;
 
 

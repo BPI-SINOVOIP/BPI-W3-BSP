@@ -1,3 +1,0 @@
-config BR2_PACKAGE_WIFIAUTOSETUP
-	bool "SmartConfig mode to setup wifi"
-

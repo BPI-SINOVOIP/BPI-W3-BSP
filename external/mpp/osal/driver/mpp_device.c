@@ -19,7 +19,6 @@
 #include <string.h>
 
 #include "mpp_env.h"
-#include "mpp_log.h"
 #include "mpp_mem.h"
 #include "mpp_common.h"
 
@@ -131,6 +130,10 @@ MPP_RET mpp_dev_ioctl(MppDev ctx, RK_S32 cmd, void *param)
         if (api->detach)
             ret = api->detach(impl_ctx);
     } break;
+    case MPP_DEV_DELIMIT : {
+        if (api->delimit)
+            ret = api->delimit(impl_ctx);
+    } break;
     case MPP_DEV_SET_CB_CTX: {
         if (api->set_cb_ctx)
             ret = api->set_cb_ctx(impl_ctx, param);
@@ -147,6 +150,10 @@ MPP_RET mpp_dev_ioctl(MppDev ctx, RK_S32 cmd, void *param)
         if (api->reg_offset)
             ret = api->reg_offset(impl_ctx, param);
     } break;
+    case MPP_DEV_REG_OFFS : {
+        if (api->reg_offs)
+            ret = api->reg_offs(impl_ctx, param);
+    } break;
     case MPP_DEV_RCB_INFO : {
         if (api->rcb_info)
             ret = api->rcb_info(impl_ctx, param);
@@ -161,7 +168,7 @@ MPP_RET mpp_dev_ioctl(MppDev ctx, RK_S32 cmd, void *param)
     } break;
     case MPP_DEV_CMD_POLL : {
         if (api->cmd_poll)
-            ret = api->cmd_poll(impl_ctx);
+            ret = api->cmd_poll(impl_ctx, param);
     } break;
     default : {
         mpp_err_f("invalid cmd %d\n", cmd);
@@ -178,7 +185,74 @@ MPP_RET mpp_dev_set_reg_offset(MppDev dev, RK_S32 index, RK_U32 offset)
     trans_cfg.reg_idx = index;
     trans_cfg.offset = offset;
 
-    mpp_dev_ioctl(dev, MPP_DEV_REG_OFFSET, &trans_cfg);
+    return mpp_dev_ioctl(dev, MPP_DEV_REG_OFFSET, &trans_cfg);
+}
+
+/* register offset multi config */
+MPP_RET mpp_dev_multi_offset_init(MppDevRegOffCfgs **cfgs, RK_S32 size)
+{
+    RK_S32 cfg_size = sizeof(MppDevRegOffCfgs) + size * sizeof(MppDevRegOffsetCfg);
+    MppDevRegOffCfgs *p = NULL;
+
+    if (NULL == cfgs || size <= 0) {
+        mpp_err_f("invalid pointer %p size %d\n", cfgs, size);
+        return MPP_NOK;
+    }
+
+    p = mpp_calloc_size(MppDevRegOffCfgs, cfg_size);
+    if (p)
+        p->size = size;
+
+    *cfgs = p;
+
+    return (p) ? MPP_OK : MPP_NOK;
+}
+
+MPP_RET mpp_dev_multi_offset_deinit(MppDevRegOffCfgs *cfgs)
+{
+    MPP_FREE(cfgs);
+
+    return MPP_OK;
+}
+
+MPP_RET mpp_dev_multi_offset_reset(MppDevRegOffCfgs *cfgs)
+{
+    if (cfgs) {
+        memset(cfgs->cfgs, 0, cfgs->count * sizeof(cfgs->cfgs[0]));
+        cfgs->count = 0;
+    }
+
+    return MPP_OK;
+}
+
+MPP_RET mpp_dev_multi_offset_update(MppDevRegOffCfgs *cfgs, RK_S32 index, RK_U32 offset)
+{
+    MppDevRegOffsetCfg *cfg;
+    RK_S32 count;
+    RK_S32 i;
+
+    if (NULL == cfgs)
+        return MPP_NOK;
+
+    if (cfgs->count >= cfgs->size) {
+        mpp_err_f("invalid cfgs count %d : %d\n", cfgs->count, cfgs->size);
+        return MPP_NOK;
+    }
+
+    count = cfgs->count;
+    cfg = cfgs->cfgs;
+
+    for (i = 0; i < count; i++, cfg++) {
+
+        if (cfg->reg_idx == (RK_U32)index) {
+            cfg->offset = offset;
+            return MPP_OK;
+        }
+    }
+
+    cfg->reg_idx = index;
+    cfg->offset = offset;
+    cfgs->count++;
 
     return MPP_OK;
 }

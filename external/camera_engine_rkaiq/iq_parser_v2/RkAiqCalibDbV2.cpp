@@ -603,6 +603,7 @@ RkAiqAlgoType_t RkAiqCalibDbV2::string2algostype(const char *str) {
         {"ynr_v3", RK_AIQ_ALGO_TYPE_AYNR},
         {"cnr_v2", RK_AIQ_ALGO_TYPE_ACNR},
         {"sharp_v4", RK_AIQ_ALGO_TYPE_ASHARP},
+        {"gain_v2", RK_AIQ_ALGO_TYPE_AGAIN},
     };
 
     auto it = table.find(std::string(str));
@@ -2030,6 +2031,32 @@ int RkAiqCalibDbV2::CamCalibDbFreeSharpV4Ctx(CalibDbV2_SharpV4_t* sharp_v4)
     return 0;
 }
 
+
+
+int RkAiqCalibDbV2::CamCalibDbFreeGainV2Ctx(CalibDbV2_GainV2_t* gain_v2)
+{
+    if (gain_v2->Version)
+        calib_free(gain_v2->Version);
+
+
+    CalibDbV2_GainV2_TuningPara_t* TuningPara = &gain_v2->TuningPara;
+    for (int i = 0; i < TuningPara->Setting_len; i++) {
+        CalibDbV2_GainV2_TuningPara_Setting_t *Setting = TuningPara->Setting + i;
+
+        if (Setting->SNR_Mode)
+            calib_free(Setting->SNR_Mode);
+        if (Setting->Sensor_Mode)
+            calib_free(Setting->Sensor_Mode);
+        if (Setting->Tuning_ISO)
+            calib_free(Setting->Tuning_ISO);
+    }
+    if (TuningPara->Setting)
+        calib_free(TuningPara->Setting);
+
+
+    return 0;
+}
+
 int RkAiqCalibDbV2::CamCalibDbFreeCacCtx(CalibDbV2_Cac_t* cac_calib) {
     if (cac_calib->TuningPara.SettingByIso)
         calib_free(cac_calib->TuningPara.SettingByIso);
@@ -2214,6 +2241,11 @@ int RkAiqCalibDbV2::CamCalibDbFreeSceneCtx(void* scene_ctx) {
                 (CalibDbV2_Cac_t*)(CALIBDBV2_GET_MODULE_PTR((void*)ctx, cac_calib));
             if (cac_calib)
                 CamCalibDbFreeCacCtx(cac_calib);
+
+            CalibDbV2_GainV2_t *gain_v2 =
+                (CalibDbV2_GainV2_t*)(CALIBDBV2_GET_MODULE_PTR((void*)ctx, gain_v2));
+            if(gain_v2)
+                CamCalibDbFreeGainV2Ctx(gain_v2);
         } else {
             CalibDbV2_BayerNrV2_t *bayernr_v2 =
                 (CalibDbV2_BayerNrV2_t*)(CALIBDBV2_GET_MODULE_PTR((void*)ctx, bayernr_v2));

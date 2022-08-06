@@ -60,14 +60,6 @@ G_BEGIN_DECLS;
   GST_VIDEO_INFO_FLAG_IS_SET (i, GST_VIDEO_FLAG_ARM_AFBC)
 #endif
 
-#ifdef HAVE_NV12_10LE40
-#define MPP_FMT_NV12_10 "NV12_10LE40"
-#else
-/* HACK: Support fake format for nv12_10le40 */
-#define GST_VIDEO_FORMAT_NV12_10LE40 GST_VIDEO_FORMAT_NV12_10LE32
-#define MPP_FMT_NV12_10 "NV12_10LE32"
-#endif
-
 /* The MPP requires alignment 16 by default */
 #define GST_MPP_ALIGNMENT 16
 #define GST_MPP_ALIGN(v) GST_ROUND_UP_N (v, GST_MPP_ALIGNMENT)
@@ -77,6 +69,8 @@ G_BEGIN_DECLS;
     "NV12, NV21, I420, YV12, NV16, NV61, " \
     "BGR16, RGB, BGR, RGBA, BGRA, RGBx, BGRx"
 #endif
+
+gboolean gst_mpp_use_rga ();
 
 const gchar *gst_mpp_video_format_to_string (GstVideoFormat format);
 
@@ -94,6 +88,8 @@ gboolean gst_mpp_rga_convert_from_mpp_frame (MppFrame * mframe,
 
 gboolean gst_mpp_video_info_align (GstVideoInfo * info,
     gint hstride, gint vstride);
+
+guint gst_mpp_get_pixel_stride (GstVideoInfo * info);
 
 G_END_DECLS;
 

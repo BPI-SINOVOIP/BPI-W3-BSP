@@ -23,11 +23,11 @@ rk_aiq_uapi_acnrV2_GetAttrib(const RkAiqAlgoContext *ctx,
 
 XCamReturn
 rk_aiq_uapi_acnrV2_SetChromaSFStrength(const RkAiqAlgoContext *ctx,
-                                       float fPercent);
+                                       rk_aiq_cnr_strength_v2_t *pStrength);
 
 XCamReturn
 rk_aiq_uapi_acnrV2_GetChromaSFStrength(const RkAiqAlgoContext *ctx,
-                                       float *pPercent);
+                                       rk_aiq_cnr_strength_v2_t *pStrength);
 
 
 #endif

@@ -51,7 +51,7 @@ static MPP_RET ref_pic_list_mvc_modification(H264_SLICE_t *currSlice)
             RK_U32 size = currSlice->num_ref_idx_active[LIST_0] + 1;
             i = 0;
             do {
-                if (i >= size) {
+                if (i >= size || i >= MAX_REORDER_TIMES) {
                     ret = MPP_NOK;
                     H264D_WARNNING("ref_pic_list_reordering error, i >= num_ref_idx_active[LIST_0](%d)", size);
                     goto __BITREAD_ERR;
@@ -77,7 +77,7 @@ static MPP_RET ref_pic_list_mvc_modification(H264_SLICE_t *currSlice)
             RK_U32 size = currSlice->num_ref_idx_active[LIST_1] + 1;
             i = 0;
             do {
-                if (i >= size) {
+                if (i >= size || i >= MAX_REORDER_TIMES) {
                     ret = MPP_NOK;
                     H264D_WARNNING("ref_pic_list_reordering error, i >= num_ref_idx_active[LIST_1](%d)", size);
                     goto __BITREAD_ERR;
@@ -180,13 +180,16 @@ static MPP_RET dec_ref_pic_marking(H264_SLICE_t *pSlice)
 
         if (pSlice->adaptive_ref_pic_buffering_flag) {
             RK_U32 i = 0;
-            do { //!< read Memory Management Control Operation
+
+            for (i = 0; i < MAX_MARKING_TIMES; i++) {
                 if (!pSlice->p_Cur->dec_ref_pic_marking_buffer[i])
                     pSlice->p_Cur->dec_ref_pic_marking_buffer[i] = mpp_calloc(H264_DRPM_t, 1);
                 tmp_drpm = pSlice->p_Cur->dec_ref_pic_marking_buffer[i];
                 tmp_drpm->Next = NULL;
                 READ_UE(p_bitctx, &val); //!< mmco
                 tmp_drpm->memory_management_control_operation = val;
+                if (val == 0)
+                    break;
 
                 if ((val == 1) || (val == 3)) {
                     READ_UE(p_bitctx, &tmp_drpm->difference_of_pic_nums_minus1);
@@ -210,8 +213,11 @@ static MPP_RET dec_ref_pic_marking(H264_SLICE_t *pSlice)
                     }
                     tmp_drpm2->Next = tmp_drpm;
                 }
-                i++;
-            } while (val != 0);
+            }
+            if (i >= MAX_MARKING_TIMES) {
+                H264D_ERR("Too many memory management control operations.");
+                goto __BITREAD_ERR;
+            }
         }
     }
     pSlice->drpm_used_bitlen = p_bitctx->used_bits - drpm_used_bits;
@@ -258,8 +264,8 @@ static MPP_RET check_sps_pps(H264_SPS_t *sps, H264_subSPS_t *subset_sps,
 {
     RK_U32 ret = 0;
     RK_S32 max_mb_width  = MAX_MBW_1080P;
-    RK_S32 max_mb_height = MAX_MBH_1080P;
-    ret |= (sps->seq_parameter_set_id > 63);
+
+    ret |= (sps->seq_parameter_set_id > 31);
     ret |= (sps->separate_colour_plane_flag == 1);
     ret |= (sps->chroma_format_idc == 3);
     ret |= (sps->bit_depth_luma_minus8 > 2);
@@ -270,16 +276,12 @@ static MPP_RET check_sps_pps(H264_SPS_t *sps, H264_subSPS_t *subset_sps,
     ret |= (sps->num_ref_frames_in_pic_order_cnt_cycle > 255);
     ret |= (sps->max_num_ref_frames > 16);
 
-    if (hw_info && hw_info->cap_8k) {
+    if (hw_info && hw_info->cap_8k)
         max_mb_width  = MAX_MBW_8Kx4K;
-        max_mb_height = MAX_MBH_8Kx4K;
-    } else if (hw_info && hw_info->cap_4k) {
+    else if (hw_info && hw_info->cap_4k)
         max_mb_width  = MAX_MBW_4Kx2K;
-        max_mb_height = MAX_MBH_4Kx2K;
-    }
 
     ret |= (sps->pic_width_in_mbs_minus1 < 3 || sps->pic_width_in_mbs_minus1 > max_mb_width);
-    ret |= (sps->pic_height_in_map_units_minus1 < 3 || sps->pic_height_in_map_units_minus1 > max_mb_height);
 
     if (ret) {
         H264D_ERR("sps has error, sps_id=%d", sps->seq_parameter_set_id);
@@ -302,7 +304,7 @@ static MPP_RET check_sps_pps(H264_SPS_t *sps, H264_subSPS_t *subset_sps,
     }
     //!< check PPS
     ret |= (pps->pic_parameter_set_id > 255);
-    ret |= (pps->seq_parameter_set_id > 63);
+    ret |= (pps->seq_parameter_set_id > 31);
     ret |= (pps->num_slice_groups_minus1 > 0);
     ret |= (pps->num_ref_idx_l0_default_active_minus1 > 31);
     ret |= (pps->num_ref_idx_l1_default_active_minus1 > 31);
@@ -338,9 +340,8 @@ static MPP_RET set_slice_user_parmeters(H264_SLICE_t *currSlice)
 
     if (currSlice->mvcExt.valid) {
         cur_subsps = p_Vid->subspsSet[cur_pps->seq_parameter_set_id];
-        VAL_CHECK(ret, cur_subsps);
-        cur_sps = &cur_subsps->sps;
-        if (cur_subsps->Valid) {
+        if (cur_subsps && cur_subsps->Valid) {
+            cur_sps = &cur_subsps->sps;
             if ((RK_S32)currSlice->mvcExt.view_id == cur_subsps->view_id[0]) { // combine subsps to sps
                 p_Vid->active_mvc_sps_flag = 0;
                 cur_subsps = NULL;
@@ -388,8 +389,7 @@ static MPP_RET set_slice_user_parmeters(H264_SLICE_t *currSlice)
         struct h264_subsps_t *active_subsps = NULL;
 
         active_subsps = p_Vid->subspsSet[cur_pps->seq_parameter_set_id];
-        VAL_CHECK(ret, active_subsps);
-        if (active_subsps->Valid)
+        if (active_subsps && active_subsps->Valid)
             p_Vid->active_subsps = active_subsps;
         else
             p_Vid->active_subsps = NULL;

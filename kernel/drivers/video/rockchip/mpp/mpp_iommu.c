@@ -67,6 +67,15 @@ static void mpp_dma_release_buffer(struct kref *ref)
 	dma_buf_unmap_attachment(buffer->attach, buffer->sgt, buffer->dir);
 	dma_buf_detach(buffer->dmabuf, buffer->attach);
 	dma_buf_put(buffer->dmabuf);
+	buffer->dma = NULL;
+	buffer->dmabuf = NULL;
+	buffer->attach = NULL;
+	buffer->sgt = NULL;
+	buffer->copy_sgt = NULL;
+	buffer->iova = 0;
+	buffer->size = 0;
+	buffer->vaddr = NULL;
+	buffer->last_used = 0;
 }
 
 /* Remove the oldest buffer when count more than the setting */
@@ -194,8 +203,9 @@ struct mpp_dma_buffer *mpp_dma_import_fd(struct mpp_iommu_info *iommu_info,
 
 	dmabuf = dma_buf_get(fd);
 	if (IS_ERR(dmabuf)) {
-		mpp_err("dma_buf_get fd %d failed\n", fd);
-		return NULL;
+		ret = PTR_ERR(dmabuf);
+		mpp_err("dma_buf_get fd %d failed(%d)\n", fd, ret);
+		return ERR_PTR(ret);
 	}
 	/* A new DMA buffer */
 	mutex_lock(&dma->list_mutex);
@@ -216,15 +226,15 @@ struct mpp_dma_buffer *mpp_dma_import_fd(struct mpp_iommu_info *iommu_info,
 
 	attach = dma_buf_attach(buffer->dmabuf, dma->dev);
 	if (IS_ERR(attach)) {
-		mpp_err("dma_buf_attach fd %d failed\n", fd);
 		ret = PTR_ERR(attach);
+		mpp_err("dma_buf_attach fd %d failed(%d)\n", fd, ret);
 		goto fail_attach;
 	}
 
 	sgt = dma_buf_map_attachment(attach, buffer->dir);
 	if (IS_ERR(sgt)) {
-		mpp_err("dma_buf_map_attachment fd %d failed\n", fd);
 		ret = PTR_ERR(sgt);
+		mpp_err("dma_buf_map_attachment fd %d failed(%d)\n", fd, ret);
 		goto fail_map;
 	}
 	buffer->iova = sg_dma_address(sgt->sgl);
@@ -440,6 +450,8 @@ mpp_iommu_probe(struct device *dev)
 	info->pdev = pdev;
 	info->group = group;
 	info->domain = domain;
+	info->irq = platform_get_irq(pdev, 0);
+	info->got_irq = (info->irq < 0) ? false : true;
 
 	return info;
 
@@ -470,7 +482,13 @@ int mpp_iommu_refresh(struct mpp_iommu_info *info, struct device *dev)
 
 	if (!info)
 		return 0;
-
+	/* call av1 iommu ops */
+	if (IS_ENABLED(CONFIG_ROCKCHIP_MPP_AV1DEC) && info->av1d_iommu) {
+		ret = mpp_av1_iommu_disable(dev);
+		if (ret)
+			return ret;
+		return mpp_av1_iommu_enable(dev);
+	}
 	/* disable iommu */
 	ret = rockchip_iommu_disable(dev);
 	if (ret)

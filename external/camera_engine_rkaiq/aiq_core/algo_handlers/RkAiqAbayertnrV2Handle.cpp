@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2021 Rockchip Eletronics Co., Ltd.
+ * Copyright (c) 2019-2022 Rockchip Eletronics Co., Ltd.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,9 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#include "RkAiqAbayertnrV2Handle.h"
+
 #include "RkAiqCore.h"
-#include "RkAiqHandle.h"
-#include "RkAiqHandleIntV3x.h"
 
 namespace RkCam {
 
@@ -51,7 +51,7 @@ XCamReturn RkAiqAbayertnrV2HandleInt::updateConfig(bool needSync) {
 
     if (updateStrength) {
         mCurStrength   = mNewStrength;
-        rk_aiq_uapi_abayertnrV2_SetStrength(mAlgoCtx, mCurStrength.percent);
+        rk_aiq_uapi_abayertnrV2_SetStrength(mAlgoCtx, &mCurStrength);
         sendSignal(mCurStrength.sync.sync_mode);
         updateStrength = false;
     }
@@ -67,14 +67,21 @@ XCamReturn RkAiqAbayertnrV2HandleInt::setAttrib(rk_aiq_bayertnr_attrib_v2_t* att
 
     XCamReturn ret = XCAM_RETURN_NO_ERROR;
     mCfgMutex.lock();
-    // TODO
-    // check if there is different between att & mCurAtt
+
+    // check if there is different between att & mCurAtt(sync)/mNewAtt(async)
     // if something changed, set att to mNewAtt, and
     // the new params will be effective later when updateConfig
     // called by RkAiqCore
+    bool isChanged = false;
+    if (att->sync.sync_mode == RK_AIQ_UAPI_MODE_ASYNC && \
+        memcmp(&mNewAtt, att, sizeof(*att)))
+        isChanged = true;
+    else if (att->sync.sync_mode != RK_AIQ_UAPI_MODE_ASYNC && \
+             memcmp(&mCurAtt, att, sizeof(*att)))
+        isChanged = true;
 
     // if something changed
-    if (0 != memcmp(&mCurAtt, att, sizeof(rk_aiq_bayertnr_attrib_v2_t))) {
+    if (isChanged) {
         mNewAtt   = *att;
         updateAtt = true;
         waitSignal(att->sync.sync_mode);
@@ -120,7 +127,15 @@ XCamReturn RkAiqAbayertnrV2HandleInt::setStrength(rk_aiq_bayertnr_strength_v2_t 
     XCamReturn ret = XCAM_RETURN_NO_ERROR;
     mCfgMutex.lock();
 
-    if (0 != memcmp(&mCurStrength, pStrength, sizeof(mCurStrength))) {
+    bool isChanged = false;
+    if (pStrength->sync.sync_mode == RK_AIQ_UAPI_MODE_ASYNC && \
+        memcmp(&mNewStrength, pStrength, sizeof(*pStrength)))
+        isChanged = true;
+    else if (pStrength->sync.sync_mode != RK_AIQ_UAPI_MODE_ASYNC && \
+             memcmp(&mCurStrength, pStrength, sizeof(*pStrength)))
+        isChanged = true;
+
+    if (isChanged) {
         mNewStrength   = *pStrength;
         updateStrength = true;
         waitSignal(pStrength->sync.sync_mode);
@@ -139,15 +154,15 @@ XCamReturn RkAiqAbayertnrV2HandleInt::getStrength(rk_aiq_bayertnr_strength_v2_t 
 
     if(pStrength->sync.sync_mode == RK_AIQ_UAPI_MODE_SYNC) {
         mCfgMutex.lock();
-        rk_aiq_uapi_abayertnrV2_GetStrength(mAlgoCtx, &pStrength->percent);
+        rk_aiq_uapi_abayertnrV2_GetStrength(mAlgoCtx, pStrength);
         pStrength->sync.done = true;
         mCfgMutex.unlock();
     } else {
         if(updateStrength) {
-            pStrength->percent = mNewStrength.percent;
+            *pStrength = mNewStrength;
             pStrength->sync.done = false;
         } else {
-            rk_aiq_uapi_abayertnrV2_GetStrength(mAlgoCtx, &pStrength->percent);
+            rk_aiq_uapi_abayertnrV2_GetStrength(mAlgoCtx, pStrength);
             pStrength->sync.done = true;
         }
     }

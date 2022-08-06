@@ -1424,6 +1424,7 @@ CamHwIsp20::init(const char* sns_ent_name)
     mRawProcUnit->set_devices(mIspCoreDev, this);
     mRawCapUnit->set_devices(mIspCoreDev, this, mRawProcUnit.ptr());
     mRawProcUnit->setCamPhyId(mCamPhyId);
+    mRawCapUnit->setCamPhyId(mCamPhyId);
     //isp stats
     mIspStatsStream = new RKStatsStream(mIspStatsDev, ISP_POLL_3A_STATS);
     mIspStatsStream->setPollCallback (this);
@@ -1432,6 +1433,7 @@ CamHwIsp20::init(const char* sns_ent_name)
         mIspStatsStream->set_focus_handle_dev(lensHw);
     }
     mIspStatsStream->set_rx_handle_dev(this);
+    mIspStatsStream->setCamPhyId(mCamPhyId);
     //luma
     if (mIspLumaDev.ptr()) {
         mLumaStream = new RKStream(mIspLumaDev, ISP_POLL_LUMA);
@@ -1439,6 +1441,7 @@ CamHwIsp20::init(const char* sns_ent_name)
     }
     //isp params
     mIspParamStream = new RKStream(mIspParamsDev, ISP_POLL_PARAMS);
+    mIspParamStream->setCamPhyId(mCamPhyId);
 
     if (s_info->flash_num) {
         mFlashLight = new FlashLightHw(s_info->module_flash_dev_name, s_info->flash_num);
@@ -2154,6 +2157,7 @@ CamHwIsp20::get_sensor_pdafinfo(rk_sensor_full_info_t *sensor_info,
                                 rk_sensor_pdaf_info_t *pdaf_info) {
     XCamReturn ret = XCAM_RETURN_NO_ERROR;
     struct rkmodule_channel_info channel;
+    memset(&channel, 0, sizeof(struct rkmodule_channel_info));
 
     V4l2SubDevice vdev(sensor_info->device_name.c_str());
     ret = vdev.open();
@@ -2343,7 +2347,7 @@ CamHwIsp20::prepare(uint32_t width, uint32_t height, int mode, int t_delay, int 
     }
 
     _isp_stream_status = ISP_STREAM_STATUS_INVALID;
-    if (mIsGroupMode) {
+    if (/*mIsGroupMode*/true) {
         mIspStremEvtTh = new RkStreamEventPollThread("StreamEvt",
                 new V4l2Device (s_info->isp_info->input_params_path),
                 this);
@@ -2466,18 +2470,23 @@ CamHwIsp20::start()
     }
 
     // set inital params
-    ret = mParamsAssembler->start();
-    if (ret < 0) {
-        LOGE_CAMHW_SUBM(ISP20HW_SUBM, "params assembler start err: %d\n", ret);
-    }
+    if (mParamsAssembler.ptr()) {
+        mParamsAssembler->setCamPhyId(mCamPhyId);
+        ret = mParamsAssembler->start();
+        if (ret < 0) {
+            LOGE_CAMHW_SUBM(ISP20HW_SUBM, "params assembler start err: %d\n", ret);
+        }
 
-    if (mParamsAssembler->ready())
-        setIspConfig();
+        if (mParamsAssembler->ready())
+            setIspConfig();
+    }
 
     if (mLumaStream.ptr())
         mLumaStream->start();
-    if (mIspSofStream.ptr())
+    if (mIspSofStream.ptr()) {
+        mIspSofStream->setCamPhyId(mCamPhyId);
         mIspSofStream->start();
+    }
 
     if (_linked_to_isp)
         mIspCoreDev->subscribe_event(V4L2_EVENT_FRAME_SYNC);
@@ -4588,18 +4597,21 @@ CamHwIsp20::getModuleCtl(rk_aiq_module_id_t moduleId, bool &en)
 
 XCamReturn CamHwIsp20::notify_capture_raw()
 {
-    return CaptureRawData::getInstance().notify_capture_raw();
-
-    return XCAM_RETURN_ERROR_FAILED;
+    if (mRawProcUnit.ptr())
+        return mRawProcUnit->notify_capture_raw();
+    else
+        return XCAM_RETURN_ERROR_FAILED;
 }
 
 XCamReturn CamHwIsp20::capture_raw_ctl(capture_raw_t type, int count, const char* capture_dir, char* output_dir)
 {
-    if (type == CAPTURE_RAW_AND_YUV_SYNC)
-        return CaptureRawData::getInstance().capture_raw_ctl(type);
-    else if (type == CAPTURE_RAW_SYNC)
-        return CaptureRawData::getInstance().capture_raw_ctl(type, count, capture_dir, output_dir);
+    if (!mRawProcUnit.ptr())
+        return XCAM_RETURN_ERROR_FAILED;
 
+    if (type == CAPTURE_RAW_AND_YUV_SYNC)
+        return mRawProcUnit->capture_raw_ctl(type);
+    else if (type == CAPTURE_RAW_SYNC)
+        return mRawProcUnit->capture_raw_ctl(type, count, capture_dir, output_dir);
     return XCAM_RETURN_ERROR_FAILED;
 }
 
@@ -5076,9 +5088,14 @@ CamHwIsp20::handleIsp3aReslut(cam3aResultList& list)
 
     // set all ready params to drv
     while (_state == CAM_HW_STATE_STARTED &&
-            mParamsAssembler->ready()) {
-        if (setIspConfig() != XCAM_RETURN_NO_ERROR)
+           mParamsAssembler->ready()) {
+        SmartLock locker(_stop_cond_mutex);
+        if (_isp_stream_status != ISP_STREAM_STATUS_STREAM_OFF) {
+            if (setIspConfig() != XCAM_RETURN_NO_ERROR)
+                break;
+        } else {
             break;
+        }
     }
 
     EXIT_CAMHW_FUNCTION();
@@ -5092,12 +5109,11 @@ CamHwIsp20::dispatchResult(SmartPtr<cam3aResult> result)
     if (!result.ptr())
         return XCAM_RETURN_ERROR_PARAM;
 
-    LOGD("%s enter, msg type(0x%x)", __FUNCTION__, result->getType());
+    LOG1("%s enter, msg type(0x%x)", __FUNCTION__, result->getType());
     switch (result->getType())
     {
     case RESULT_TYPE_EXPOSURE_PARAM:
     {
-        LOGD_CAMHW_SUBM(ISP20HW_SUBM, "RESULT_TYPE_EXPOSURE");
         SmartPtr<RkAiqExpParamsProxy> exp = result.dynamic_cast_ptr<RkAiqExpParamsProxy>();
         ret = setExposureParams(exp);
         if (ret)
@@ -5614,13 +5630,30 @@ void CamHwIsp20::notify_isp_stream_status(bool on)
             LOGE_CAMHW_SUBM(ISP20HW_SUBM, "hdr mipi start err: %d\n", ret);
         }
         _isp_stream_status = ISP_STREAM_STATUS_STREAM_ON;
+
+        if (mHwResLintener) {
+            SmartPtr<Isp20Evt> ispEvt =
+                new Isp20Evt(this, mSensorDev.dynamic_cast_ptr<SensorHw>());
+
+            SmartPtr<V4l2Device> dev(NULL);
+            SmartPtr<Isp20EvtBuffer> ispEvtbuf =
+                new Isp20EvtBuffer(ispEvt, dev);
+
+            ispEvtbuf->_buf_type = VICAP_STREAM_ON_EVT;
+            SmartPtr<VideoBuffer> vbuf = ispEvtbuf.dynamic_cast_ptr<VideoBuffer>();
+
+            mHwResLintener->hwResCb(vbuf);
+        }
     } else {
         LOGI_CAMHW_SUBM(ISP20HW_SUBM, "camId:%d, %s off", mCamPhyId, __func__);
         _isp_stream_status = ISP_STREAM_STATUS_STREAM_OFF;
         // if CIFISP_V4L2_EVENT_STREAM_STOP event is listened, isp driver
         // will wait isp params streaming off
-        if (mIspParamStream.ptr())
-            mIspParamStream->stop();
+        {
+            SmartLock locker(_stop_cond_mutex);
+            if (mIspParamStream.ptr())
+                mIspParamStream->stop();
+        }
         hdr_mipi_stop();
         LOGI_CAMHW_SUBM(ISP20HW_SUBM, "camId:%d, %s off done", mCamPhyId, __func__);
     }

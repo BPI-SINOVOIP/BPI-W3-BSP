@@ -9,19 +9,29 @@ inputDialog::inputDialog(QWidget *parent) : QDialog(parent),
 {
     const QRect availableGeometry = QApplication::desktop()->availableGeometry();
     QVBoxLayout *mainLayout = new QVBoxLayout;
+
     QFont font;
+    QFont fontname;
+    QFont fontedit;
+    QFont fontbutton;
     font.setPixelSize(availableGeometry.height()/20);
+    fontname.setPixelSize(availableGeometry.height()/30);
+    fontedit.setPixelSize(availableGeometry.height()/15);
+    fontbutton.setPixelSize(availableGeometry.height()/25);
     nameLabel = new QLabel(this);
-    nameLabel->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
-    nameLabel->setFont(font);
+    nameLabel->setAlignment(Qt::AlignCenter | Qt::AlignVCenter);
+    nameLabel->setFont(fontname);
     wordEdit = new QLineEdit(this);
-    wordEdit->setFont(font);
-    yBtn.setFont(font);
-    nBtn.setFont(font);
+    wordEdit->setFont(fontedit);
+    yBtn.setFont(fontbutton);
+    nBtn.setFont(fontbutton);
 
     QHBoxLayout *buttonlayout = new QHBoxLayout;
     buttonlayout->addWidget(&yBtn);
     buttonlayout->addWidget(&nBtn);
+
+    buttonlayout->setStretchFactor(&yBtn,1);
+    buttonlayout->setStretchFactor(&nBtn,1);
 
     mainLayout->addWidget(nameLabel);
     mainLayout->addSpacing(5);

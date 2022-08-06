@@ -19,6 +19,7 @@
 #include "mpp_log.h"
 #include "mpp_env.h"
 #include "mpp_info.h"
+#include "mpp_compat.h"
 
 int main()
 {
@@ -32,6 +33,8 @@ int main()
 
     show_mpp_version();
     mpp_env_set_u32("mpp_show_history", 0);
+
+    mpp_compat_show();
 
     return 0;
 }

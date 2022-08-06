@@ -14,7 +14,7 @@ RKAIQ_BEGIN_DECLARE
 
 Asharp4_result_t sharp_select_params_by_ISO_V4(RK_SHARP_Params_V4_t *pParams, RK_SHARP_Params_V4_Select_t *pSelect, Asharp4_ExpInfo_t *pExpInfo);
 
-Asharp4_result_t sharp_fix_transfer_V4(RK_SHARP_Params_V4_Select_t *pSelect, RK_SHARP_Fix_V4_t* pFix, float fPercent);
+Asharp4_result_t sharp_fix_transfer_V4(RK_SHARP_Params_V4_Select_t *pSelect, RK_SHARP_Fix_V4_t* pFix, rk_aiq_sharp_strength_v4_t *pStrength);
 
 Asharp4_result_t sharp_fix_printf_V4(RK_SHARP_Fix_V4_t  * pFix);
 

@@ -55,7 +55,12 @@ XCamReturn sample_adrc_module(const void *arg)
 
     drc_attrib_t attr;
     const demo_context_t *demo_ctx = (demo_context_t *)arg;
-    const rk_aiq_sys_ctx_t* ctx = (const rk_aiq_sys_ctx_t*)(demo_ctx->aiq_ctx);
+    const rk_aiq_sys_ctx_t* ctx ;
+    if (demo_ctx->camGroup) {
+        ctx = (rk_aiq_sys_ctx_t*)(demo_ctx->camgroup_ctx);
+    } else {
+        ctx = (rk_aiq_sys_ctx_t*)(demo_ctx->aiq_ctx);
+    }
 
     do {
         sample_adrc_usage ();

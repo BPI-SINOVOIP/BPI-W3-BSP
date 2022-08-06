@@ -30,8 +30,9 @@
 #include "mpp_enc_debug.h"
 #include "mpp_enc_cfg_impl.h"
 #include "mpp_enc_impl.h"
+#include "mpp_enc_cb_param.h"
 
-typedef union EncTaskWait_u {
+typedef union EncAsyncWait_u {
     RK_U32          val;
     struct {
         RK_U32      enc_frm_in      : 1;   // 0x0001 MPP_ENC_NOTIFY_FRAME_ENQUEUE
@@ -39,7 +40,7 @@ typedef union EncTaskWait_u {
         RK_U32      reserv0004      : 1;   // 0x0004
         RK_U32      enc_pkt_out     : 1;   // 0x0008 MPP_ENC_NOTIFY_PACKET_ENQUEUE
 
-        RK_U32      reserv0010      : 1;   // 0x0010
+        RK_U32      task_hnd        : 1;   // 0x0010
         RK_U32      reserv0020      : 1;   // 0x0020
         RK_U32      reserv0040      : 1;   // 0x0040
         RK_U32      reserv0080      : 1;   // 0x0080
@@ -54,50 +55,7 @@ typedef union EncTaskWait_u {
         RK_U32      reserv4000      : 1;   // 0x4000
         RK_U32      reserv8000      : 1;   // 0x8000
     };
-} EncTaskWait;
-
-/* encoder internal work flow */
-typedef union EncTaskStatus_u {
-    RK_U32          val;
-    struct {
-        RK_U32      task_in_rdy         : 1;
-        RK_U32      task_out_rdy        : 1;
-
-        RK_U32      frm_pkt_rdy         : 1;
-
-        RK_U32      hal_task_reset_rdy  : 1;    // reset hal task to start
-        RK_U32      rc_check_frm_drop   : 1;    // rc  stage
-        RK_U32      pkt_buf_rdy         : 1;    // prepare pkt buf
-
-        RK_U32      enc_start           : 1;    // enc stage
-        RK_U32      refs_force_update   : 1;    // enc stage
-        RK_U32      low_delay_again     : 1;    // enc stage low delay output again
-
-        RK_U32      enc_backup          : 1;    // enc stage
-        RK_U32      enc_restore         : 1;    // reenc flow start point
-        RK_U32      enc_proc_dpb        : 1;    // enc stage
-        RK_U32      rc_frm_start        : 1;    // rc  stage
-        RK_U32      check_type_reenc    : 1;    // flow checkpoint if reenc -> enc_restore
-        RK_U32      enc_proc_hal        : 1;    // enc stage
-        RK_U32      hal_get_task        : 1;    // hal stage
-        RK_U32      rc_hal_start        : 1;    // rc  stage
-        RK_U32      hal_gen_reg         : 1;    // hal stage
-        RK_U32      hal_start           : 1;    // hal stage
-        RK_U32      hal_wait            : 1;    // hal stage NOTE: special in low delay mode
-        RK_U32      rc_hal_end          : 1;    // rc  stage
-        RK_U32      hal_ret_task        : 1;    // hal stage
-        RK_U32      enc_update_hal      : 1;    // enc stage
-        RK_U32      rc_frm_end          : 1;    // rc  stage
-        RK_U32      check_rc_reenc      : 1;    // flow checkpoint if reenc -> enc_restore
-    };
-} EncTaskStatus;
-
-typedef struct EncTask_t {
-    RK_S32          seq_idx;
-    EncTaskStatus   status;
-    EncTaskWait     wait;
-    HalEncTask      info;
-} EncTask;
+} EncAsyncWait;
 
 static RK_U8 uuid_version[16] = {
     0x3d, 0x07, 0x6d, 0x45, 0x73, 0x0f, 0x41, 0xa8,
@@ -227,12 +185,12 @@ static void check_hal_task_pkt_len(HalEncTask *task, const char *reason)
     }
 }
 
-static MPP_RET check_enc_task_wait(MppEncImpl *enc, EncTask *task)
+static MPP_RET check_enc_task_wait(MppEncImpl *enc, EncAsyncWait *wait)
 {
     MPP_RET ret = MPP_OK;
     RK_U32 notify = enc->notify_flag;
     RK_U32 last_wait = enc->status_flag;
-    RK_U32 curr_wait = task->wait.val;
+    RK_U32 curr_wait = wait->val;
     RK_U32 wait_chg  = last_wait & (~curr_wait);
 
     do {
@@ -253,7 +211,7 @@ static MPP_RET check_enc_task_wait(MppEncImpl *enc, EncTask *task)
     enc_dbg_status("%p %08x -> %08x [%08x] notify %08x -> %s\n", enc,
                    last_wait, curr_wait, wait_chg, notify, (ret) ? ("wait") : ("work"));
 
-    enc->status_flag = task->wait.val;
+    enc->status_flag = wait->val;
     enc->notify_flag = 0;
 
     if (ret) {
@@ -408,20 +366,163 @@ static RK_S32 check_hal_info_update(MpiCmd cmd)
     return 0;
 }
 
-static RK_S32 check_low_delay_part_mode(MppEncImpl *enc)
+static void check_low_delay_part_mode(MppEncImpl *enc)
 {
     MppEncCfgSet *cfg = &enc->cfg;
 
-    if (!cfg->base.low_delay)
-        return 0;
+    enc->low_delay_part_mode = 0;
+
+    if (!(cfg->base.low_delay))
+        return;
 
     if (!cfg->split.split_mode)
-        return 0;
+        return;
 
     if (mpp_enc_hal_check_part_mode(enc->enc_hal))
-        return 0;
+        return;
 
-    return 1;
+    enc->low_delay_part_mode = 1;
+}
+
+static void check_low_delay_output(MppEncImpl *enc)
+{
+    MppEncCfgSet *cfg = &enc->cfg;
+
+    enc->low_delay_output = 0;
+
+    if (!cfg->split.split_mode || !cfg->split.split_out)
+        return;
+
+    if (cfg->rc.max_reenc_times) {
+        mpp_log_f("can not enable lowdelay output with reencode enabled\n");
+        cfg->rc.max_reenc_times = 0;
+    }
+
+    if (cfg->rc.drop_mode) {
+        mpp_log_f("can not enable lowdelay output with drop mode enabled\n");
+        cfg->rc.drop_mode = MPP_ENC_RC_DROP_FRM_DISABLED;
+    }
+
+    if (cfg->rc.super_mode) {
+        mpp_log_f("can not enable lowdelay output with super frame mode enabled\n");
+        cfg->rc.super_mode = MPP_ENC_RC_SUPER_FRM_NONE;
+    }
+
+    enc->low_delay_output = 1;
+}
+
+MPP_RET mpp_enc_callback(const char *caller, void *ctx, RK_S32 cmd, void *param)
+{
+    MppEncImpl *enc = (MppEncImpl *)ctx;
+    EncOutParam *out = (EncOutParam *)param;
+    HalEncTask *task = NULL;
+    MppPacket packet = NULL;
+    MppPacketImpl *impl = NULL;
+    RK_U8 *last_pos = NULL;
+    RK_S32 slice_length = 0;
+    RK_U32 part_first = 0;
+    MPP_RET ret = MPP_OK;
+    Mpp *mpp = (Mpp*)enc->mpp;
+    (void) caller;
+
+    if (!enc->low_delay_output)
+        return ret;
+
+    task = (HalEncTask *)out->task;
+    mpp_assert(task);
+    part_first = task->part_first;
+    packet = task->packet;
+
+    if (part_first) {
+        task->part_pos = (RK_U8 *)mpp_packet_get_pos(packet);
+        task->part_length = mpp_packet_get_length(packet);
+
+        enc_dbg_slice("first slice previous length %d\n", task->part_length);
+        mpp_assert(task->part_pos);
+        task->part_first = 0;
+        slice_length = task->part_length;
+    }
+
+    last_pos = (RK_U8 *)task->part_pos;
+    slice_length += out->length;
+
+    enc_dbg_slice("last_pos %p len %d:%d\n", last_pos, out->length, slice_length);
+
+    switch (cmd) {
+    case ENC_OUTPUT_FINISH : {
+        enc_dbg_slice("slice pos %p len %5d last\n", last_pos, slice_length);
+
+        impl = (MppPacketImpl *)packet;
+
+        impl->pos = last_pos;
+        impl->length = slice_length;
+        impl->status.val = 0;
+        impl->status.partition = 1;
+        impl->status.soi = part_first;
+        impl->status.eoi = 1;
+
+        task->part_pos += slice_length;
+        task->part_length += slice_length;
+        task->part_count++;
+        task->part_last = 1;
+    } break;
+    case ENC_OUTPUT_SLICE : {
+        enc_dbg_slice("slice pos %p len %5d\n", last_pos, slice_length);
+
+        mpp_packet_new((MppPacket *)&impl);
+        mpp_assert(impl);
+
+        /* copy the source data */
+        memcpy(impl, packet, sizeof(*impl));
+
+        impl->pos = last_pos;
+        impl->length = slice_length;
+        impl->status.val = 0;
+        impl->status.partition = 1;
+        impl->status.soi = part_first;
+        impl->status.eoi = 0;
+
+        if (impl->buffer)
+            mpp_buffer_inc_ref(impl->buffer);
+
+        mpp_meta_get(&impl->meta);
+        if (impl->meta) {
+            EncFrmStatus *frm = &task->rc_task->frm;
+
+            mpp_meta_set_s32(impl->meta, KEY_OUTPUT_INTRA, frm->is_intra);
+        }
+
+        enc_dbg_detail("pkt %d new pos %p len %d\n", task->part_count,
+                       last_pos, slice_length);
+
+        task->part_pos += slice_length;
+        task->part_length += slice_length;
+        task->part_count++;
+        if (!mpp->mEncAyncProc) {
+            mpp_task_meta_set_packet(enc->task_out, KEY_OUTPUT_PACKET, impl);
+            mpp_port_enqueue(enc->output, enc->task_out);
+
+            ret = mpp_port_poll(enc->output, MPP_POLL_BLOCK);
+            mpp_assert(ret > 0);
+            ret = mpp_port_dequeue(enc->output, &enc->task_out);
+            mpp_assert(enc->task_out);
+        } else {
+            if (mpp->mPktOut) {
+                mpp_list *pkt_out = mpp->mPktOut;
+
+                AutoMutex autoLock(pkt_out->mutex());
+
+                pkt_out->add_at_tail(&impl, sizeof(impl));
+                mpp->mPacketPutCount++;
+                pkt_out->signal();
+            }
+        }
+    } break;
+    default : {
+    } break;
+    }
+
+    return ret;
 }
 
 MPP_RET mpp_enc_proc_rc_cfg(MppCodingType coding, MppEncRcCfg *dst, MppEncRcCfg *src)
@@ -675,6 +776,35 @@ MPP_RET mpp_enc_proc_hw_cfg(MppEncHwCfg *dst, MppEncHwCfg *src)
     return ret;
 }
 
+MPP_RET mpp_enc_proc_tune_cfg(MppEncFineTuneCfg *dst, MppEncFineTuneCfg *src)
+{
+    MPP_RET ret = MPP_OK;
+    RK_U32 change = src->change;
+
+    if (change) {
+        MppEncFineTuneCfg bak = *dst;
+
+        if (change & MPP_ENC_TUNE_CFG_CHANGE_SCENE_MODE)
+            dst->scene_mode = src->scene_mode;
+
+        if (dst->scene_mode < MPP_ENC_SCENE_MODE_DEFAULT ||
+            dst->scene_mode >= MPP_ENC_SCENE_MODE_BUTT) {
+            mpp_err("invalid scene mode %d not in range [%d:%d]\n", dst->scene_mode,
+                    MPP_ENC_SCENE_MODE_DEFAULT, MPP_ENC_SCENE_MODE_BUTT - 1);
+            ret = MPP_ERR_VALUE;
+        }
+
+        dst->change |= change;
+
+        if (ret) {
+            mpp_err_f("failed to accept new tuning config\n");
+            *dst = bak;
+        }
+    }
+
+    return ret;
+}
+
 MPP_RET mpp_enc_proc_cfg(MppEncImpl *enc, MpiCmd cmd, void *param)
 {
     MPP_RET ret = MPP_OK;
@@ -705,6 +835,12 @@ MPP_RET mpp_enc_proc_cfg(MppEncImpl *enc, MpiCmd cmd, void *param)
         if (src->hw.change) {
             ret = mpp_enc_proc_hw_cfg(&enc->cfg.hw, &src->hw);
             src->hw.change = 0;
+        }
+
+        /* process hardware cfg at mpp_enc module */
+        if (src->tune.change) {
+            ret = mpp_enc_proc_tune_cfg(&enc->cfg.tune, &src->tune);
+            src->tune.change = 0;
         }
 
         /* Then process the rest config */
@@ -879,7 +1015,8 @@ MPP_RET mpp_enc_proc_cfg(MppEncImpl *enc, MpiCmd cmd, void *param)
     if (check_hal_info_update(cmd))
         enc->hal_info_updated = 0;
 
-    enc->low_delay_part_mode = check_low_delay_part_mode(enc);
+    check_low_delay_part_mode(enc);
+    check_low_delay_output(enc);
 
     return ret;
 }
@@ -1201,19 +1338,93 @@ static MPP_RET mpp_enc_check_pkt_buf(MppEncImpl *enc)
     return MPP_OK;
 }
 
-static MPP_RET mpp_enc_normal(Mpp *mpp, EncTask *task)
+static MPP_RET mpp_enc_proc_two_pass(Mpp *mpp, EncAsyncTaskInfo *task)
+{
+    MppEncImpl *enc = (MppEncImpl *)mpp->mEnc;
+    MPP_RET ret = MPP_OK;
+
+    if (mpp_enc_refs_next_frm_is_intra(enc->refs)) {
+        EncRcTask *rc_task = &task->rc;
+        EncFrmStatus frm_bak = rc_task->frm;
+        EncRcTaskInfo rc_info = rc_task->info;
+        EncCpbStatus *cpb = &rc_task->cpb;
+        EncFrmStatus *frm = &rc_task->frm;
+        HalEncTask *hal_task = &task->task;
+        EncImpl impl = enc->impl;
+        MppEncHal hal = enc->enc_hal;
+        MppPacket packet = hal_task->packet;
+        RK_S32 task_len = hal_task->length;
+        RK_S32 hw_len = hal_task->hw_length;
+        RK_S32 pkt_len = mpp_packet_get_length(packet);
+
+        enc_dbg_detail("task %d two pass mode enter\n", frm->seq_idx);
+        rc_task->info = enc->rc_info_prev;
+
+        enc_dbg_detail("task %d enc proc dpb\n", frm->seq_idx);
+        mpp_enc_refs_get_cpb_pass1(enc->refs, cpb);
+
+        enc_dbg_frm_status("frm %d start ***********************************\n", cpb->curr.seq_idx);
+        ENC_RUN_FUNC2(enc_impl_proc_dpb, impl, hal_task, mpp, ret);
+
+        enc_dbg_detail("task %d enc proc hal\n", frm->seq_idx);
+        ENC_RUN_FUNC2(enc_impl_proc_hal, impl, hal_task, mpp, ret);
+
+        enc_dbg_detail("task %d hal get task\n", frm->seq_idx);
+        ENC_RUN_FUNC2(mpp_enc_hal_get_task, hal, hal_task, mpp, ret);
+
+        enc_dbg_detail("task %d hal generate reg\n", frm->seq_idx);
+        ENC_RUN_FUNC2(mpp_enc_hal_gen_regs, hal, hal_task, mpp, ret);
+
+        enc_dbg_detail("task %d hal start\n", frm->seq_idx);
+        ENC_RUN_FUNC2(mpp_enc_hal_start, hal, hal_task, mpp, ret);
+
+        enc_dbg_detail("task %d hal wait\n", frm->seq_idx);
+        ENC_RUN_FUNC2(mpp_enc_hal_wait,  hal, hal_task, mpp, ret);
+
+        enc_dbg_detail("task %d hal ret task\n", frm->seq_idx);
+        ENC_RUN_FUNC2(mpp_enc_hal_ret_task, hal, hal_task, mpp, ret);
+
+        //recover status & packet
+        mpp_packet_set_length(packet, pkt_len);
+        hal_task->hw_length = hw_len;
+        hal_task->length = task_len;
+
+        *frm = frm_bak;
+        rc_task->info = rc_info;
+
+        enc_dbg_detail("task %d two pass mode leave\n", frm->seq_idx);
+    }
+TASK_DONE:
+    return ret;
+}
+
+static void mpp_enc_rc_info_backup(MppEncImpl *enc, EncAsyncTaskInfo *task)
+{
+    if (!enc->support_hw_deflicker || !enc->cfg.rc.debreath_en)
+        return;
+
+    enc->rc_info_prev = task->rc.info;
+}
+
+static MPP_RET mpp_enc_normal(Mpp *mpp, EncAsyncTaskInfo *task)
 {
     MppEncImpl *enc = (MppEncImpl *)mpp->mEnc;
     EncImpl impl = enc->impl;
     MppEncHal hal = enc->enc_hal;
-    EncRcTask *rc_task = &enc->rc_task;
+    EncRcTask *rc_task = &task->rc;
     MppEncHeaderStatus *hdr_status = &enc->hdr_status;
     EncCpbStatus *cpb = &rc_task->cpb;
     EncFrmStatus *frm = &rc_task->frm;
-    HalEncTask *hal_task = &task->info;
+    HalEncTask *hal_task = &task->task;
     MppFrame frame = hal_task->frame;
     MppPacket packet = hal_task->packet;
     MPP_RET ret = MPP_OK;
+
+    if (enc->support_hw_deflicker && enc->cfg.rc.debreath_en) {
+        ret = mpp_enc_proc_two_pass(mpp, task);
+        if (ret)
+            return ret;
+    }
 
     enc_dbg_detail("task %d enc proc dpb\n", frm->seq_idx);
     mpp_enc_refs_get_cpb(enc->refs, cpb);
@@ -1312,13 +1523,13 @@ TASK_DONE:
     return ret;
 }
 
-static MPP_RET mpp_enc_reenc_simple(Mpp *mpp, EncTask *task)
+static MPP_RET mpp_enc_reenc_simple(Mpp *mpp, EncAsyncTaskInfo *task)
 {
     MppEncImpl *enc = (MppEncImpl *)mpp->mEnc;
     MppEncHal hal = enc->enc_hal;
-    EncRcTask *rc_task = &enc->rc_task;
+    EncRcTask *rc_task = &task->rc;
     EncFrmStatus *frm = &rc_task->frm;
-    HalEncTask *hal_task = &task->info;
+    HalEncTask *hal_task = &task->task;
     MPP_RET ret = MPP_OK;
 
     enc_dbg_func("enter\n");
@@ -1357,13 +1568,13 @@ TASK_DONE:
     return ret;
 }
 
-static MPP_RET mpp_enc_reenc_drop(Mpp *mpp, EncTask *task)
+static MPP_RET mpp_enc_reenc_drop(Mpp *mpp, EncAsyncTaskInfo *task)
 {
     MppEncImpl *enc = (MppEncImpl *)mpp->mEnc;
-    EncRcTask *rc_task = &enc->rc_task;
+    EncRcTask *rc_task = &task->rc;
     EncRcTaskInfo *info = &rc_task->info;
     EncFrmStatus *frm = &rc_task->frm;
-    HalEncTask *hal_task = &task->info;
+    HalEncTask *hal_task = &task->task;
     MPP_RET ret = MPP_OK;
 
     enc_dbg_func("enter\n");
@@ -1380,15 +1591,15 @@ TASK_DONE:
     return ret;
 }
 
-static MPP_RET mpp_enc_reenc_force_pskip(Mpp *mpp, EncTask *task)
+static MPP_RET mpp_enc_reenc_force_pskip(Mpp *mpp, EncAsyncTaskInfo *task)
 {
     MppEncImpl *enc = (MppEncImpl *)mpp->mEnc;
     EncImpl impl = enc->impl;
-    MppEncRefFrmUsrCfg *frm_cfg = &enc->frm_cfg;
-    EncRcTask *rc_task = &enc->rc_task;
+    MppEncRefFrmUsrCfg *frm_cfg = &task->usr;
+    EncRcTask *rc_task = &task->rc;
     EncCpbStatus *cpb = &rc_task->cpb;
     EncFrmStatus *frm = &rc_task->frm;
-    HalEncTask *hal_task = &task->info;
+    HalEncTask *hal_task = &task->task;
     MPP_RET ret = MPP_OK;
 
     enc_dbg_func("enter\n");
@@ -1418,10 +1629,10 @@ TASK_DONE:
     return ret;
 }
 
-static void mpp_enc_terminate_task(MppEncImpl *enc, EncTask *task)
+static void mpp_enc_terminate_task(MppEncImpl *enc, EncAsyncTaskInfo *task)
 {
-    HalEncTask *hal_task = &task->info;
-    EncFrmStatus *frm = &enc->rc_task.frm;
+    HalEncTask *hal_task = &task->task;
+    EncFrmStatus *frm = &task->rc.frm;
 
     mpp_stopwatch_record(hal_task->stopwatch, "encode task done");
 
@@ -1451,15 +1662,14 @@ static void mpp_enc_terminate_task(MppEncImpl *enc, EncTask *task)
     task->status.val = 0;
 }
 
-static MPP_RET try_get_enc_task(MppEncImpl *enc, EncTask *task)
+static MPP_RET try_get_enc_task(MppEncImpl *enc, EncAsyncTaskInfo *task, EncAsyncWait *wait)
 {
-    EncRcTask *rc_task = &enc->rc_task;
+    EncRcTask *rc_task = &task->rc;
     EncFrmStatus *frm = &rc_task->frm;
-    MppEncRefFrmUsrCfg *frm_cfg = &enc->frm_cfg;
+    MppEncRefFrmUsrCfg *frm_cfg = &task->usr;
     MppEncHeaderStatus *hdr_status = &enc->hdr_status;
-    EncTaskStatus *status = &task->status;
-    EncTaskWait *wait = &task->wait;
-    HalEncTask *hal_task = &task->info;
+    EncAsyncStatus *status = &task->status;
+    HalEncTask *hal_task = &task->task;
     MppStopwatch stopwatch = NULL;
     MPP_RET ret = MPP_OK;
 
@@ -1506,7 +1716,7 @@ static MPP_RET try_get_enc_task(MppEncImpl *enc, EncTask *task)
          */
         mpp_task_meta_get_frame (enc->task_in, KEY_INPUT_FRAME,  &enc->frame);
         mpp_task_meta_get_packet(enc->task_in, KEY_OUTPUT_PACKET, &enc->packet);
-        mpp_task_meta_get_buffer(enc->task_in, KEY_MOTION_INFO, &hal_task->mv_info);
+        mpp_task_meta_get_buffer(enc->task_in, KEY_MOTION_INFO, &enc->md_info);
 
         enc_dbg_detail("task dequeue done frm %p pkt %p\n", enc->frame, enc->packet);
 
@@ -1528,6 +1738,8 @@ static MPP_RET try_get_enc_task(MppEncImpl *enc, EncTask *task)
     if (!status->hal_task_reset_rdy) {
         reset_hal_enc_task(hal_task);
         reset_enc_rc_task(rc_task);
+        task->usr = enc->frm_cfg;
+        enc->frm_cfg.force_flag = 0;
 
         hal_task->rc_task   = rc_task;
         hal_task->frm_cfg   = frm_cfg;
@@ -1535,6 +1747,7 @@ static MPP_RET try_get_enc_task(MppEncImpl *enc, EncTask *task)
         hal_task->input     = enc->frm_buf;
         hal_task->packet    = enc->packet;
         hal_task->output    = enc->pkt_buf;
+        hal_task->md_info   = enc->md_info;
         hal_task->stopwatch = stopwatch;
 
         frm->seq_idx = task->seq_idx++;
@@ -1548,15 +1761,22 @@ static MPP_RET try_get_enc_task(MppEncImpl *enc, EncTask *task)
         status->rc_check_frm_drop = 1;
         enc_dbg_detail("task %d drop %d\n", frm->seq_idx, frm->drop);
 
+        hal_task->valid = 1;
         // when the frame should be dropped just return empty packet
         if (frm->drop) {
             mpp_stopwatch_record(stopwatch, "invalid on frame rate drop");
-            hal_task->valid = 0;
             hal_task->length = 0;
-            ret = MPP_NOK;
+            hal_task->flags.drop_by_fps = 1;
+            status->enc_start = 1;
+            if (!status->refs_force_update) {
+                if (frm_cfg->force_flag)
+                    mpp_enc_refs_set_usr_cfg(enc->refs, frm_cfg);
+
+                status->refs_force_update = 1;
+            }
+            ret = MPP_OK;
             goto TASK_DONE;
         }
-        hal_task->valid = 1;
     }
 
     // start encoder task process here
@@ -1623,21 +1843,23 @@ TASK_DONE:
     return ret;
 }
 
-static MPP_RET try_proc_low_deley_task(Mpp *mpp, EncTask *task)
+static MPP_RET try_proc_low_deley_task(Mpp *mpp, EncAsyncTaskInfo *task, EncAsyncWait *wait)
 {
     MppEncImpl *enc = (MppEncImpl *)mpp->mEnc;
     EncImpl impl = enc->impl;
     MppEncHal hal = enc->enc_hal;
-    EncRcTask *rc_task = &enc->rc_task;
+    EncRcTask *rc_task = &task->rc;
     MppEncHeaderStatus *hdr_status = &enc->hdr_status;
     EncCpbStatus *cpb = &rc_task->cpb;
     EncFrmStatus *frm = &rc_task->frm;
-    EncTaskStatus *status = &task->status;
-    EncTaskWait *wait = &task->wait;
-    HalEncTask *hal_task = &task->info;
+    EncAsyncStatus *status = &task->status;
+    HalEncTask *hal_task = &task->task;
     MppFrame frame = hal_task->frame;
     MppPacket packet = hal_task->packet;
     MPP_RET ret = MPP_OK;
+
+    if (hal_task->flags.drop_by_fps)
+        goto TASK_DONE;
 
     if (status->low_delay_again)
         goto GET_OUTPUT_TASK;
@@ -1841,19 +2063,23 @@ TASK_DONE:
 
     reset_enc_task(enc);
     status->val = 0;
-    enc->frm_cfg.force_flag = 0;
+    task->usr.force_flag = 0;
 
     return ret;
 }
 
-static MPP_RET try_proc_normal_task(MppEncImpl *enc, EncTask *task)
+static MPP_RET try_proc_normal_task(MppEncImpl *enc, EncAsyncTaskInfo *task)
 {
     Mpp *mpp = (Mpp*)enc->mpp;
-    EncRcTask *rc_task = &enc->rc_task;
+    EncRcTask *rc_task = &task->rc;
     EncFrmStatus *frm = &rc_task->frm;
-    MppEncRefFrmUsrCfg *frm_cfg = &enc->frm_cfg;
-    HalEncTask *hal_task = &task->info;
+    MppEncRefFrmUsrCfg *frm_cfg = &task->usr;
+    HalEncTask *hal_task = &task->task;
+    MppPacket packet = hal_task->packet;
     MPP_RET ret = MPP_OK;
+
+    if (hal_task->flags.drop_by_fps)
+        goto TASK_DONE;
 
     // 17. normal encode
     ENC_RUN_FUNC2(mpp_enc_normal, mpp, task, mpp, ret);
@@ -1877,7 +2103,7 @@ static MPP_RET try_proc_normal_task(MppEncImpl *enc, EncTask *task)
 
         mpp_enc_reenc_simple(mpp, task);
     }
-    enc_dbg_detail("task %d rc enc->frame end\n", frm->seq_idx);
+    enc_dbg_detail("task %d rc frame end\n", frm->seq_idx);
     ENC_RUN_FUNC2(rc_frm_end, enc->rc_ctx, rc_task, mpp, ret);
 
     enc->time_end = mpp_time();
@@ -1894,18 +2120,23 @@ static MPP_RET try_proc_normal_task(MppEncImpl *enc, EncTask *task)
 TASK_DONE:
     mpp_stopwatch_record(hal_task->stopwatch, "encode task done");
 
-    /* setup output packet and meta data */
-    mpp_packet_set_length(enc->packet, hal_task->length);
+    if (!mpp_packet_is_partition(packet)) {
+        /* setup output packet and meta data */
+        mpp_packet_set_length(packet, hal_task->length);
+    }
 
     {
-        MppMeta meta = mpp_packet_get_meta(enc->packet);
+        MppMeta meta = mpp_packet_get_meta(packet);
 
-        if (hal_task->mv_info)
-            mpp_meta_set_buffer(meta, KEY_MOTION_INFO, hal_task->mv_info);
+        if (hal_task->md_info)
+            mpp_meta_set_buffer(meta, KEY_MOTION_INFO, hal_task->md_info);
 
         mpp_meta_set_s32(meta, KEY_OUTPUT_INTRA, frm->is_intra);
         if (rc_task->info.quality_real)
             mpp_meta_set_s32(meta, KEY_ENC_AVERAGE_QP, rc_task->info.quality_real);
+
+        if (mpp->mEncAyncIo)
+            mpp_meta_set_frame(meta, KEY_INPUT_FRAME, enc->frame);
     }
 
     /*
@@ -1915,7 +2146,7 @@ TASK_DONE:
      */
     enc_dbg_detail("task %d enqueue packet pts %lld\n", frm->seq_idx, enc->task_pts);
 
-    mpp_task_meta_set_packet(enc->task_out, KEY_OUTPUT_PACKET, enc->packet);
+    mpp_task_meta_set_packet(enc->task_out, KEY_OUTPUT_PACKET, packet);
     mpp_port_enqueue(enc->output, enc->task_out);
 
     enc_dbg_detail("task %d enqueue frame pts %lld\n", frm->seq_idx, enc->task_pts);
@@ -1923,6 +2154,7 @@ TASK_DONE:
     mpp_task_meta_set_frame(enc->task_in, KEY_INPUT_FRAME, enc->frame);
     mpp_port_enqueue(enc->input, enc->task_in);
 
+    mpp_enc_rc_info_backup(enc, task);
     reset_enc_task(enc);
     task->status.val = 0;
 
@@ -1934,11 +2166,13 @@ void *mpp_enc_thread(void *data)
     Mpp *mpp = (Mpp*)data;
     MppEncImpl *enc = (MppEncImpl *)mpp->mEnc;
     MppThread *thd_enc  = enc->thread_enc;
-    EncTask task;
-    EncTaskStatus *status = &task.status;
+    EncAsyncTaskInfo task;
+    EncAsyncWait wait;
+    EncAsyncStatus *status = &task.status;
     MPP_RET ret = MPP_OK;
 
     memset(&task, 0, sizeof(task));
+    wait.val = 0;
 
     enc->time_base = mpp_time();
 
@@ -1948,7 +2182,7 @@ void *mpp_enc_thread(void *data)
             if (MPP_THREAD_RUNNING != thd_enc->get_status())
                 break;
 
-            if (check_enc_task_wait(enc, &task))
+            if (check_enc_task_wait(enc, &wait))
                 thd_enc->wait();
         }
 
@@ -1975,6 +2209,7 @@ void *mpp_enc_thread(void *data)
 
                 /* NOTE: here will clear change flag of rc and prep cfg */
                 mpp_enc_proc_rc_update(enc);
+                wait.val = 0;
                 continue;
             }
 
@@ -1986,15 +2221,19 @@ void *mpp_enc_thread(void *data)
                     enc->status_flag = 0;
                 }
 
+                enc->frm_cfg.force_flag |= ENC_FORCE_IDR;
+                enc->frm_cfg.force_idr++;
+
                 AutoMutex autolock(thd_enc->mutex(THREAD_CONTROL));
                 enc->reset_flag = 0;
                 sem_post(&enc->enc_reset);
                 enc_dbg_detail("thread reset done\n");
+                wait.val = 0;
                 continue;
             }
 
             // 3. try get a task to encode
-            ret = try_get_enc_task(enc, &task);
+            ret = try_get_enc_task(enc, &task, &wait);
             if (ret)
                 continue;
         }
@@ -2009,7 +2248,7 @@ void *mpp_enc_thread(void *data)
          *       use special low delay path
          */
         if (enc->low_delay_part_mode)
-            try_proc_low_deley_task(mpp, &task);
+            try_proc_low_deley_task(mpp, &task, &wait);
         else
             try_proc_normal_task(enc, &task);
     }
@@ -2017,6 +2256,731 @@ void *mpp_enc_thread(void *data)
     // clear remain task in enc->output port
     release_task_in_port(enc->input);
     release_task_in_port(mpp->mUsrOutPort);
+
+    return NULL;
+}
+
+static void async_task_reset(EncAsyncTaskInfo *task)
+{
+    memset(task, 0, sizeof(*task));
+    task->task.rc_task = &task->rc;
+    task->task.frm_cfg = &task->usr;
+    task->usr.force_flag = 0;
+}
+
+static void async_task_terminate(MppEncImpl *enc, EncAsyncTaskInfo *async)
+{
+    HalEncTask *hal_task = &async->task;
+    EncFrmStatus *frm = &async->rc.frm;
+    Mpp *mpp = (Mpp *)enc->mpp;
+
+    mpp_stopwatch_record(hal_task->stopwatch, "encode task done");
+
+    if (hal_task->packet) {
+        MppPacket pkt = hal_task->packet;
+
+        /* setup output packet and meta data */
+        mpp_packet_set_length(pkt, hal_task->length);
+
+        /*
+         * First return output packet.
+         * Then enqueue task back to input port.
+         * Final user will release the mpp_frame they had input.
+         */
+        enc_dbg_detail("task %d enqueue packet pts %lld\n", frm->seq_idx, enc->task_pts);
+
+        if (mpp->mPktOut) {
+            mpp_list *pkt_out = mpp->mPktOut;
+
+            if (enc->frame) {
+                MppMeta meta = mpp_packet_get_meta(pkt);
+                MppStopwatch stopwatch = mpp_frame_get_stopwatch(enc->frame);
+
+                mpp_stopwatch_record(stopwatch, "encode task terminate");
+
+                mpp_meta_set_frame(meta, KEY_INPUT_FRAME, enc->frame);
+                enc->frame = NULL;
+            }
+
+            AutoMutex autolock(pkt_out->mutex());
+
+            pkt_out->add_at_tail(&pkt, sizeof(pkt));
+            mpp->mPacketPutCount++;
+            pkt_out->signal();
+            mpp_assert(pkt);
+
+            enc_dbg_detail("packet out ready\n");
+        }
+    }
+
+    async_task_reset(async);
+}
+
+static void async_task_skip(MppEncImpl *enc)
+{
+    Mpp *mpp = (Mpp*)enc->mpp;
+    MppStopwatch stopwatch = NULL;
+    MppMeta meta = NULL;
+    MppFrame frm = NULL;
+    MppPacket pkt = NULL;
+
+    mpp->mFrmIn->del_at_head(&frm, sizeof(frm));
+    mpp->mFrameGetCount++;
+
+    mpp_assert(frm);
+
+    enc_dbg_detail("skip input frame start\n");
+
+    stopwatch = mpp_frame_get_stopwatch(frm);
+    mpp_stopwatch_record(stopwatch, "skip task start");
+
+    if (mpp_frame_has_meta(frm)) {
+        meta = mpp_frame_get_meta(frm);
+        if (meta)
+            mpp_meta_get_packet(meta, KEY_OUTPUT_PACKET, &pkt);
+    }
+
+    if (NULL == pkt)
+        mpp_packet_new(&pkt);
+
+    mpp_assert(pkt);
+
+    mpp_packet_set_length(pkt, 0);
+    mpp_packet_set_pts(pkt, mpp_frame_get_pts(frm));
+
+    if (mpp_frame_get_eos(frm))
+        mpp_packet_set_eos(pkt);
+    else
+        mpp_packet_clr_eos(pkt);
+
+    meta = mpp_packet_get_meta(pkt);
+    mpp_assert(meta);
+
+    mpp_meta_set_frame(meta, KEY_INPUT_FRAME, frm);
+
+    if (mpp->mPktOut) {
+        mpp_list *pkt_out = mpp->mPktOut;
+
+        pkt_out->lock();
+        mpp_stopwatch_record(stopwatch, "skip task output");
+        pkt_out->add_at_tail(&pkt, sizeof(pkt));
+        mpp->mPacketPutCount++;
+        pkt_out->signal();
+        pkt_out->unlock();
+    }
+
+    enc_dbg_detail("packet skip ready\n");
+}
+
+static MPP_RET check_async_frm_pkt(EncAsyncTaskInfo *async)
+{
+    HalEncTask *hal_task = &async->task;
+    MppPacket packet = hal_task->packet;
+    MppFrame frame = hal_task->frame;
+
+    hal_task->input = NULL;
+    hal_task->output = NULL;
+
+    if (packet)
+        hal_task->output = mpp_packet_get_buffer(packet);
+    else {
+        mpp_packet_new(&packet);
+        hal_task->packet = packet;
+    }
+
+    if (frame) {
+        RK_S64 pts = mpp_frame_get_pts(frame);
+        MppBuffer frm_buf = mpp_frame_get_buffer(frame);
+
+        hal_task->input = frm_buf;
+
+        mpp_packet_set_pts(packet, pts);
+
+        if (mpp_frame_get_eos(frame))
+            mpp_packet_set_eos(packet);
+        else
+            mpp_packet_clr_eos(packet);
+    }
+
+    return (NULL == frame || NULL == hal_task->input) ? MPP_NOK : MPP_OK;
+}
+
+static MPP_RET check_async_pkt_buf(MppEncImpl *enc, EncAsyncTaskInfo *async)
+{
+    HalEncTask *hal_task = &async->task;
+
+    if (NULL == hal_task->output) {
+        /* NOTE: set buffer w * h * 1.5 to avoid buffer overflow */
+        Mpp *mpp = (Mpp *)enc->mpp;
+        MppEncPrepCfg *prep = &enc->cfg.prep;
+        RK_U32 width  = MPP_ALIGN(prep->width, 16);
+        RK_U32 height = MPP_ALIGN(prep->height, 16);
+        RK_U32 size = (enc->coding == MPP_VIDEO_CodingMJPEG) ?
+                      (width * height * 3 / 2) : (width * height);
+        MppPacketImpl *pkt = (MppPacketImpl *)hal_task->packet;
+        MppBuffer buffer = NULL;
+
+        mpp_assert(size);
+        mpp_buffer_get(mpp->mPacketGroup, &buffer, size);
+        mpp_assert(buffer);
+        enc->pkt_buf = buffer;
+        pkt->data   = mpp_buffer_get_ptr(buffer);
+        pkt->pos    = pkt->data;
+        pkt->size   = mpp_buffer_get_size(buffer);
+        pkt->length = 0;
+        pkt->buffer = buffer;
+        hal_task->output = buffer;
+
+        enc_dbg_detail("create output pkt %p buf %p\n", hal_task->packet, buffer);
+    } else {
+        enc_dbg_detail("output to pkt %p buf %p pos %p length %d\n",
+                       hal_task->packet, hal_task->output,
+                       mpp_packet_get_pos(hal_task->packet),
+                       mpp_packet_get_length(hal_task->packet));
+    }
+
+    return MPP_OK;
+}
+
+static MPP_RET try_get_async_task(MppEncImpl *enc, EncAsyncWait *wait)
+{
+    Mpp *mpp = (Mpp *)enc->mpp;
+    EncAsyncTaskInfo *async = enc->async;
+    EncRcTask *rc_task = NULL;
+    MppEncHeaderStatus *hdr_status = &enc->hdr_status;
+    HalEncTask *hal_task = NULL;
+    EncAsyncStatus *status = NULL;
+    MppStopwatch stopwatch = NULL;
+    MppPacket packet = NULL;
+    MppFrame frame = NULL;
+    RK_U32 seq_idx = 0;
+    MPP_RET ret = MPP_OK;
+
+    if (NULL == enc->hnd) {
+        hal_task_get_hnd(enc->tasks, TASK_IDLE, &enc->hnd);
+        if (enc->hnd) {
+            wait->task_hnd = 0;
+            enc_dbg_detail("get hnd success\n");
+
+            mpp_assert(enc->async == NULL);
+            async = (EncAsyncTaskInfo *)hal_task_hnd_get_data(enc->hnd);
+            async_task_reset(async);
+            enc->async = async;
+        } else {
+            wait->task_hnd = 1;
+            enc_dbg_detail("get hnd failed\n");
+            return MPP_NOK;
+        }
+    }
+
+    mpp_assert(enc->hnd);
+    mpp_assert(enc->async);
+
+    hal_task = &async->task;
+    rc_task = &async->rc;
+    status = &async->status;
+    packet = hal_task->packet;
+    frame = hal_task->frame;
+
+    if (NULL == frame) {
+        if (mpp->mFrmIn) {
+            mpp_list *frm_in = mpp->mFrmIn;
+            AutoMutex autolock(frm_in->mutex());
+
+            if (frm_in->list_size()) {
+                frm_in->del_at_head(&frame, sizeof(frame));
+                frm_in->signal();
+                mpp->mFrameGetCount++;
+
+                mpp_assert(frame);
+
+                status->task_in_rdy = 1;
+                wait->enc_frm_in = 0;
+
+                enc_dbg_detail("get input frame success\n");
+
+                stopwatch = mpp_frame_get_stopwatch(frame);
+                mpp_stopwatch_record(stopwatch, "encode task start");
+
+                hal_task->frame = frame;
+            }
+        }
+
+        if (NULL == frame) {
+            enc_dbg_detail("get input frame failed\n");
+            wait->enc_frm_in = 1;
+            return MPP_NOK;
+        }
+    }
+
+    if (NULL == packet) {
+        if (mpp_frame_has_meta(frame)) {
+            MppMeta meta = mpp_frame_get_meta(frame);
+
+            mpp_meta_get_packet(meta, KEY_OUTPUT_PACKET, &packet);
+        }
+
+        if (packet) {
+            status->task_out_rdy = 1;
+            wait->enc_pkt_out = 0;
+
+            enc_dbg_detail("get output packet success\n");
+
+            hal_task->packet = packet;
+        }
+    }
+
+    mpp_assert(frame);
+
+    stopwatch = mpp_frame_get_stopwatch(frame);
+
+    /*
+     * 6. get frame and packet for one task
+     * If there is no input frame just return empty packet task
+     */
+    if (!status->frm_pkt_rdy) {
+        if (check_async_frm_pkt(async)) {
+            mpp_stopwatch_record(stopwatch, "invalid on check frm pkt");
+            reset_hal_enc_task(hal_task);
+            ret = MPP_NOK;
+            goto TASK_DONE;
+        }
+
+        status->frm_pkt_rdy = 1;
+        hal_task->stopwatch = stopwatch;
+        enc_dbg_detail("task frame packet ready\n");
+
+        async->seq_idx = enc->task_idx++;
+        async->pts = mpp_frame_get_pts(hal_task->frame);
+
+        rc_task->frame = async->task.frame;
+        enc_dbg_detail("task seq idx %d start\n", seq_idx);
+    }
+
+    seq_idx = async->seq_idx;
+
+    // 9. check frame drop by frame rate conversion
+    if (!status->rc_check_frm_drop) {
+        EncFrmStatus *frm = &rc_task->frm;
+
+        ENC_RUN_FUNC2(rc_frm_check_drop, enc->rc_ctx, rc_task, enc->mpp, ret);
+        status->rc_check_frm_drop = 1;
+        enc_dbg_detail("task %d drop %d\n", seq_idx, frm->drop);
+
+        // when the frame should be dropped just return empty packet
+        hal_task->valid = 1;
+        if (frm->drop) {
+            mpp_stopwatch_record(stopwatch, "invalid on frame rate drop");
+            hal_task->length = 0;
+            hal_task->flags.drop_by_fps = 1;
+            ret = MPP_OK;
+            goto TASK_DONE;
+        }
+
+        *hal_task->frm_cfg = enc->frm_cfg;
+        enc->frm_cfg.force_flag = 0;
+    }
+
+    // start encoder task process here
+    mpp_assert(hal_task->valid);
+
+    // 10. check and create packet for output
+    if (!status->pkt_buf_rdy) {
+        check_async_pkt_buf(enc, async);
+        status->pkt_buf_rdy = 1;
+
+        enc_dbg_detail("task %d check pkt buffer success\n", seq_idx);
+    }
+    mpp_assert(hal_task->packet);
+    mpp_assert(hal_task->output);
+
+    // 11. check hal info update
+    if (!enc->hal_info_updated) {
+        update_enc_hal_info(enc);
+        enc->hal_info_updated = 1;
+
+        enc_dbg_detail("task %d update enc hal info success\n", seq_idx);
+    }
+
+    // 12. generate header before hardware stream
+    if (!hdr_status->ready) {
+        /* config cpb before generating header */
+        enc_impl_gen_hdr(enc->impl, enc->hdr_pkt);
+        enc->hdr_len = mpp_packet_get_length(enc->hdr_pkt);
+        hdr_status->ready = 1;
+
+        enc_dbg_detail("task %d update header length %d\n",
+                       seq_idx, enc->hdr_len);
+
+        mpp_packet_append(hal_task->packet, enc->hdr_pkt);
+        hal_task->header_length = enc->hdr_len;
+        hal_task->length += enc->hdr_len;
+        hdr_status->added_by_change = 1;
+    }
+
+    check_hal_task_pkt_len(hal_task, "gen_hdr and adding");
+
+    // 13. check frm_meta data force key in input frame and start one frame
+    if (!status->enc_start) {
+        enc_dbg_detail("task %d enc start\n", seq_idx);
+        ENC_RUN_FUNC2(enc_impl_start, enc->impl, hal_task, enc->mpp, ret);
+        status->enc_start = 1;
+    }
+
+    // 14. setup user_cfg to dpb
+    if (!status->refs_force_update) {
+        MppEncRefFrmUsrCfg *frm_cfg = &async->usr;
+
+        if (frm_cfg->force_flag) {
+            mpp_enc_refs_set_usr_cfg(enc->refs, frm_cfg);
+            frm_cfg->force_flag = 0;
+        }
+
+        enc_dbg_detail("task %d refs force update success\n", seq_idx);
+        status->refs_force_update = 1;
+    }
+
+    // 15. backup dpb
+    if (!status->enc_backup) {
+        mpp_enc_refs_stash(enc->refs);
+        enc_dbg_detail("task %d refs stash success\n", seq_idx);
+        status->enc_backup = 1;
+    }
+
+TASK_DONE:
+    if (ret) {
+        enc_dbg_detail("task %d terminate\n", seq_idx);
+        async_task_terminate(enc, async);
+    }
+
+    return ret;
+}
+
+static MPP_RET proc_async_task(MppEncImpl *enc)
+{
+    Mpp *mpp = (Mpp*)enc->mpp;
+    EncImpl impl = enc->impl;
+    MppEncHal hal = enc->enc_hal;
+    MppEncHeaderStatus *hdr_status = &enc->hdr_status;
+    EncAsyncTaskInfo *async = enc->async;
+    EncAsyncStatus *status = &async->status;
+    HalEncTask *hal_task = &async->task;
+    EncRcTask *rc_task = hal_task->rc_task;
+    EncCpbStatus *cpb = &rc_task->cpb;
+    EncFrmStatus *frm = &rc_task->frm;
+    MppPacket packet = hal_task->packet;
+    RK_U32 seq_idx = async->seq_idx;
+    MPP_RET ret = MPP_OK;
+
+    mpp_assert(hal_task->valid);
+
+    if (hal_task->flags.drop_by_fps)
+        goto SEND_TASK_INFO;
+
+    enc_dbg_detail("task %d enc proc dpb\n", seq_idx);
+    mpp_enc_refs_get_cpb(enc->refs, cpb);
+
+    enc_dbg_frm_status("frm %d start ***********************************\n", seq_idx);
+    ENC_RUN_FUNC2(enc_impl_proc_dpb, impl, hal_task, mpp, ret);
+
+    enc_dbg_detail("task %d rc frame start\n", frm->seq_idx);
+    ENC_RUN_FUNC2(rc_frm_start, enc->rc_ctx, rc_task, mpp, ret);
+
+    // 16. generate header before hardware stream
+    if (enc->hdr_mode == MPP_ENC_HEADER_MODE_EACH_IDR &&
+        frm->is_intra &&
+        !hdr_status->added_by_change &&
+        !hdr_status->added_by_ctrl &&
+        !hdr_status->added_by_mode) {
+        enc_dbg_detail("task %d IDR header length %d\n",
+                       frm->seq_idx, enc->hdr_len);
+
+        mpp_packet_append(packet, enc->hdr_pkt);
+
+        hal_task->header_length = enc->hdr_len;
+        hal_task->length += enc->hdr_len;
+        hdr_status->added_by_mode = 1;
+    }
+
+    // check for header adding
+    check_hal_task_pkt_len(hal_task, "header adding");
+
+    /* 17. Add all prefix info before encoding */
+    if (frm->is_idr && enc->sei_mode >= MPP_ENC_SEI_MODE_ONE_SEQ) {
+        RK_S32 length = 0;
+
+        enc_impl_add_prefix(impl, packet, &length, uuid_version,
+                            enc->version_info, enc->version_length);
+
+        hal_task->sei_length += length;
+        hal_task->length += length;
+
+        length = 0;
+        enc_impl_add_prefix(impl, packet, &length, uuid_rc_cfg,
+                            enc->rc_cfg_info, enc->rc_cfg_length);
+
+        hal_task->sei_length += length;
+        hal_task->length += length;
+    }
+
+    if (mpp_frame_has_meta(hal_task->frame)) {
+        update_user_datas(impl, packet, hal_task->frame, hal_task);
+    }
+
+    // check for user data adding
+    check_hal_task_pkt_len(hal_task, "user data adding");
+
+    enc_dbg_detail("task %d enc proc hal\n", frm->seq_idx);
+    ENC_RUN_FUNC2(enc_impl_proc_hal, impl, hal_task, mpp, ret);
+
+    enc_dbg_detail("task %d hal get task\n", frm->seq_idx);
+    ENC_RUN_FUNC2(mpp_enc_hal_get_task, hal, hal_task, mpp, ret);
+
+    enc_dbg_detail("task %d rc hal start\n", frm->seq_idx);
+    ENC_RUN_FUNC2(rc_hal_start, enc->rc_ctx, rc_task, mpp, ret);
+
+    enc_dbg_detail("task %d hal generate reg\n", frm->seq_idx);
+    ENC_RUN_FUNC2(mpp_enc_hal_gen_regs, hal, hal_task, mpp, ret);
+
+    mpp_stopwatch_record(hal_task->stopwatch, "encode hal start");
+    enc_dbg_detail("task %d hal start\n", frm->seq_idx);
+    ENC_RUN_FUNC2(mpp_enc_hal_start, hal, hal_task, mpp, ret);
+
+SEND_TASK_INFO:
+    status->enc_done = 0;
+    hal_task_hnd_set_status(enc->hnd, TASK_PROCESSING);
+    enc_dbg_detail("task %d on processing ret %d\n", frm->seq_idx, ret);
+
+    enc->hnd = NULL;
+    enc->async = NULL;
+
+TASK_DONE:
+
+    /* NOTE: clear add_by flags */
+    enc->hdr_status.val = enc->hdr_status.ready;
+
+    return ret;
+}
+
+static MPP_RET check_enc_async_wait(MppEncImpl *enc, EncAsyncWait *wait)
+{
+    MPP_RET ret = MPP_OK;
+    RK_U32 notify = enc->notify_flag;
+    RK_U32 last_wait = enc->status_flag;
+    RK_U32 curr_wait = wait->val;
+    RK_U32 wait_chg  = last_wait & (~curr_wait);
+
+    do {
+        if (enc->reset_flag)
+            break;
+
+        // NOTE: User control should always be processed
+        if (notify & MPP_ENC_CONTROL)
+            break;
+
+        // NOTE: When condition is not fulfilled check nofify flag again
+        if (!curr_wait || (curr_wait & notify))
+            break;
+
+        ret = MPP_NOK;
+    } while (0);
+
+    enc_dbg_status("%p %08x -> %08x [%08x] notify %08x -> %s\n", enc,
+                   last_wait, curr_wait, wait_chg, notify, (ret) ? ("wait") : ("work"));
+
+    enc->status_flag = wait->val;
+    enc->notify_flag = 0;
+
+    if (ret) {
+        enc->wait_count++;
+    } else {
+        enc->work_count++;
+    }
+
+    return ret;
+}
+
+static MPP_RET enc_async_wait_task(MppEncImpl *enc, EncAsyncTaskInfo *info)
+{
+    Mpp *mpp = (Mpp*)enc->mpp;
+    MppEncHal hal = enc->enc_hal;
+    HalEncTask *hal_task = &info->task;
+    EncRcTask *rc_task = hal_task->rc_task;
+    EncFrmStatus *frm = &info->rc.frm;
+    MppPacket pkt = hal_task->packet;
+    MppMeta meta = mpp_packet_get_meta(pkt);
+    MPP_RET ret = MPP_OK;
+
+    if (hal_task->flags.drop_by_fps)
+        goto TASK_DONE;
+
+    enc_dbg_detail("task %d hal wait\n", frm->seq_idx);
+    ENC_RUN_FUNC2(mpp_enc_hal_wait, hal, hal_task, mpp, ret);
+
+    mpp_stopwatch_record(hal_task->stopwatch, "encode hal finish");
+
+    enc_dbg_detail("task %d rc hal end\n", frm->seq_idx);
+    ENC_RUN_FUNC2(rc_hal_end, enc->rc_ctx, rc_task, mpp, ret);
+
+    enc_dbg_detail("task %d hal ret task\n", frm->seq_idx);
+    ENC_RUN_FUNC2(mpp_enc_hal_ret_task, hal, hal_task, mpp, ret);
+
+    enc_dbg_detail("task %d rc frame end\n", frm->seq_idx);
+    ENC_RUN_FUNC2(rc_frm_end, enc->rc_ctx, rc_task, mpp, ret);
+
+TASK_DONE:
+    if (!mpp_packet_is_partition(pkt)) {
+        /* setup output packet and meta data */
+        mpp_packet_set_length(pkt, hal_task->length);
+
+        check_hal_task_pkt_len(hal_task, "hw finish");
+    }
+
+    mpp_meta_set_s32(meta, KEY_OUTPUT_INTRA, frm->is_intra);
+    if (rc_task->info.quality_real)
+        mpp_meta_set_s32(meta, KEY_ENC_AVERAGE_QP, rc_task->info.quality_real);
+
+    mpp_meta_set_frame(meta, KEY_INPUT_FRAME, hal_task->frame);
+
+    enc_dbg_detail("task %d output packet pts %lld\n", info->seq_idx, info->pts);
+
+    if (mpp->mPktOut) {
+        mpp_list *pkt_out = mpp->mPktOut;
+
+        AutoMutex autoLock(pkt_out->mutex());
+
+        pkt_out->add_at_tail(&pkt, sizeof(pkt));
+        mpp->mPacketPutCount++;
+        pkt_out->signal();
+    }
+
+    return ret;
+}
+
+void *mpp_enc_async_thread(void *data)
+{
+    Mpp *mpp = (Mpp*)data;
+    MppEncImpl *enc = (MppEncImpl *)mpp->mEnc;
+    MppThread *thd_enc = enc->thread_enc;
+    EncAsyncWait wait;
+    MPP_RET ret = MPP_OK;
+
+    enc_dbg_func("thread start\n");
+
+    wait.val = 0;
+
+    while (1) {
+        {
+            AutoMutex autolock(thd_enc->mutex());
+            if (MPP_THREAD_RUNNING != thd_enc->get_status())
+                break;
+
+            if (check_enc_async_wait(enc, &wait)) {
+                enc_dbg_detail("wait start\n");
+                thd_enc->wait();
+                enc_dbg_detail("wait done\n");
+            }
+        }
+
+        // When encoder is not on encoding process external config and reset
+        // 1. process user control and reset flag
+        if (enc->cmd_send != enc->cmd_recv || enc->reset_flag) {
+            mpp_list *frm_in = mpp->mFrmIn;
+            HalTaskHnd hnd = NULL;
+            EncAsyncTaskInfo *info = NULL;
+
+            /* when process cmd or reset hold frame input */
+            frm_in->lock();
+
+            enc_dbg_detail("ctrl proc %d cmd %08x\n", enc->cmd_recv, enc->cmd);
+
+            // wait all tasks done
+            while (MPP_OK == hal_task_get_hnd(enc->tasks, TASK_PROCESSING, &hnd)) {
+                info = (EncAsyncTaskInfo *)hal_task_hnd_get_data(hnd);
+
+                mpp_assert(!info->status.enc_done);
+
+                enc_async_wait_task(enc, info);
+                hal_task_hnd_set_status(hnd, TASK_IDLE);
+                wait.task_hnd = 0;
+            }
+
+            if (enc->cmd_send != enc->cmd_recv) {
+                sem_wait(&enc->cmd_start);
+                ret = mpp_enc_proc_cfg(enc, enc->cmd, enc->param);
+                if (ret)
+                    *enc->cmd_ret = ret;
+                enc->cmd_recv++;
+                enc_dbg_detail("ctrl proc %d done send %d\n", enc->cmd_recv,
+                               enc->cmd_send);
+                mpp_assert(enc->cmd_send == enc->cmd_send);
+                enc->param = NULL;
+                enc->cmd = (MpiCmd)0;
+                sem_post(&enc->cmd_done);
+
+                // async cfg update process for hal
+                // mainly for buffer prepare
+                mpp_enc_hal_prepare(enc->enc_hal);
+
+                /* NOTE: here will clear change flag of rc and prep cfg */
+                mpp_enc_proc_rc_update(enc);
+                goto SYNC_DONE;
+            }
+
+            if (enc->reset_flag) {
+                enc_dbg_detail("thread reset start\n");
+
+                /* skip the frames in input queue */
+                while (frm_in->list_size())
+                    async_task_skip(enc);
+
+                {
+                    AutoMutex autolock(thd_enc->mutex());
+                    enc->status_flag = 0;
+                }
+
+                enc->frm_cfg.force_flag |= ENC_FORCE_IDR;
+                enc->frm_cfg.force_idr++;
+
+                AutoMutex autolock(thd_enc->mutex(THREAD_CONTROL));
+                enc->reset_flag = 0;
+                sem_post(&enc->enc_reset);
+                enc_dbg_detail("thread reset done\n");
+            }
+        SYNC_DONE:
+            frm_in->unlock();
+            wait.val = 0;
+            continue;
+        }
+
+        // 2. try get a task to encode
+        ret = try_get_async_task(enc, &wait);
+        enc_dbg_detail("try_get_async_task ret %d\n", ret);
+        if (ret) {
+            HalTaskHnd hnd = NULL;
+            EncAsyncTaskInfo *info = NULL;
+
+            hal_task_get_hnd(enc->tasks, TASK_PROCESSING, &hnd);
+            if (hnd) {
+                info = (EncAsyncTaskInfo *)hal_task_hnd_get_data(hnd);
+
+                mpp_assert(!info->status.enc_done);
+
+                enc_async_wait_task(enc, info);
+                hal_task_hnd_set_status(hnd, TASK_IDLE);
+                wait.task_hnd = 0;
+            }
+
+            continue;
+        }
+
+        mpp_assert(enc->async);
+        mpp_assert(enc->async->task.valid);
+
+        proc_async_task(enc);
+    }
+
+    enc_dbg_func("thread finish\n");
 
     return NULL;
 }

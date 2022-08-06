@@ -6,11 +6,14 @@
 
 #include <linux/module.h>
 #include <linux/component.h>
+#include <linux/platform_device.h>
 #include <drm/drm_gem.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_plane_helper.h>
+#include <drm/drm_probe_helper.h>
+#include <drm/drm_vblank.h>
 
 #define DRIVER_NAME	"virtual-vop"
 
@@ -118,7 +121,7 @@ static int vvop_enable_vblank(struct drm_crtc *crtc)
 
 	hrtimer_init(&vvop->vblank_hrtimer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 	vvop->vblank_hrtimer.function = &vvop_vblank_simulate;
-	vvop->period_ns = ktime_set(-1, vblank->framedur_ns);
+	vvop->period_ns = ktime_set(0, vblank->framedur_ns);
 	hrtimer_start(&vvop->vblank_hrtimer, vvop->period_ns, HRTIMER_MODE_REL);
 
 	return 0;
@@ -183,7 +186,17 @@ static void vvop_crtc_atomic_enable(struct drm_crtc *crtc,
 static void vvop_crtc_atomic_disable(struct drm_crtc *crtc,
 				     struct drm_crtc_state *old_state)
 {
+	unsigned long flags;
+
 	drm_crtc_vblank_off(crtc);
+	if (crtc->state->event && !crtc->state->active) {
+		spin_lock_irqsave(&crtc->dev->event_lock, flags);
+		drm_crtc_send_vblank_event(crtc, crtc->state->event);
+		spin_unlock_irqrestore(&crtc->dev->event_lock, flags);
+
+		crtc->state->event = NULL;
+	}
+
 }
 
 static void vvop_crtc_atomic_flush(struct drm_crtc *crtc,

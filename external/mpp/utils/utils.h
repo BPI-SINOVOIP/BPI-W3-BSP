@@ -19,7 +19,7 @@
 
 #include <stdio.h>
 
-#include "mpp_log.h"
+#include "mpp_debug.h"
 #include "mpp_frame.h"
 
 typedef struct OptionInfo_t {
@@ -30,7 +30,8 @@ typedef struct OptionInfo_t {
 
 typedef struct data_crc_t {
     RK_U32          len;
-    RK_U32          sum;
+    RK_U32          sum_cnt;
+    RK_ULONG        *sum;
     RK_U32          vor; // value of the xor
 } DataCrc;
 

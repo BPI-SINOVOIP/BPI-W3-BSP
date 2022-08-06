@@ -18,6 +18,7 @@ RKAIQ_BEGIN_DECLARE
 #define RKAIQ_PDAF_BLK_DATA_HEIGHT_MAX     64
 #define RKAIQ_PDAF_FINE_SEARCH_RANGE_MAX   10
 #define RKAIQ_PDAF_ISOPARA_NUM             16
+#define RKAIQ_PDAF_STEPRATIO_NUM           7
 
 typedef enum {
     PDAF_DATA_INVAL = 0,
@@ -255,11 +256,12 @@ typedef struct {
     float pdNoiseFactor;
     float pdConfdRatio1;
     float pdConfdRatio2;
+    float pdNoiseBias;
     float pdConfdThresh;
-    float defocusPdThresh;
     float stablePdRatio;
-    float stablePdOffset;
     float stableCntRatio;
+    unsigned short defocusPdThresh;
+    unsigned short stablePdOffset;
     unsigned short noconfCntThresh;
 
     unsigned int fineSearchConfidence[RKAIQ_PDAF_FINE_SEARCH_RANGE_MAX];
@@ -269,10 +271,15 @@ typedef struct {
 } rk_aiq_pdaf_algo_isopara_t;
 
 typedef struct {
+    bool pdVsImgoutMirror;
     unsigned char pdVsCdDebug;
+    unsigned char pdDumpDebug;
     unsigned short pdDataBit;
     unsigned short pdBlkLevel;
     unsigned short pdSearchRadius;
+    unsigned short pdConfdMwinFactor;
+    float pdStepRatio[RKAIQ_PDAF_STEPRATIO_NUM];
+    unsigned short pdStepDefocus[RKAIQ_PDAF_STEPRATIO_NUM];
     rk_aiq_pdaf_algo_isopara_t pdIsoPara[RKAIQ_PDAF_ISOPARA_NUM];
     int pdIsoParaCnt;
 } rk_aiq_pdaf_algo_config_t;

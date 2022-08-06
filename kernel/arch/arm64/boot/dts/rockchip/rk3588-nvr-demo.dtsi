@@ -49,7 +49,7 @@
 		regulator-always-on;
 		regulator-min-microvolt = <750000>;
 		regulator-max-microvolt = <750000>;
-		vin-supply = <&nldo5_s0>;
+		vin-supply = <&vdd_0v75_s0>;
 	};
 
 	pcie30_avdd1v8: pcie30-avdd1v8 {
@@ -78,7 +78,7 @@
 		regulator-max-microvolt = <3300000>;
 		enable-active-high;
 		gpios = <&gpio3 RK_PD5 GPIO_ACTIVE_HIGH>;
-		startup-delay-us = <5000>;
+		startup-delay-us = <7500>;
 		vin-supply = <&vcc12v_dcin>;
 	};
 
@@ -283,10 +283,61 @@
 	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c0m2_xfer>;
+
+	vdd_cpu_big0_s0: vdd_cpu_big0_mem_s0: rk8602@42 {
+		compatible = "rockchip,rk8602";
+		reg = <0x42>;
+		vin-supply = <&vcc5v0_sys>;
+		regulator-compatible = "rk860x-reg";
+		regulator-name = "vdd_cpu_big0_s0";
+		regulator-min-microvolt = <550000>;
+		regulator-max-microvolt = <1050000>;
+		regulator-ramp-delay = <2300>;
+		rockchip,suspend-voltage-selector = <1>;
+		regulator-boot-on;
+		regulator-always-on;
+		regulator-state-mem {
+			regulator-off-in-suspend;
+		};
+	};
+
+	vdd_cpu_big1_s0: vdd_cpu_big1_mem_s0: rk8603@43 {
+		compatible = "rockchip,rk8603";
+		reg = <0x43>;
+		vin-supply = <&vcc5v0_sys>;
+		regulator-compatible = "rk860x-reg";
+		regulator-name = "vdd_cpu_big1_s0";
+		regulator-min-microvolt = <550000>;
+		regulator-max-microvolt = <1050000>;
+		regulator-ramp-delay = <2300>;
+		rockchip,suspend-voltage-selector = <1>;
+		regulator-boot-on;
+		regulator-always-on;
+		regulator-state-mem {
+			regulator-off-in-suspend;
+		};
+	};
 };
 
 &i2c2 {
 	status = "okay";
+
+	vdd_npu_s0: vdd_npu_mem_s0: rk8602@42 {
+		compatible = "rockchip,rk8602";
+		reg = <0x42>;
+		vin-supply = <&vcc5v0_sys>;
+		regulator-compatible = "rk860x-reg";
+		regulator-name = "vdd_npu_s0";
+		regulator-min-microvolt = <550000>;
+		regulator-max-microvolt = <950000>;
+		regulator-ramp-delay = <2300>;
+		rockchip,suspend-voltage-selector = <1>;
+		regulator-boot-on;
+		regulator-always-on;
+		regulator-state-mem {
+			regulator-off-in-suspend;
+		};
+	};
 };
 
 &i2c3 {
@@ -361,17 +412,6 @@
 	rgmii_phy1: phy@1 {
 		compatible = "ethernet-phy-ieee802.3-c22";
 		reg = <0x1>;
-	};
-};
-
-&nldo5_s0 {
-	regulator-always-on;
-	regulator-boot-on;
-	regulator-min-microvolt = <750000>;
-	regulator-max-microvolt = <750000>;
-	rregulator-name = "nldo5_s0";
-	regulator-state-mem {
-		regulator-off-in-suspend;
 	};
 };
 
@@ -490,6 +530,135 @@
 	};
 };
 
+&rk806single {
+	pinctrl-names = "default", "pmic-power-off";
+	pinctrl-0 = <&pmic_pins>, <&rk806_dvs1_null>, <&rk806_dvs2_null>, <&rk806_dvs3_null>;
+	pinctrl-1 = <&rk806_dvs1_slp>, <&rk806_dvs2_null>, <&rk806_dvs3_null>;
+
+	regulators {
+		avcc_1v8_s0: PLDO_REG1 {
+			regulator-always-on;
+			regulator-boot-on;
+			regulator-min-microvolt = <1800000>;
+			regulator-max-microvolt = <1800000>;
+			regulator-name = "avcc_1v8_s0";
+			regulator-state-mem {
+				regulator-on-in-suspend;
+				regulator-suspend-microvolt = <1800000>;
+			};
+		};
+	};
+};
+
+&rockchip_suspend {
+	status = "okay";
+	rockchip,sleep-debug-en = <1>;
+	rockchip,virtual-poweroff = <1>;
+	rockchip,sleep-mode-config = <
+		(0
+		| RKPM_SLP_ARMOFF_DDRPD
+		)
+	>;
+	rockchip,wakeup-config = <
+		(0
+		| RKPM_CPU0_WKUP_EN
+		| RKPM_GPIO_WKUP_EN
+		)
+	>;
+};
+
+&route_dp0 {
+	status = "okay";
+	force-output;
+	connect = <&vp2_out_dp0>;
+
+	force_timing {
+		clock-frequency = <65000000>;
+		hactive = <1024>;
+		vactive = <768>;
+		hfront-porch = <24>;
+		hsync-len = <136>;
+		hback-porch = <160>;
+		vfront-porch = <3>;
+		vsync-len = <6>;
+		vback-porch = <29>;
+		hsync-active = <0>;
+		vsync-active = <0>;
+		de-active = <0>;
+		pixelclk-active = <0>;
+	};
+
+};
+
+&route_dp1 {
+	status = "okay";
+	force-output;
+	connect = <&vp2_out_dp1>;
+
+	force_timing {
+		clock-frequency = <65000000>;
+		hactive = <1024>;
+		vactive = <768>;
+		hfront-porch = <24>;
+		hsync-len = <136>;
+		hback-porch = <160>;
+		vfront-porch = <3>;
+		vsync-len = <6>;
+		vback-porch = <29>;
+		hsync-active = <0>;
+		vsync-active = <0>;
+		de-active = <0>;
+		pixelclk-active = <0>;
+	};
+
+};
+
+&route_hdmi0 {
+	status = "okay";
+	force-output;
+	connect = <&vp2_out_hdmi0>;
+
+	force_timing {
+		clock-frequency = <65000000>;
+		hactive = <1024>;
+		vactive = <768>;
+		hfront-porch = <24>;
+		hsync-len = <136>;
+		hback-porch = <160>;
+		vfront-porch = <3>;
+		vsync-len = <6>;
+		vback-porch = <29>;
+		hsync-active = <0>;
+		vsync-active = <0>;
+		de-active = <0>;
+		pixelclk-active = <0>;
+	};
+
+};
+
+&route_hdmi1 {
+	status = "okay";
+	force-output;
+	connect = <&vp2_out_hdmi1>;
+
+	force_timing {
+		clock-frequency = <65000000>;
+		hactive = <1024>;
+		vactive = <768>;
+		hfront-porch = <24>;
+		hsync-len = <136>;
+		hback-porch = <160>;
+		vfront-porch = <3>;
+		vsync-len = <6>;
+		vback-porch = <29>;
+		hsync-active = <0>;
+		vsync-active = <0>;
+		de-active = <0>;
+		pixelclk-active = <0>;
+	};
+
+};
+
 &sata0 {
 	status = "okay";
 };
@@ -512,8 +681,8 @@
 &pinctrl {
 	dp {
 		dp1_hdmi_ctl: dp-hdmi-ctl {
-			rockchip,pins = <0 RK_PD5 RK_FUNC_GPIO &pcfg_output_high>,
-					<3 RK_PB2 RK_FUNC_GPIO &pcfg_output_high>;
+			rockchip,pins = <0 RK_PD5 RK_FUNC_GPIO &pcfg_pull_up>,
+					<3 RK_PB2 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
 
@@ -631,8 +800,7 @@
 };
 
 &usbdrd_dwc3_0 {
-	dr_mode = "otg";
-	extcon = <&u2phy0>;
+	dr_mode = "peripheral";
 	status = "okay";
 };
 
@@ -649,6 +817,13 @@
 &usbhost_dwc3_0 {
 	dr_mode = "host";
 	status = "okay";
+};
+
+&vdd_log_s0 {
+	regulator-state-mem {
+		regulator-on-in-suspend;
+		regulator-suspend-microvolt = <750000>;
+	};
 };
 
 &vdd_vdenc_s0 {

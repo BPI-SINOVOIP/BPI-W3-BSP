@@ -24,7 +24,10 @@
 
 RKAIQ_BEGIN_DECLARE
 
+#ifndef RK_AIQ_SYS_CTX_T
+#define RK_AIQ_SYS_CTX_T
 typedef struct rk_aiq_sys_ctx_s rk_aiq_sys_ctx_t;
+#endif
 
 /********************below are verified api********************/
 
@@ -49,6 +52,11 @@ XCamReturn
 rk_aiq_uapi2_sysctl_preInit(const char* sns_ent_name,
                            rk_aiq_working_mode_t mode,
                            const char* force_iq_file);
+
+XCamReturn
+rk_aiq_uapi2_sysctl_regHwEvtCb(const char* sns_ent_name,
+                               rk_aiq_hwevt_cb hwevt_cb,
+                               void* cb_ctx);
 
 /*!
  * \brief initialze aiq control system context
@@ -404,6 +412,15 @@ rk_aiq_uapi2_sysctl_enqueueRkRawFile(const rk_aiq_sys_ctx_t* ctx, const char *pa
 
 XCamReturn
 rk_aiq_uapi2_sysctl_registRkRawCb(const rk_aiq_sys_ctx_t* ctx, void (*callback)(void*));
+
+/*!
+ * \brief get working mode
+ *
+ * \param[in] ctx             context
+ * \param[out] working_mode   rk_aiq_working_mode_t
+ */
+XCamReturn
+rk_aiq_uapi2_sysctl_getWorkingMode(const rk_aiq_sys_ctx_t* ctx, rk_aiq_working_mode_t *mode);
 
 RKAIQ_END_DECLARE
 

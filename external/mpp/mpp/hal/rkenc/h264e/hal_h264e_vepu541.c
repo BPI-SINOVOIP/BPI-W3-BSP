@@ -185,6 +185,7 @@ static MPP_RET hal_h264e_vepu541_init(void *hal, MppEncHalCfg *cfg)
 
     p->osd_cfg.reg_base = &p->regs_set;
     p->osd_cfg.dev = p->dev;
+    p->osd_cfg.reg_cfg = NULL;
     p->osd_cfg.plt_cfg = &p->cfg->plt_cfg;
     p->osd_cfg.osd_data = NULL;
     p->osd_cfg.osd_data2 = NULL;
@@ -215,7 +216,7 @@ static void setup_hal_bufs(HalH264eVepu541Ctx *ctx)
     MppEncPrepCfg *prep = &cfg->prep;
     RK_S32 alignment = 64;
     RK_S32 aligned_w = MPP_ALIGN(prep->width,  alignment);
-    RK_S32 aligned_h = MPP_ALIGN(prep->height, alignment);
+    RK_S32 aligned_h = MPP_ALIGN(prep->height, alignment) + 16;
     RK_S32 pixel_buf_fbc_hdr_size = MPP_ALIGN(aligned_w * aligned_h / 64, SZ_8K);
     RK_S32 pixel_buf_fbc_bdy_size = aligned_w * aligned_h * 3 / 2;
     RK_S32 pixel_buf_size = pixel_buf_fbc_hdr_size + pixel_buf_fbc_bdy_size;
@@ -300,6 +301,9 @@ static RK_U32 update_vepu541_syntax(HalH264eVepu541Ctx *ctx, MppSyntax *syntax)
             hal_h264e_dbg_detail("update pps");
             ctx->pps = desc->p;
         } break;
+        case H264E_SYN_DPB : {
+            hal_h264e_dbg_detail("update dpb");
+        } break;
         case H264E_SYN_SLICE : {
             hal_h264e_dbg_detail("update slice");
             ctx->slice = desc->p;
@@ -337,11 +341,11 @@ static MPP_RET hal_h264e_vepu541_get_task(void *hal, HalEncTask *task)
     if (!frm_status->reencode && mpp_frame_has_meta(task->frame)) {
         MppMeta meta = mpp_frame_get_meta(task->frame);
 
-        mpp_meta_get_ptr(meta, KEY_ROI_DATA, (void **)&ctx->roi_data);
-        mpp_meta_get_ptr(meta, KEY_ROI_DATA2, (void **)&ctx->roi_data2);
-        mpp_meta_get_ptr(meta, KEY_OSD_DATA, (void **)&ctx->osd_cfg.osd_data);
-        mpp_meta_get_ptr(meta, KEY_OSD_DATA2, (void **)&ctx->osd_cfg.osd_data2);
-        mpp_meta_get_buffer(meta, KEY_QPMAP0, &ctx->qpmap);
+        mpp_meta_get_ptr_d(meta, KEY_ROI_DATA, (void **)&ctx->roi_data, NULL);
+        mpp_meta_get_ptr_d(meta, KEY_ROI_DATA2, (void **)&ctx->roi_data2, NULL);
+        mpp_meta_get_ptr_d(meta, KEY_OSD_DATA, (void **)&ctx->osd_cfg.osd_data, NULL);
+        mpp_meta_get_ptr_d(meta, KEY_OSD_DATA2, (void **)&ctx->osd_cfg.osd_data2, NULL);
+        mpp_meta_get_buffer_d(meta, KEY_QPMAP0, &ctx->qpmap, NULL);
     }
     hal_h264e_dbg_func("leave %p\n", hal);
 
@@ -1449,7 +1453,7 @@ static MPP_RET hal_h264e_vepu541_gen_regs(void *hal, HalEncTask *task)
     setup_vepu541_recn_refr(regs, ctx->dev, ctx->frms, ctx->hw_recn,
                             ctx->pixel_buf_fbc_hdr_size);
 
-    regs->reg082.meiw_addr = task->mv_info ? mpp_buffer_get_fd(task->mv_info) : 0;
+    regs->reg082.meiw_addr = task->md_info ? mpp_buffer_get_fd(task->md_info) : 0;
 
     regs->reg068.pic_ofst_y = mpp_frame_get_offset_y(task->frame);
     regs->reg068.pic_ofst_x = mpp_frame_get_offset_x(task->frame);

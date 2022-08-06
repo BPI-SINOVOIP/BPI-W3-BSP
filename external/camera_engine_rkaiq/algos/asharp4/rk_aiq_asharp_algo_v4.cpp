@@ -61,7 +61,8 @@ Asharp4_result_t Asharp_Init_V4(Asharp_Context_V4_t **ppAsharpCtx, void *pCalibD
     memset(pAsharpCtx, 0x00, sizeof(Asharp_Context_V4_t));
 
     //gain state init
-    pAsharpCtx->fSharp_Strength = 1.0;
+    pAsharpCtx->stStrength.strength_enable = false;
+    pAsharpCtx->stStrength.percent = 1.0;
 
     pAsharpCtx->eState = ASHARP4_STATE_INITIALIZED;
     *ppAsharpCtx = pAsharpCtx;
@@ -265,17 +266,18 @@ Asharp4_result_t Asharp_GetProcResult_V4(Asharp_Context_V4_t *pAsharpCtx, Asharp
     } else if(pAsharpCtx->eMode == ASHARP4_OP_MODE_MANUAL) {
         //TODO
         pAsharpResult->stSelect = pAsharpCtx->stManual.stSelect;
-        pAsharpCtx->fSharp_Strength = 1.0;
     }
 
     //transfer to reg value
-    sharp_fix_transfer_V4(&pAsharpResult->stSelect, &pAsharpResult->stFix, pAsharpCtx->fSharp_Strength);
+    sharp_fix_transfer_V4(&pAsharpResult->stSelect, &pAsharpResult->stFix, &pAsharpCtx->stStrength);
 
     if(pAsharpCtx->eMode == ASHARP4_OP_MODE_REG_MANUAL) {
         pAsharpResult->stFix = pAsharpCtx->stManual.stFix;
-        pAsharpCtx->fSharp_Strength = 1.0;
+        pAsharpCtx->stStrength.strength_enable = false;
+        pAsharpCtx->stStrength.percent = 1.0;
     }
 
+    pAsharpCtx->stProcResult = *pAsharpResult;
     LOGD_ASHARP("%s:%d xml:local:%d mode:%d  reg: local gain:%d  mfnr gain:%d mode:%d\n",
                 __FUNCTION__, __LINE__);
 

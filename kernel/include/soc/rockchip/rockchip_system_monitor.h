@@ -26,14 +26,21 @@ struct temp_freq_table {
  * struct temp_opp_table - System monitor device OPP description structure
  * @rate:		Frequency in hertz
  * @volt:		Target voltage in microvolt
+ * @mem_volt:		Target voltage for memory in microvolt
  * @low_temp_volt:	Target voltage when low temperature, in microvolt
+ * @low_temp_mem_volt:	Target voltage for memory when low temperature,
+ *			in microvolt
  * @max_volt:		Maximum voltage in microvolt
+ * @max_mem_volt:	Maximum voltage for memory in microvolt
  */
 struct temp_opp_table {
 	unsigned long rate;
 	unsigned long volt;
+	unsigned long mem_volt;
 	unsigned long low_temp_volt;
+	unsigned long low_temp_mem_volt;
 	unsigned long max_volt;
+	unsigned long max_mem_volt;
 };
 
 /**
@@ -90,6 +97,7 @@ struct monitor_dev_info {
 	struct dev_pm_qos_request dev_max_freq_req;
 	struct regulator *early_reg;
 	struct regulator **regulators;
+	struct dev_pm_set_opp_data *set_opp_data;
 	struct clk *clk;
 	unsigned long low_limit;
 	unsigned long high_limit;
@@ -117,7 +125,8 @@ struct monitor_dev_profile {
 	bool is_checked;
 	int (*low_temp_adjust)(struct monitor_dev_info *info, bool is_low);
 	int (*high_temp_adjust)(struct monitor_dev_info *info, bool is_low);
-	int (*update_volt)(struct monitor_dev_info *info, bool is_set_clk);
+	int (*update_volt)(struct monitor_dev_info *info);
+	int (*set_opp)(struct dev_pm_set_opp_data *data);
 	struct cpumask allowed_cpus;
 	struct rockchip_opp_info *opp_info;
 };
@@ -133,8 +142,7 @@ int rockchip_monitor_cpu_high_temp_adjust(struct monitor_dev_info *info,
 					  bool is_high);
 void rockchip_monitor_volt_adjust_lock(struct monitor_dev_info *info);
 void rockchip_monitor_volt_adjust_unlock(struct monitor_dev_info *info);
-int rockchip_monitor_check_rate_volt(struct monitor_dev_info *info,
-				     bool is_set_clk);
+int rockchip_monitor_check_rate_volt(struct monitor_dev_info *info);
 int rockchip_monitor_dev_low_temp_adjust(struct monitor_dev_info *info,
 					 bool is_low);
 int rockchip_monitor_dev_high_temp_adjust(struct monitor_dev_info *info,
@@ -177,7 +185,7 @@ rockchip_monitor_volt_adjust_unlock(struct monitor_dev_info *info)
 }
 
 static inline int
-rockchip_monitor_check_rate_volt(struct monitor_dev_info *info, bool is_set_clk)
+rockchip_monitor_check_rate_volt(struct monitor_dev_info *info)
 {
 	return 0;
 }

@@ -21,6 +21,13 @@
 
 #define MAX_CPB_REFS                    (8)
 
+typedef enum EncFrmType_e {
+    INTER_P_FRAME   = 0,
+    INTER_B_FRAME   = 1,
+    INTRA_FRAME     = 2,
+    INTER_VI_FRAME  = 3,
+} EncFrmType;
+
 /*
  * EncFrmStatus controls record the encoding frame status and also control
  * work flow of encoder. It is the communicat channel between encoder implement
@@ -43,7 +50,18 @@ typedef union EncFrmStatus_u {
          * 1 - do not write the reconstructed frame pixel to memory
          */
         RK_U32          non_recn        : 1;
-        RK_U32          reserved0       : 2;
+
+        /*
+         * 0 - normal frame and normal dpb management
+         * 1 - save recon frame as first pass extra frame. Used in two pass mode
+         */
+        RK_U32          save_pass1      : 1;
+
+        /*
+         * 0 - use normal input source frame as input
+         * 1 - use the previously stored first pass recon frame as input frame
+         */
+        RK_U32          use_pass1       : 1;
 
         /* reference status flag */
         /*
@@ -152,6 +170,8 @@ typedef struct EncRcForceCfg_t {
  * hw   -> rc / hal bit_real / quality_real / madi / madp
  */
 typedef struct EncRcCommonInfo_t {
+    EncFrmType      frame_type;
+
     /* rc to hal */
     RK_S32          bit_target;
     RK_S32          bit_max;

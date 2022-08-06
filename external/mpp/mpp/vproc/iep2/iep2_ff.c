@@ -14,20 +14,17 @@
  * limitations under the License.
  */
 
+#define MODULE_TAG "iep2"
+
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 
-#include "mpp_log.h"
 #include "mpp_common.h"
 
 #include "iep2.h"
 #include "iep2_api.h"
 #include "iep2_ff.h"
-
-#define RKABS(a)                (((a) >= 0) ? (a) : -(a))
-#define RKMIN(a, b)             (((a) < (b)) ? (a) : (b))
-#define RKMAX(a, b)             (((a) > (b)) ? (a) : (b))
 
 void iep2_check_ffo(struct iep2_api_ctx *ctx)
 {

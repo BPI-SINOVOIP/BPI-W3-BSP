@@ -48,6 +48,13 @@ void BlcParamsNewMalloc
         pStoreBlcPara->blc_gr[i] = pInputBlcPara->blc_gr[i];
         pStoreBlcPara->blc_gb[i] = pInputBlcPara->blc_gb[i];
         pStoreBlcPara->blc_b[i] = pInputBlcPara->blc_b[i];
+
+        LOGD_ABLC("ablc iso:%f blc:%f %f %f %f\n",
+                  pStoreBlcPara->iso[i],
+                  pStoreBlcPara->blc_r[i],
+                  pStoreBlcPara->blc_gr[i],
+                  pStoreBlcPara->blc_gb[i],
+                  pStoreBlcPara->blc_b[i]);
     }
 
     LOGD_ABLC( "%s:exit!\n", __FUNCTION__);

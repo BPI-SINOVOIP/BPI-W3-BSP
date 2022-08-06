@@ -468,8 +468,34 @@ int RgaBlit(rga_info *src, rga_info *dst, rga_info *src1) {
         ALOGD("dst: Fd = %.2d , phyAddr = %p , virAddr = %p\n",dst->fd,dst->phyAddr,dst->virAddr);
     }
 #endif
+
+    if (src1) {
+        if (src->handle > 0 && dst->handle > 0 && src1->handle > 0) {
+            if (src->handle <= 0 || dst->handle <= 0 || src1->handle <= 0) {
+                ALOGE("librga only supports the use of handles only or no handles, [src,src1,dst] = [%d, %d, %d]\n",
+                      src->handle, src1->handle, dst->handle);
+                return -EINVAL;
+            }
+
+            /* This will mark the use of handle */
+            rgaReg.handle_flag |= 1;
+        }
+    } else if (src->handle > 0 && dst->handle > 0) {
+        if (src->handle <= 0 || dst->handle <= 0) {
+            ALOGE("librga only supports the use of handles only or no handles, [src,dst] = [%d, %d]\n",
+                  src->handle, dst->handle);
+            return -EINVAL;
+        }
+
+        /* This will mark the use of handle */
+        rgaReg.handle_flag |= 1;
+    }
+
     /*********** get src addr *************/
-    if (src && src->phyAddr) {
+    if (src && src->handle) {
+        /* In order to minimize changes, the handle here will reuse the variable of Fd. */
+        srcFd = src->handle;
+    } else if (src && src->phyAddr) {
         srcBuf = src->phyAddr;
     } else if (src && src->fd > 0) {
         srcFd = src->fd;
@@ -528,7 +554,10 @@ int RgaBlit(rga_info *src, rga_info *dst, rga_info *src1) {
 
     /*********** get src1 addr *************/
     if (src1) {
-        if (src1 && src1->phyAddr) {
+        if (src1 && src1->handle) {
+            /* In order to minimize changes, the handle here will reuse the variable of Fd. */
+            src1Fd = src1->handle;
+        } else if (src1 && src1->phyAddr) {
             src1Buf = src1->phyAddr;
         } else if (src1 && src1->fd > 0) {
             src1Fd = src1->fd;
@@ -587,7 +616,10 @@ int RgaBlit(rga_info *src, rga_info *dst, rga_info *src1) {
     }
 
     /*********** get dst addr *************/
-    if (dst && dst->phyAddr) {
+    if (dst && dst->handle) {
+        /* In order to minimize changes, the handle here will reuse the variable of Fd. */
+        dstFd = dst->handle;
+    } else if (dst && dst->phyAddr) {
         dstBuf = dst->phyAddr;
     } else if (dst && dst->fd > 0) {
         dstFd = dst->fd;
@@ -1034,6 +1066,19 @@ int RgaBlit(rga_info *src, rga_info *dst, rga_info *src1) {
     else
         ditherEn = 0;
 
+#if 0
+    /* YUV HDS or VDS enable */
+    if (NormalRgaIsYuvFormat(relDstRect.format)) {
+        rgaReg.uvhds_mode = 1;
+        if ((relDstRect.format == RK_FORMAT_YCbCr_420_SP ||
+             relDstRect.format == RK_FORMAT_YCrCb_420_SP) &&
+            rotation == 0 && hScale == 1.0f && vScale == 1.0f) {
+            /* YUV420SP only support vds when without rotation and scale. */
+            rgaReg.uvvds_mode = 1;
+        }
+    }
+#endif
+
 #ifdef ANDROID
     if(is_out_log())
         ALOGE("rgaVersion = %lf  , ditherEn =%d ",ctx->mVersion,ditherEn);
@@ -1353,6 +1398,15 @@ int RgaBlit(rga_info *src, rga_info *dst, rga_info *src1) {
         }
     }
 
+    /* mosaic */
+    memcpy(&rgaReg.mosaic_info, &src->mosaic_info, sizeof(struct rga_mosaic_info));
+
+    /* OSD */
+    memcpy(&rgaReg.osd_info, &src->osd_info, sizeof(struct rga_osd_info));
+
+    /* pre_intr */
+    memcpy(&rgaReg.pre_intr_info, &src->pre_intr, sizeof(src->pre_intr));
+
 #ifdef ANDROID
     if(is_out_log()) {
         ALOGD("srcMmuFlag = %d , dstMmuFlag = %d , rotateMode = %d \n", srcMmuFlag, dstMmuFlag,rotateMode);
@@ -1371,25 +1425,50 @@ int RgaBlit(rga_info *src, rga_info *dst, rga_info *src1) {
 
     /* rga3 rd_mode */
     /* If rd_mode is not configured, raster mode is executed by default. */
-	rgaReg.src.rd_mode = src->rd_mode ? src->rd_mode : raster_mode;
-	rgaReg.dst.rd_mode = dst->rd_mode ? dst->rd_mode : raster_mode;
-	if (src1)
-		rgaReg.pat.rd_mode = src1->rd_mode ? src1->rd_mode : raster_mode;
+    rgaReg.src.rd_mode = src->rd_mode ? src->rd_mode : raster_mode;
+    rgaReg.dst.rd_mode = dst->rd_mode ? dst->rd_mode : raster_mode;
+    if (src1)
+        rgaReg.pat.rd_mode = src1->rd_mode ? src1->rd_mode : raster_mode;
 
-	rgaReg.in_fence_fd = dst->in_fence_fd;
-	rgaReg.core = dst->core;
-	rgaReg.priority = dst->priority;
+    rgaReg.in_fence_fd = dst->in_fence_fd;
+    rgaReg.core = dst->core;
+    rgaReg.priority = dst->priority;
 
-    do {
-        ret = ioctl(ctx->rgaFd, sync_mode, &rgaReg);
-    } while (ret == -1 && (errno == EINTR || errno == 512));   /* ERESTARTSYS is 512. */
-    if(ret) {
-        printf(" %s(%d) RGA_BLIT fail: %s\n",__FUNCTION__, __LINE__,strerror(errno));
-        ALOGE(" %s(%d) RGA_BLIT fail: %s",__FUNCTION__, __LINE__,strerror(errno));
-        return -errno;
+    if (dst->mpi_mode == 1 && dst->ctx_id > 0)
+    {
+        struct rga_user_ctx_t cmd_ctx;
+        struct rga_req cmd[1];
+        int ret;
+
+        memset(&cmd_ctx, 0x0, sizeof(cmd_ctx));
+        memset(cmd, 0x0, sizeof(cmd));
+
+        cmd_ctx.sync_mode = sync_mode;
+
+        cmd[0] = rgaReg;
+
+        cmd_ctx.id = dst->ctx_id;
+        cmd_ctx.cmd_ptr = (uint64_t)cmd;
+        cmd_ctx.cmd_num = 1;
+
+        ret = ioctl(ctx->rgaFd, RGA_CMD_CONFIG, &cmd_ctx);
+        if (ret < 0) {
+            printf(" %s(%d) start config fail: %s",__FUNCTION__, __LINE__,strerror(errno));
+            ALOGE(" %s(%d) start config fail: %s",__FUNCTION__, __LINE__,strerror(errno));
+            return -errno;
+        }
+    } else {
+        do {
+            ret = ioctl(ctx->rgaFd, sync_mode, &rgaReg);
+        } while (ret == -1 && (errno == EINTR || errno == 512));   /* ERESTARTSYS is 512. */
+        if(ret) {
+            printf(" %s(%d) RGA_BLIT fail: %s\n",__FUNCTION__, __LINE__,strerror(errno));
+            ALOGE(" %s(%d) RGA_BLIT fail: %s",__FUNCTION__, __LINE__,strerror(errno));
+            return -errno;
+        }
     }
 
-	dst->out_fence_fd = rgaReg.out_fence_fd;
+    dst->out_fence_fd = rgaReg.out_fence_fd;
 
     return 0;
 }
@@ -1470,8 +1549,15 @@ int RgaCollorFill(rga_info *dst) {
     }
 #endif
 
-    if (dst && dstFd < 0)
-        dstFd = dst->fd;
+    if (dst && dstFd < 0) {
+        if (dst->handle > 0) {
+            dstFd = dst->handle;
+            /* This will mark the use of handle */
+            rgaReg.handle_flag |= 1;
+        } else {
+            dstFd = dst->fd;
+        }
+    }
 
     if (dst && dst->phyAddr)
         dstBuf = dst->phyAddr;
@@ -1618,11 +1704,11 @@ int RgaCollorFill(rga_info *dst) {
 
     /* rga3 rd_mode */
     /* If rd_mode is not configured, raster mode is executed by default. */
-	rgaReg.dst.rd_mode = dst->rd_mode ? dst->rd_mode : raster_mode;
+    rgaReg.dst.rd_mode = dst->rd_mode ? dst->rd_mode : raster_mode;
 
-	rgaReg.in_fence_fd = dst->in_fence_fd;
-	rgaReg.core = dst->core;
-	rgaReg.priority = dst->priority;
+    rgaReg.in_fence_fd = dst->in_fence_fd;
+    rgaReg.core = dst->core;
+    rgaReg.priority = dst->priority;
 
     do {
         ret = ioctl(ctx->rgaFd, sync_mode, &rgaReg);
@@ -1698,8 +1784,33 @@ int RgaCollorPalette(rga_info *src, rga_info *dst, rga_info *lut) {
     }
 #endif
 
+    if (lut) {
+        if (src->handle > 0 && dst->handle > 0 && lut->handle > 0) {
+            if (src->handle <= 0 || dst->handle <= 0 || lut->handle <= 0) {
+                ALOGE("librga only supports the use of handles only or no handles, [src,lut,dst] = [%d, %d, %d]\n",
+                      src->handle, lut->handle, dst->handle);
+                return -EINVAL;
+            }
+
+            /* This will mark the use of handle */
+            rgaReg.handle_flag |= 1;
+        }
+    } else if (src->handle > 0 && dst->handle > 0) {
+        if (src->handle <= 0 || dst->handle <= 0) {
+            ALOGE("librga only supports the use of handles only or no handles, [src,dst] = [%d, %d]\n",
+                  src->handle, dst->handle);
+            return -EINVAL;
+        }
+
+        /* This will mark the use of handle */
+        rgaReg.handle_flag |= 1;
+    }
+
     /*********** get src addr *************/
-    if (src && src->phyAddr) {
+    if (src && src->handle) {
+        /* In order to minimize changes, the handle here will reuse the variable of Fd. */
+        srcFd = src->handle;
+    } else if (src && src->phyAddr) {
         srcBuf = src->phyAddr;
     } else if (src && src->fd > 0) {
         srcFd = src->fd;
@@ -1753,7 +1864,10 @@ int RgaCollorPalette(rga_info *src, rga_info *dst, rga_info *lut) {
         srcFd = -1;
 
     /*********** get dst addr *************/
-    if (dst && dst->phyAddr) {
+    if (dst && dst->handle) {
+        /* In order to minimize changes, the handle here will reuse the variable of Fd. */
+        dstFd = dst->handle;
+    } else if (dst && dst->phyAddr) {
         dstBuf = dst->phyAddr;
     } else if (dst && dst->fd > 0) {
         dstFd = dst->fd;
@@ -1807,7 +1921,10 @@ int RgaCollorPalette(rga_info *src, rga_info *dst, rga_info *lut) {
         dstFd = -1;
 
     /*********** get lut addr *************/
-    if (lut && lut->phyAddr) {
+    if (lut && lut->handle) {
+        /* In order to minimize changes, the handle here will reuse the variable of Fd. */
+        lutFd = lut->handle;
+    } else if (lut && lut->phyAddr) {
         lutBuf = lut->phyAddr;
     } else if (lut && lut->fd > 0) {
         lutFd = lut->fd;
@@ -2179,14 +2296,14 @@ int RgaCollorPalette(rga_info *src, rga_info *dst, rga_info *lut) {
 
     /* rga3 rd_mode */
     /* If rd_mode is not configured, raster mode is executed by default. */
-	rgaReg.src.rd_mode = src->rd_mode ? src->rd_mode : raster_mode;
-	rgaReg.dst.rd_mode = dst->rd_mode ? dst->rd_mode : raster_mode;
-	if (lut)
-		rgaReg.pat.rd_mode = lut->rd_mode ? lut->rd_mode : raster_mode;
+    rgaReg.src.rd_mode = src->rd_mode ? src->rd_mode : raster_mode;
+    rgaReg.dst.rd_mode = dst->rd_mode ? dst->rd_mode : raster_mode;
+    if (lut)
+        rgaReg.pat.rd_mode = lut->rd_mode ? lut->rd_mode : raster_mode;
 
     rgaReg.in_fence_fd = dst->in_fence_fd;
-	rgaReg.core = dst->core;
-	rgaReg.priority = dst->priority;
+    rgaReg.core = dst->core;
+    rgaReg.priority = dst->priority;
 
     if (!(lutFd == -1 && lutBuf == NULL)) {
         rgaReg.fading.g = 0xff;

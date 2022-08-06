@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2019 Rockchip Corporation
+ * Copyright (c) 2019-2022 Rockchip Eletronics Co., Ltd.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,9 +14,9 @@
  * limitations under the License.
  *
  */
+#include "rk_aiq_user_api_acac.h"
 
-#include "RkAiqHandleInt.h"
-#include "rk_aiq_user_api_aeis.h"
+#include "algo_handlers/RkAiqAcacHandle.h"
 
 RKAIQ_BEGIN_DECLARE
 
@@ -24,13 +24,13 @@ RKAIQ_BEGIN_DECLARE
 #define CHECK_USER_API_ENABLE
 #endif
 
-XCamReturn rk_aiq_user_api_aeis_SetAttrib(const rk_aiq_sys_ctx_t* sys_ctx,
-                                          rk_aiq_eis_attrib_t attr) {
+XCamReturn rk_aiq_user_api_acac_SetAttrib(const rk_aiq_sys_ctx_t* sys_ctx,
+                                          rk_aiq_cac_attrib_t attr) {
     CHECK_USER_API_ENABLE2(sys_ctx);
     CHECK_USER_API_ENABLE(RK_AIQ_ALGO_TYPE_AEIS);
     RKAIQ_API_SMART_LOCK(sys_ctx);
-    RkAiqAeisHandleInt* algo_handle =
-        algoHandle<RkAiqAeisHandleInt>(sys_ctx, RK_AIQ_ALGO_TYPE_AEIS);
+    RkAiqAcacHandleInt* algo_handle =
+        algoHandle<RkAiqAcacHandleInt>(sys_ctx, RK_AIQ_ALGO_TYPE_ACAC);
 
     if (algo_handle) {
         return algo_handle->setAttrib(attr);
@@ -39,11 +39,11 @@ XCamReturn rk_aiq_user_api_aeis_SetAttrib(const rk_aiq_sys_ctx_t* sys_ctx,
     return XCAM_RETURN_ERROR_FAILED;
 }
 
-XCamReturn rk_aiq_user_api_aeis_GetAttrib(const rk_aiq_sys_ctx_t* sys_ctx,
-                                          rk_aiq_eis_attrib_t* attr) {
+XCamReturn rk_aiq_user_api_acac_GetAttrib(const rk_aiq_sys_ctx_t* sys_ctx,
+                                          rk_aiq_cac_attrib_t* attr) {
     RKAIQ_API_SMART_LOCK(sys_ctx);
-    RkAiqAeisHandleInt* algo_handle =
-        algoHandle<RkAiqAeisHandleInt>(sys_ctx, RK_AIQ_ALGO_TYPE_AEIS);
+    RkAiqAcacHandleInt* algo_handle =
+        algoHandle<RkAiqAcacHandleInt>(sys_ctx, RK_AIQ_ALGO_TYPE_ACAC);
 
     if (algo_handle) {
         return algo_handle->getAttrib(attr);

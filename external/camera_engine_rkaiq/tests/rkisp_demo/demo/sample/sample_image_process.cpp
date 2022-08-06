@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2019 Rockchip Corporation
+ * Copyright (c) 2021-2022 Rockchip Eletronics Co., Ltd.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -38,6 +38,14 @@
 #include "sample_abayertnr_module.h"
 #include "sample_csm_module.h"
 #include "sample_ablc_module.h"
+#include "sample_agic_module.h"
+#include "sample_aldch_module.h"
+#include "sample_adebayer_module.h"
+#include "sample_alsc_module.h"
+#include "sample_acp_module.h"
+#include "sample_aie_module.h"
+#include "sample_adpcc_module.h"
+#include "sample_again_module.h"
 
 
 struct module_sample_info {
@@ -70,6 +78,12 @@ static struct module_sample_info module_samples[] = {
     MODULE_INFO(RK_ISP_ABAYERTNR, sample_abayertnr_module, sample_print_abayertnr_info),
     MODULE_INFO(RK_ISP_CSM, sample_csm_module, sample_print_csm_info),
     MODULE_INFO(RK_ISP_ABLC, sample_ablc_module, sample_print_ablc_info),
+    MODULE_INFO(RK_ISP_AGIC, sample_agic_module, sample_print_agic_info),
+    MODULE_INFO(RK_ISP_ALDCH, sample_aldch_module, sample_print_aldch_info),
+    MODULE_INFO(RK_ISP_ADEBAYER, sample_adebayer_module, sample_print_adebayer_info),
+    MODULE_INFO(RK_ISP_ACP, sample_acp_module, sample_print_acp_info),
+    MODULE_INFO(RK_ISP_AIE, sample_aie_module, sample_print_aie_info),
+    MODULE_INFO(RK_ISP_AGAIN, sample_again_module, sample_print_again_info),
 };
 
 static void sample_usage()
@@ -93,6 +107,14 @@ static void sample_usage()
     printf("\t d) ABAYERTNR:  module test sample.\n");
     printf("\t e) CSM:        module test sample.\n");
     printf("\t f) ABLC:       module test sample.\n");
+    printf("\t g) AGIC:       module test sample.\n");
+    printf("\t h) ALDCH:      module test sample.\n");
+    printf("\t i) ADEBAYER:   module test sample.\n");
+    printf("\t j) ALSC:       module test sample.\n");
+    printf("\t k) ACP:        module test sample.\n");
+    printf("\t l) AIE:        module test sample.\n");
+    printf("\t m) DPCC:       module test sample.\n");
+    printf("\t n) AGAIN:      module test sample.\n");
     printf("\n");
     printf("\t please press the key: ");
 
@@ -216,6 +238,52 @@ XCamReturn sample_main (const void *arg)
         struct module_sample_info *info = &module_samples[RK_ISP_ABLC];
         info->debug (nullptr);
         info->func (arg);
+        break;
+    }
+    case 'g': {
+        printf("enter AGIC module test\n");
+        struct module_sample_info *info = &module_samples[RK_ISP_AGIC];
+        info->debug (nullptr);
+        info->func (arg);
+        break;
+    }
+    case 'h': {
+        struct module_sample_info *info = &module_samples[RK_ISP_ALDCH];
+        info->debug (nullptr);
+        info->func (arg);
+        break;
+    }
+    case 'i': {
+        struct module_sample_info *info = &module_samples[RK_ISP_ADEBAYER];
+        info->debug (nullptr);
+        info->func (arg);
+        break;
+    }
+    case 'j': {
+        printf("enter LSC module test\n");
+        sample_alsc_module(arg);
+        break;
+    }
+    case 'k': {
+        struct module_sample_info *info = &module_samples[RK_ISP_ACP];
+        info->debug (nullptr);
+        info->func (arg);
+        break;
+    }
+    case 'l': {
+        struct module_sample_info *info = &module_samples[RK_ISP_AIE];
+        info->debug (nullptr);
+        info->func (arg);
+        break;
+    }
+    case 'm': {
+        printf("enter DPCC module test\n");
+        sample_adpcc_module(arg);
+        break;
+    }
+    case 'n': {
+        printf("enter GAIN module test\n");
+        sample_again_module(arg);
         break;
     }
     default:

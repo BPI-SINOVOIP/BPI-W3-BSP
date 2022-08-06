@@ -299,6 +299,70 @@ RK_S32 mpp_list::flush()
     return 0;
 }
 
+MPP_RET mpp_list::wait_lt(RK_S64 timeout, RK_S32 val)
+{
+    if (list_size() < val)
+        return MPP_OK;
+
+    if (!timeout)
+        return MPP_NOK;
+
+    if (timeout < 0)
+        wait();
+    else
+        wait(timeout);
+
+    return list_size() < val ? MPP_OK : MPP_NOK;
+}
+
+MPP_RET mpp_list::wait_le(RK_S64 timeout, RK_S32 val)
+{
+    if (list_size() <= val)
+        return MPP_OK;
+
+    if (!timeout)
+        return MPP_NOK;
+
+    if (timeout < 0)
+        wait();
+    else
+        wait(timeout);
+
+    return list_size() <= val ? MPP_OK : MPP_NOK;
+}
+
+MPP_RET mpp_list::wait_gt(RK_S64 timeout, RK_S32 val)
+{
+    if (list_size() > val)
+        return MPP_OK;
+
+    if (!timeout)
+        return MPP_NOK;
+
+    if (timeout < 0)
+        wait();
+    else
+        wait(timeout);
+
+    return list_size() > val ? MPP_OK : MPP_NOK;
+}
+
+MPP_RET mpp_list::wait_ge(RK_S64 timeout, RK_S32 val)
+{
+    if (list_size() >= val)
+        return MPP_OK;
+
+    if (!timeout)
+        return MPP_NOK;
+
+    if (timeout < 0)
+        wait();
+    else
+        wait(timeout);
+
+    return list_size() >= val ? MPP_OK : MPP_NOK;
+}
+
 RK_U32 mpp_list::get_key()
 {
     return keys++;

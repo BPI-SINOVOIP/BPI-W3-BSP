@@ -24,11 +24,11 @@ rk_aiq_uapi_aynrV3_GetAttrib(const RkAiqAlgoContext *ctx,
 
 XCamReturn
 rk_aiq_uapi_aynrV3_SetLumaSFStrength(const RkAiqAlgoContext *ctx,
-                                     float fPercent);
+                                     rk_aiq_ynr_strength_v3_t *pStrength);
 
 XCamReturn
 rk_aiq_uapi_aynrV3_GetLumaSFStrength(const RkAiqAlgoContext *ctx,
-                                     float *pPercent);
+                                     rk_aiq_ynr_strength_v3_t *pStrength);
 
 
 

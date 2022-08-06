@@ -37,6 +37,28 @@
 
 struct media_device;
 
+/*
+ * [sub modules]: use bits 4-11 to define the sub modules of each module, the
+ *     specific meaning of each bit is decided by the module itself. These bits
+ *     is designed to implement the sub module's log switch.
+
+ *  ----------------------------
+ * |    sub modules    |  bits  |
+ *  ----------------------------
+ * |  ISP20HW_SUBM     |  0x01  |
+ *  ----------------------------
+ * |  ISP20PARAM_SUBM  |  0x02  |
+ *  ----------------------------
+ * |  SENSOR_SUBM      |  0x04  |
+ *  ----------------------------
+ * |  FL_SUBM          |  0x08  |
+ *  ----------------------------
+ * |  LENS_SUBM        |  0x10  |
+ *  ----------------------------
+ * |  CAPTURERAW_SUBM  |  0x80  |
+ *  ----------------------------
+ */
+
 namespace RkCam {
 
 class IspParamsSplitter;
@@ -50,6 +72,7 @@ class CamHwIsp20
     : public CamHwBase, virtual public Isp20Params, public V4l2Device
     , public isp_drv_share_mem_ops_t {
 public:
+    friend class RawStreamProcUnit;
     explicit CamHwIsp20();
     virtual ~CamHwIsp20();
 
@@ -305,6 +328,7 @@ protected:
     int _isp_stream_status;
 
     rk_sensor_pdaf_info_t mPdafInfo;
+    Mutex     _stop_cond_mutex;
 };
 
 };

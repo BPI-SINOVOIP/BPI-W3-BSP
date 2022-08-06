@@ -34,6 +34,7 @@ typedef enum MppDecCfgChange_e {
     MPP_DEC_CFG_CHANGE_SORT_PTS         = (1 << 13),
     MPP_DEC_CFG_CHANGE_DISABLE_ERROR    = (1 << 14),
     MPP_DEC_CFG_CHANGE_ENABLE_VPROC     = (1 << 15),
+    MPP_DEC_CFG_CHANGE_ENABLE_FAST_PLAY = (1 << 16),
 
     MPP_DEC_CFG_CHANGE_ALL              = (0xFFFFFFFF),
 } MppDecCfgChange;
@@ -54,6 +55,7 @@ typedef struct MppDecBaseCfg_t {
     RK_U32              sort_pts;
     RK_U32              disable_error;
     RK_U32              enable_vproc;
+    RK_U32              enable_fast_play;
 } MppDecBaseCfg;
 
 typedef enum MppDecCbCfgChange_e {
@@ -78,6 +80,7 @@ typedef struct MppDecCbCfg_t {
 } MppDecCbCfg;
 
 typedef struct MppDecStatusCfg_t {
+    RK_U32              hal_support_fast_mode;
     RK_U32              hal_task_count;
     RK_U32              vproc_task_count;
 } MppDecStatusCfg;

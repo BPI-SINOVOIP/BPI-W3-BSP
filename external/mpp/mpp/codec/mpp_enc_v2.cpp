@@ -28,6 +28,7 @@
 #include "mpp_enc_debug.h"
 #include "mpp_enc_cfg_impl.h"
 #include "mpp_enc_impl.h"
+#include "mpp_enc_cb_param.h"
 
 RK_U32 mpp_enc_debug = 0;
 
@@ -62,18 +63,24 @@ MPP_RET mpp_enc_init_v2(MppEnc *enc, MppEncInitCfg *cfg)
         goto ERR_RET;
     }
 
+    p->output_cb.callBack = mpp_enc_callback;
+    p->output_cb.ctx = p;
+    p->output_cb.cmd = ENC_CALLBACK_BASE;
+
     // H.264 encoder use mpp_enc_hal path
     // create hal first
     enc_hal_cfg.coding = coding;
     enc_hal_cfg.cfg = &p->cfg;
+    enc_hal_cfg.output_cb = &p->output_cb;
+    enc_hal_cfg.task_cnt = cfg->task_cnt;
     enc_hal_cfg.type = VPU_CLIENT_BUTT;
     enc_hal_cfg.dev = NULL;
+    enc_hal_cfg.cap_recn_out = 0;
 
     ctrl_cfg.coding = coding;
     ctrl_cfg.type = VPU_CLIENT_BUTT;
     ctrl_cfg.cfg = &p->cfg;
     ctrl_cfg.refs = p->refs;
-    ctrl_cfg.task_count = 2;
 
     ret = mpp_enc_hal_init(&enc_hal, &enc_hal_cfg);
     if (ret) {
@@ -82,7 +89,6 @@ MPP_RET mpp_enc_init_v2(MppEnc *enc, MppEncInitCfg *cfg)
     }
 
     ctrl_cfg.type = enc_hal_cfg.type;
-    ctrl_cfg.task_count = -1;
 
     ret = enc_impl_init(&impl, &ctrl_cfg);
     if (ret) {
@@ -101,11 +107,15 @@ MPP_RET mpp_enc_init_v2(MppEnc *enc, MppEncInitCfg *cfg)
     p->enc_hal  = enc_hal;
     p->dev      = enc_hal_cfg.dev;
     p->mpp      = cfg->mpp;
+    p->tasks    = enc_hal_cfg.tasks;
     p->sei_mode = MPP_ENC_SEI_MODE_ONE_SEQ;
     p->version_info = get_mpp_version();
     p->version_length = strlen(p->version_info);
     p->rc_cfg_size = SZ_1K;
     p->rc_cfg_info = mpp_calloc_size(char, p->rc_cfg_size);
+
+    if (enc_hal_cfg.cap_recn_out)
+        p->support_hw_deflicker = 1;
 
     {
         // create header packet storage
@@ -207,6 +217,24 @@ MPP_RET mpp_enc_start_v2(MppEnc ctx)
              strof_coding_type(enc->coding), getpid());
 
     enc->thread_enc = new MppThread(mpp_enc_thread, enc->mpp, name);
+    enc->thread_enc->start();
+
+    enc_dbg_func("%p out\n", enc);
+
+    return MPP_OK;
+}
+
+MPP_RET mpp_enc_start_async(MppEnc ctx)
+{
+    MppEncImpl *enc = (MppEncImpl *)ctx;
+    char name[16];
+
+    enc_dbg_func("%p in\n", enc);
+
+    snprintf(name, sizeof(name) - 1, "mpp_%se_%d",
+             strof_coding_type(enc->coding), getpid());
+
+    enc->thread_enc = new MppThread(mpp_enc_async_thread, enc->mpp, name);
     enc->thread_enc->start();
 
     enc_dbg_func("%p out\n", enc);
@@ -319,6 +347,13 @@ MPP_RET mpp_enc_control_v2(MppEnc ctx, MpiCmd cmd, void *param)
             cfg->prep.rotation == MPP_ENC_ROT_270) {
             MPP_SWAP(RK_S32, cfg->prep.width, cfg->prep.height);
         }
+        /* cleanup output change flag to avoid extra change flag bit when user resend the cfg */
+        cfg->rc.change = 0;
+        cfg->prep.change = 0;
+        cfg->hw.change = 0;
+        cfg->codec.change = 0;
+        cfg->split.change = 0;
+        cfg->tune.change = 0;
     } break;
     case MPP_ENC_GET_PREP_CFG : {
         enc_dbg_ctrl("get prep config\n");

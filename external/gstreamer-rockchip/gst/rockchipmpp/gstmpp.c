@@ -48,16 +48,17 @@ struct gst_mpp_format
 #ifdef HAVE_RGA
   RgaSURF_FORMAT rga_format;
 #endif
-  gint stride;
+  gint pixel_stride0;
   gboolean is_yuv;
 };
 
 #ifdef HAVE_RGA
-#define GST_MPP_FORMAT(gst, mpp, rga, stride, yuv) \
-  { GST_VIDEO_FORMAT_ ## gst, MPP_FMT_ ## mpp, RK_FORMAT_ ## rga, stride, yuv }
+#define GST_MPP_FORMAT(gst, mpp, rga, pixel_stride0, yuv) \
+  { GST_VIDEO_FORMAT_ ## gst, MPP_FMT_ ## mpp, RK_FORMAT_ ## rga, \
+    pixel_stride0, yuv }
 #else
-#define GST_MPP_FORMAT(gst, mpp, rga, stride, yuv) \
-  { GST_VIDEO_FORMAT_ ## gst, MPP_FMT_ ## mpp, stride, yuv}
+#define GST_MPP_FORMAT(gst, mpp, rga, pixel_stride0, yuv) \
+  { GST_VIDEO_FORMAT_ ## gst, MPP_FMT_ ## mpp, pixel_stride0, yuv}
 #endif
 
 struct gst_mpp_format gst_mpp_formats[] = {
@@ -65,14 +66,18 @@ struct gst_mpp_format gst_mpp_formats[] = {
   GST_MPP_FORMAT (YV12, BUTT, YCrCb_420_P, 1, 1),
   GST_MPP_FORMAT (NV12, YUV420SP, YCbCr_420_SP, 1, 1),
   GST_MPP_FORMAT (NV21, YUV420SP_VU, YCrCb_420_SP, 1, 1),
+#ifdef HAVE_NV12_10LE40
   GST_MPP_FORMAT (NV12_10LE40, YUV420SP_10BIT, YCbCr_420_SP_10B, 1, 1),
+#else
+  GST_MPP_FORMAT (UNKNOWN, YUV420SP_10BIT, YCbCr_420_SP_10B, 1, 1),
+#endif
   GST_MPP_FORMAT (Y42B, YUV422P, YCbCr_422_P, 1, 1),
   GST_MPP_FORMAT (NV16, YUV422SP, YCbCr_422_SP, 1, 1),
   GST_MPP_FORMAT (NV61, YUV422SP_VU, YCrCb_422_SP, 1, 1),
-  GST_MPP_FORMAT (YUY2, YUV422_YUYV, UNKNOWN, 1, 1),
-  GST_MPP_FORMAT (YVYU, YUV422_YVYU, UNKNOWN, 1, 1),
-  GST_MPP_FORMAT (UYVY, YUV422_UYVY, UNKNOWN, 1, 1),
-  GST_MPP_FORMAT (VYUY, YUV422_VYUY, UNKNOWN, 1, 1),
+  GST_MPP_FORMAT (YUY2, YUV422_YUYV, UNKNOWN, 2, 1),
+  GST_MPP_FORMAT (YVYU, YUV422_YVYU, UNKNOWN, 2, 1),
+  GST_MPP_FORMAT (UYVY, YUV422_UYVY, UNKNOWN, 2, 1),
+  GST_MPP_FORMAT (VYUY, YUV422_VYUY, UNKNOWN, 2, 1),
   GST_MPP_FORMAT (RGB16, RGB565LE, UNKNOWN, 2, 0),
   GST_MPP_FORMAT (BGR16, BGR565LE, RGB_565, 2, 0),
   GST_MPP_FORMAT (RGB, RGB888, RGB_888, 3, 0),
@@ -95,14 +100,29 @@ struct gst_mpp_format gst_mpp_formats[] = {
   }; _tmp; \
 })
 
+gboolean
+gst_mpp_use_rga ()
+{
+  static int mpp_use_rga = -1;
+
+#ifdef HAVE_RGA
+  if (mpp_use_rga < 0) {
+    const gchar *buf = g_getenv ("GST_MPP_NO_RGA");
+    if (!buf || buf[0] == '0')
+      mpp_use_rga = 1;
+    else
+      mpp_use_rga = 0;
+  }
+#endif
+
+  return mpp_use_rga > 0;
+}
+
 const gchar *
 gst_mpp_video_format_to_string (GstVideoFormat format)
 {
   if (format == GST_VIDEO_FORMAT_UNKNOWN)
     return "UNKNOWN";
-
-  if (format == GST_VIDEO_FORMAT_NV12_10LE40)
-    return "NV12_10";
 
   return gst_video_format_to_string (format);
 }
@@ -155,10 +175,6 @@ gst_mpp_set_rga_info (rga_info_t * info, RgaSURF_FORMAT rga_format,
   if (info->fd < 0 && !info->virAddr)
     return FALSE;
 
-  /* HACK: The MPP might provide pixel stride in some cases */
-  if (hstride / format->stride >= width)
-    hstride /= format->stride;
-
   info->mmuFlag = 1;
   rga_set_rect (&info->rect, 0, 0, width, height, hstride, vstride, rga_format);
   return TRUE;
@@ -203,7 +219,7 @@ gst_mpp_rga_do_convert (rga_info_t * src_info, rga_info_t * dst_info)
   static gint rga_supported = 1;
   static gint rga_inited = 0;
 
-  if (!rga_supported)
+  if (!rga_supported || !gst_mpp_use_rga ())
     return FALSE;
 
   if (!rga_inited) {
@@ -332,6 +348,11 @@ gst_mpp_video_info_align (GstVideoInfo * info, gint hstride, gint vstride)
   if (!gst_video_info_align (info, &align))
     return FALSE;
 
+  /* Apply vstride for single-plane */
+  if (GST_VIDEO_INFO_N_PLANES (info) == 1)
+    GST_VIDEO_INFO_SIZE (info) =
+        GST_VIDEO_INFO_PLANE_STRIDE (info, 0) * vstride;
+
   if (GST_VIDEO_INFO_PLANE_STRIDE (info, 0) == hstride)
     return TRUE;
 
@@ -354,42 +375,36 @@ gst_mpp_video_info_align (GstVideoInfo * info, gint hstride, gint vstride)
   return TRUE;
 }
 
+guint
+gst_mpp_get_pixel_stride (GstVideoInfo * info)
+{
+  GstVideoFormat gst_format = GST_VIDEO_INFO_FORMAT (info);
+  struct gst_mpp_format *format = GST_MPP_GET_FORMAT (gst, gst_format);
+  guint hstride = GST_MPP_VIDEO_INFO_HSTRIDE (info);
+
+  if (!format)
+    return hstride;
+
+  return hstride / format->pixel_stride0;
+}
+
 static gboolean
 plugin_init (GstPlugin * plugin)
 {
   GST_DEBUG_CATEGORY_INIT (GST_CAT_DEFAULT, "mpp", 0, "MPP");
 
-  if (!gst_element_register (plugin, "mppvideodec", GST_RANK_PRIMARY + 1,
-          gst_mpp_video_dec_get_type ()))
-    return FALSE;
+  gst_mpp_h264_enc_register (plugin, GST_RANK_PRIMARY + 1);
+  gst_mpp_h265_enc_register (plugin, GST_RANK_PRIMARY + 1);
+  gst_mpp_vp8_enc_register (plugin, GST_RANK_PRIMARY + 1);
+  gst_mpp_jpeg_enc_register (plugin, GST_RANK_PRIMARY + 1);
 
-  if (!gst_element_register (plugin, "mpph264enc", GST_RANK_PRIMARY + 1,
-          gst_mpp_h264_enc_get_type ()))
-    return FALSE;
+  gst_mpp_video_dec_register (plugin, GST_RANK_PRIMARY + 1);
+  gst_mpp_jpeg_dec_register (plugin, GST_RANK_PRIMARY + 1);
 
-  if (!gst_element_register (plugin, "mpph265enc", GST_RANK_PRIMARY + 1,
-          gst_mpp_h265_enc_get_type ()))
-    return FALSE;
-
-  if (!gst_element_register (plugin, "mppvp8enc", GST_RANK_PRIMARY + 1,
-          gst_mpp_vp8_enc_get_type ()))
-    return FALSE;
-
-  if (!gst_element_register (plugin, "mppjpegenc", GST_RANK_PRIMARY + 1,
-          gst_mpp_jpeg_enc_get_type ()))
-    return FALSE;
-
-  if (!gst_element_register (plugin, "mppjpegdec", GST_RANK_PRIMARY + 1,
-          gst_mpp_jpeg_dec_get_type ()))
-    return FALSE;
-
-  /* Both codecalphademux and alphacombine elements were added in 1.19 */
-  if (GST_VERSION_MAJOR == 1 && GST_VERSION_MINOR >= 19) {
-    if (!gst_element_register (plugin, "mppvpxalphadecodebin",
-            GST_RANK_PRIMARY + GST_MPP_ALPHA_DECODE_BIN_RANK_OFFSET,
-            gst_mpp_vpx_alpha_decode_bin_get_type ()))
-      return FALSE;
-  }
+#ifdef USE_VPXALPHADEC
+  gst_mpp_vpx_alpha_decode_bin_register (plugin,
+      GST_RANK_PRIMARY + GST_MPP_ALPHA_DECODE_BIN_RANK_OFFSET);
+#endif
 
   return TRUE;
 }

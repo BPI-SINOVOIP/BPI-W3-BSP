@@ -35,6 +35,8 @@
 #ifndef _RKISP_PATH_VIDEO_H
 #define _RKISP_PATH_VIDEO_H
 
+#include <linux/interrupt.h>
+
 #include "common.h"
 #include "capture_v1x.h"
 #include "capture_v2x.h"
@@ -44,7 +46,10 @@
 #define SP_VDEV_NAME DRIVER_NAME	"_selfpath"
 #define MP_VDEV_NAME DRIVER_NAME	"_mainpath"
 #define FBC_VDEV_NAME DRIVER_NAME	"_fbcpath"
-#define BP_VDEV_NAME DRIVER_NAME	"_fullpath"
+#define BP_VDEV_NAME DRIVER_NAME	"_bypasspath"
+#define MPDS_VDEV_NAME DRIVER_NAME	"_mainpath_4x4sampling"
+#define BPDS_VDEV_NAME DRIVER_NAME	"_bypasspath_4x4sampling"
+#define LUMA_VDEV_NAME DRIVER_NAME	"_lumapath"
 #define VIR_VDEV_NAME DRIVER_NAME	"_iqtool"
 
 #define DMATX0_VDEV_NAME DRIVER_NAME	"_rawwr0"
@@ -53,6 +58,11 @@
 #define DMATX3_VDEV_NAME DRIVER_NAME	"_rawwr3"
 
 struct rkisp_stream;
+
+enum {
+	ROCKIT_DVBM_END,
+	ROCKIT_DVBM_START,
+};
 
 enum {
 	RDBK_L,
@@ -70,6 +80,9 @@ enum {
 	RKISP_STREAM_DMATX3,
 	RKISP_STREAM_FBC,
 	RKISP_STREAM_BP,
+	RKISP_STREAM_MPDS,
+	RKISP_STREAM_BPDS,
+	RKISP_STREAM_LUMA,
 	RKISP_STREAM_VIR,
 	RKISP_MAX_STREAM,
 };
@@ -187,6 +200,8 @@ struct stream_config {
 		u32 cr_offs_cnt_init;
 		u32 y_base_ad_shd;
 		u32 length;
+		u32 ctrl;
+		u32 y_pic_size;
 	} mi;
 	struct {
 		u32 ctrl;
@@ -202,9 +217,19 @@ struct streams_ops {
 	void (*enable_mi)(struct rkisp_stream *stream);
 	void (*disable_mi)(struct rkisp_stream *stream);
 	void (*set_data_path)(struct rkisp_stream *stream);
-	bool (*is_stream_stopped)(void __iomem *base);
+	bool (*is_stream_stopped)(struct rkisp_stream *stream);
 	void (*update_mi)(struct rkisp_stream *stream);
 	int (*frame_end)(struct rkisp_stream *stream);
+	int (*frame_start)(struct rkisp_stream *stream, u32 mis);
+	int (*set_wrap)(struct rkisp_stream *stream, int line);
+};
+
+struct rockit_isp_ops {
+	int (*rkisp_stream_start)(struct rkisp_stream *stream);
+	void (*rkisp_stream_stop)(struct rkisp_stream *stream);
+	int (*rkisp_set_fmt)(struct rkisp_stream *stream,
+			   struct v4l2_pix_format_mplane *pixm,
+			   bool try);
 };
 
 /*
@@ -241,12 +266,19 @@ struct rkisp_stream {
 	struct list_head buf_queue;
 	struct rkisp_buffer *curr_buf;
 	struct rkisp_buffer *next_buf;
+	struct rkisp_dummy_buffer dummy_buf;
 	struct mutex apilock;
 	bool streaming;
 	bool stopping;
 	bool frame_end;
 	bool linked;
 	bool start_stream;
+	bool is_mf_upd;
+	bool is_flip;
+	bool is_pause;
+	bool is_crop_upd;
+	bool is_pre_on;
+	bool is_using_resmem;
 	wait_queue_head_t done;
 	unsigned int burst;
 	atomic_t sequence;
@@ -273,13 +305,19 @@ struct rkisp_capture_device {
 	struct rkisp_stream stream[RKISP_MAX_STREAM];
 	struct rkisp_buffer *rdbk_buf[RDBK_MAX];
 	struct rkisp_vir_cpy vir_cpy;
+	struct tasklet_struct rd_tasklet;
 	atomic_t refcnt;
 	u32 wait_line;
+	u32 wrap_line;
 	bool is_done_early;
+	bool is_mirror;
+
+	struct work_struct fast_work;
 };
 
 extern struct stream_config rkisp_mp_stream_config;
 extern struct stream_config rkisp_sp_stream_config;
+extern struct rockit_isp_ops rockit_isp_ops;
 
 void rkisp_unregister_stream_vdev(struct rkisp_stream *stream);
 int rkisp_register_stream_vdev(struct rkisp_stream *stream);
@@ -288,6 +326,7 @@ int rkisp_register_stream_vdevs(struct rkisp_device *dev);
 void rkisp_mi_isr(u32 mis_val, struct rkisp_device *dev);
 void rkisp_set_stream_def_fmt(struct rkisp_device *dev, u32 id,
 			      u32 width, u32 height, u32 pixelformat);
+int rkisp_stream_frame_start(struct rkisp_device *dev, u32 isp_mis);
 int rkisp_fcc_xysubs(u32 fcc, u32 *xsubs, u32 *ysubs);
 int rkisp_mbus_code_xysubs(u32 code, u32 *xsubs, u32 *ysubs);
 int rkisp_fh_open(struct file *filp);

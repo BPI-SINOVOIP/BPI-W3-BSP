@@ -639,16 +639,13 @@ err_free_configs:
 }
 
 #define drm_crtc_bind_plane_force(ctx, crtc, plane) \
-  drm_crtc_bind_plane(ctx, crtc, plane, 0, 1)
+  drm_crtc_bind_plane(ctx, crtc, plane, 1)
 
 #define drm_crtc_bind_plane_cursor(ctx, crtc, plane) \
-  drm_crtc_bind_plane(ctx, crtc, plane, 0, 0)
-
-#define drm_crtc_bind_plane_force_afbc(ctx, crtc, plane) \
-  drm_crtc_bind_plane(ctx, crtc, plane, 1, 1)
+  drm_crtc_bind_plane(ctx, crtc, plane, 0)
 
 static int drm_crtc_bind_plane(drm_ctx *ctx, drm_crtc *crtc, uint32_t plane_id,
-                               int must_afbc, int allow_overlay)
+                               int allow_overlay)
 {
   drm_plane *plane;
   uint64_t value;
@@ -691,10 +688,9 @@ static int drm_crtc_bind_plane(drm_ctx *ctx, drm_crtc *crtc, uint32_t plane_id,
   if (plane->cursor_plane)
     DRM_INFO("CRTC[%d]: using cursor plane\n", crtc->crtc_id);
 
-  if (must_afbc && !plane->can_afbc)
-    goto err;
-
   if (ctx->prefer_afbc_modifier && plane->can_afbc)
+    crtc->use_afbc_modifier = 1;
+  else if (!plane->can_linear)
     crtc->use_afbc_modifier = 1;
 
   DRM_DEBUG("CRTC[%d]: bind plane: %d%s\n", crtc->crtc_id, plane->plane_id,
@@ -1021,15 +1017,10 @@ static int drm_crtc_prepare(drm_ctx *ctx, drm_crtc *crtc)
 
   /* Try cursor plane */
   for (i = 0; !crtc->plane && i < ctx->pres->count_planes; i++)
-    drm_crtc_bind_plane(ctx, crtc, ctx->pres->planes[i], 0, 0);
+    drm_crtc_bind_plane_cursor(ctx, crtc, ctx->pres->planes[i]);
 
   /* Fallback to any available overlay plane */
   if (ctx->allow_overlay) {
-    if (ctx->prefer_afbc_modifier) {
-      for (i = ctx->pres->count_planes; !crtc->plane && i; i--)
-        drm_crtc_bind_plane_force_afbc(ctx, crtc, ctx->pres->planes[i - 1]);
-    }
-
     for (i = ctx->pres->count_planes; !crtc->plane && i; i--)
       drm_crtc_bind_plane_force(ctx, crtc, ctx->pres->planes[i - 1]);
   }

@@ -4,6 +4,7 @@ QT      += widgets multimedia
 TARGET = qsetting
 TEMPLATE = app
 
+
 SOURCES += \
         main.cpp \
         mainwindow.cpp \
@@ -24,10 +25,12 @@ HEADERS += \
         qtkeyboard.h \
         qtupdate.h \
         qtwifi.h \
+        Rk_wifi.h\
+        Rk_softap.h\
 
 FORMS += \
     qtkeyboard.ui \
 
-LIBS += -lDeviceIo
+LIBS +=-lrkwifibt
 
 RESOURCES += res.qrc

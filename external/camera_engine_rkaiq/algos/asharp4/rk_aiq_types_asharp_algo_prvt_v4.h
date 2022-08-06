@@ -38,9 +38,10 @@ typedef struct Asharp_Context_V4_s {
     Asharp_Auto_Attr_V4_t stAuto;
     Asharp_Manual_Attr_V4_t stManual;
 
+    Asharp_ProcResult_V4_t stProcResult;
     struct list_head* list_sharp_v4;
 
-    float fSharp_Strength;
+    rk_aiq_sharp_strength_v4_t stStrength;
 
     bool isIQParaUpdate;
     bool isGrayMode;

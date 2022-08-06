@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/bash -e
 
 if [ -z "${BASH_SOURCE}" ];then
 	echo Not in bash, switching to it...
@@ -58,14 +58,13 @@ function lunch_rockchip()
 
 	CONFIG=${TARGET_OUTPUT_DIR}/.config
 	cp ${CONFIG}{,.new}
-	[ -f ${CONFIG}.old ] || return 0
-	mv ${CONFIG}{.old,} &>/dev/null
+	mv ${CONFIG}{.old,} &>/dev/null || return 0
 
 	make -C ${BUILDROOT_DIR} O="$TARGET_OUTPUT_DIR" olddefconfig &>/dev/null
 
 	if ! diff ${CONFIG}{,.new}; then
 		read -t 10 -p "Found old config, override it? (y/n):" YES
-		[ "$YES" != "n" ] && cp ${CONFIG}{.new,}
+		[ "$YES" = "n" ] || cp ${CONFIG}{.new,}
 	fi
 }
 
@@ -77,9 +76,6 @@ function main()
 	BUILDROOT_OUTPUT_DIR=${BUILDROOT_DIR}/output
 	TOP_DIR=$(dirname ${BUILDROOT_DIR})
 	echo Top of tree: ${TOP_DIR}
-
-	# Set croot alias
-	alias croot="cd ${TOP_DIR}"
 
 	RK_DEFCONFIG_ARRAY=(
 		$(cd ${BUILDROOT_DIR}/configs/; ls rockchip_* | \
@@ -111,6 +107,12 @@ function main()
 	source ${TOP_DIR}/device/rockchip/.BoardConfig.mk
 
 	lunch_rockchip
+
+	# Set alias
+	alias croot="cd ${TOP_DIR}"
+	alias broot="cd ${BUILDROOT_DIR}"
+	alias bpkg="cd ${BUILDROOT_DIR}/package"
+	alias bout="cd ${TARGET_OUTPUT_DIR}"
 }
 
 if [ "${BASH_SOURCE}" == "$0" ];then

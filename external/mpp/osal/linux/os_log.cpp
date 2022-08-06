@@ -14,12 +14,13 @@
  * limitations under the License.
  */
 
-#if defined(__gnu_linux__)
+#if defined(linux) && !defined(__ANDROID__)
 #include <stdio.h>
 #include <stdarg.h>
 #include <syslog.h>
 
 #include "os_log.h"
+#include "os_env.h"
 
 #define LINE_SZ 1024
 
@@ -38,7 +39,14 @@ static SyslogWrapper syslog_wrapper;
 
 SyslogWrapper::SyslogWrapper()
 {
-    openlog("mpp", LOG_PID | LOG_CONS | LOG_PERROR, LOG_USER);
+    int option = LOG_PID | LOG_CONS;
+    RK_U32 syslog_perror = 0;
+
+    os_get_env_u32("mpp_syslog_perror", &syslog_perror, 0);
+    if (syslog_perror)
+        option |= LOG_PERROR;
+
+    openlog("mpp", option, LOG_USER);
 }
 
 SyslogWrapper::~SyslogWrapper()
@@ -46,18 +54,46 @@ SyslogWrapper::~SyslogWrapper()
     closelog();
 }
 
-void os_log(const char* tag, const char* msg, va_list list)
+void os_log_trace(const char* tag, const char* msg, va_list list)
 {
     char line[LINE_SZ] = {0};
-    snprintf(line, sizeof(line), "%s: %s", tag, msg);
+    snprintf(line, sizeof(line) - 1, "%s: %s", tag, msg);
+    vsyslog(LOG_NOTICE, line, list);
+}
+
+void os_log_debug(const char* tag, const char* msg, va_list list)
+{
+    char line[LINE_SZ] = {0};
+    snprintf(line, sizeof(line) - 1, "%s: %s", tag, msg);
+    vsyslog(LOG_DEBUG, line, list);
+}
+
+void os_log_info(const char* tag, const char* msg, va_list list)
+{
+    char line[LINE_SZ] = {0};
+    snprintf(line, sizeof(line) - 1, "%s: %s", tag, msg);
     vsyslog(LOG_INFO, line, list);
 }
 
-void os_err(const char* tag, const char* msg, va_list list)
+void os_log_warn(const char* tag, const char* msg, va_list list)
 {
     char line[LINE_SZ] = {0};
-    snprintf(line, sizeof(line), "%s: %s", tag, msg);
+    snprintf(line, sizeof(line) - 1, "%s: %s", tag, msg);
+    vsyslog(LOG_WARNING, line, list);
+}
+
+void os_log_error(const char* tag, const char* msg, va_list list)
+{
+    char line[LINE_SZ] = {0};
+    snprintf(line, sizeof(line) - 1, "%s: %s", tag, msg);
     vsyslog(LOG_ERR, line, list);
+}
+
+void os_log_fatal(const char* tag, const char* msg, va_list list)
+{
+    char line[LINE_SZ] = {0};
+    snprintf(line, sizeof(line) - 1, "%s: %s", tag, msg);
+    vsyslog(LOG_CRIT, line, list);
 }
 
 #endif

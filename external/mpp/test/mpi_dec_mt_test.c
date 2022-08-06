@@ -30,7 +30,6 @@
 #include "mpp_time.h"
 #include "mpp_common.h"
 
-#include "utils.h"
 #include "mpi_dec_utils.h"
 
 typedef struct {
@@ -257,7 +256,7 @@ int mt_dec_decode(MpiDecTestCmd *cmd)
     MppCodingType type  = cmd->type;
 
     pthread_t thd_in;
-    pthread_t thd_out;
+    pthread_t thd_out = 0;
     pthread_attr_t attr;
     MpiDecMtLoopData data;
 

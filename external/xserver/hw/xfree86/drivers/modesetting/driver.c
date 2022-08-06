@@ -532,6 +532,15 @@ dispatch_dirty_region(ScrnInfoPtr scrn,
     unsigned num_cliprects = REGION_NUM_RECTS(dirty);
     int ret = 0;
 
+#ifdef GLAMOR_HAS_GBM
+    /*
+     * HACK: Move glamor_block_handler's glamor_finish here to avoid
+     * blocking no-dirty path.
+     */
+    if (ms->drmmode.glamor)
+        glamor_finish(pixmap->drawable.pScreen);
+#endif
+
     if (num_cliprects) {
         drmModeClip *clip = xallocarray(num_cliprects, sizeof(drmModeClip));
         BoxPtr rect = REGION_RECTS(dirty);
@@ -1090,6 +1099,11 @@ PreInit(ScrnInfoPtr pScrn, int flags)
     else
         ms->drmmode.fb_flip_mode = DRMMODE_FB_FLIP_NONE;
 
+    if (defaultbpp != 32 && ms->drmmode.fb_flip_mode != DRMMODE_FB_FLIP_NONE) {
+        xf86DrvMsg(pScrn->scrnIndex, X_INFO, "FlipFB: only support 32 bpp!\n");
+        ms->drmmode.fb_flip_mode = DRMMODE_FB_FLIP_NONE;
+    }
+
     ret = -1;
     xf86GetOptValInteger(ms->drmmode.Options, OPTION_FLIP_FB_RATE, &ret);
     ms->drmmode.fb_flip_rate = ret > 0 ? ret : 0;
@@ -1125,6 +1139,11 @@ PreInit(ScrnInfoPtr pScrn, int flags)
     drmSetClientCap(ms->fd, DRM_CLIENT_CAP_ATOMIC, 2);
 
     drmSetClientCap(ms->fd, DRM_CLIENT_CAP_UNIVERSAL_PLANES, 1);
+
+    ms->async_pageflip = FALSE;
+    ret = drmGetCap(ms->fd, DRM_CAP_ASYNC_PAGE_FLIP, &value);
+    if (ret == 0 && value == 1)
+        ms->async_pageflip = TRUE;
 
     ms->kms_has_modifiers = FALSE;
     ret = drmGetCap(ms->fd, DRM_CAP_ADDFB2_MODIFIERS, &value);
@@ -1269,12 +1288,16 @@ msUpdatePacked(ScreenPtr pScreen, shadowBufPtr pBuf)
         free(prect);
     } while (0);
 
-    ms_exa_prepare_access(pBuf->pPixmap, 0);
+    if (ms->drmmode.exa)
+        ms_exa_prepare_access(pBuf->pPixmap, 0);
+
     if (use_3224)
         shadowUpdate32to24(pScreen, pBuf);
     else
         shadowUpdatePacked(pScreen, pBuf);
-    ms_exa_finish_access(pBuf->pPixmap, 0);
+
+    if (ms->drmmode.exa)
+        ms_exa_finish_access(pBuf->pPixmap, 0);
 }
 
 static Bool
@@ -1468,11 +1491,7 @@ CreateScreenResources(ScreenPtr pScreen)
             return FALSE;
     }
 
-#if 0 // Disable dirty tracking for performance
     err = drmModeDirtyFB(ms->fd, ms->drmmode.fb_id, NULL, 0);
-#else
-    err = -EINVAL;
-#endif
 
     if (err != -EINVAL && err != -ENOSYS) {
         ms->damage = DamageCreate(NULL, NULL, DamageReportNone, TRUE,

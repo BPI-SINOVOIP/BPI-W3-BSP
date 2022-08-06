@@ -44,8 +44,6 @@ Again_result_V2_t Again_Stop_V2(Again_Context_V2_t *pAgainCtx)
     return (AGAINV2_RET_SUCCESS);
 }
 
-
-
 //anr inint
 Again_result_V2_t Again_Init_V2(Again_Context_V2_t **ppAgainCtx, CamCalibDbV2Context_t *pCalibDbV2)
 {
@@ -80,12 +78,16 @@ Again_result_V2_t Again_Init_V2(Again_Context_V2_t **ppAgainCtx, CamCalibDbV2Con
     pAgainCtx->isReCalculate = 1;
 #if AGAIN_USE_JSON_FILE_V2
 
-#if 0
-    CalibDbV2_MFNR_t* pCalibv2_mfnr_v2 =
-        (CalibDbV2_MFNR_t*)(CALIBDBV2_GET_MODULE_PTR(pCalibDbV2, mfnr_v2));
-    pAgainCtx->mfnr_mode_3to1 = pCalibv2_mfnr_v2->TuningPara.mode_3to1;
-    pAgainCtx->mfnr_local_gain_en = pCalibv2_mfnr_v2->TuningPara.local_gain_en;
-#endif
+    CalibDbV2_GainV2_t * pcalibdbV2_gain_v2 =
+        (CalibDbV2_GainV2_t *)(CALIBDBV2_GET_MODULE_PTR((CamCalibDbV2Context_t*)pCalibDbV2, gain_v2));
+
+    pAgainCtx->gain_v2 = *pcalibdbV2_gain_v2;
+
+
+    pAgainCtx->stExpInfo.snr_mode = 1;
+    pAgainCtx->eParamMode = AGAINV2_PARAM_MODE_NORMAL;
+    Again_ConfigSettingParam_V2(pAgainCtx, pAgainCtx->eParamMode, pAgainCtx->stExpInfo.snr_mode);
+
 
 #endif
 
@@ -161,6 +163,11 @@ Again_result_V2_t Again_PreProcess_V2(Again_Context_V2_t *pAgainCtx)
 {
     LOGI_ANR("%s(%d): enter!\n", __FUNCTION__, __LINE__);
     //need todo what?
+
+    if(pAgainCtx->isIQParaUpdate) {
+        Again_ConfigSettingParam_V2(pAgainCtx, pAgainCtx->eParamMode, pAgainCtx->stExpInfo.snr_mode);
+        pAgainCtx->isIQParaUpdate = false;
+    }
 
     LOGI_ANR("%s(%d): exit!\n", __FUNCTION__, __LINE__);
     return AGAINV2_RET_SUCCESS;
@@ -289,8 +296,18 @@ Again_result_V2_t Again_Process_V2(Again_Context_V2_t *pAgainCtx, Again_ExpInfo_
 
     if(pAgainCtx->eMode == AGAINV2_OP_MODE_AUTO) {
 
-        LOGD_ANR("%s(%d): \n", __FUNCTION__, __LINE__);
-        //get param from mfnr
+
+#if AGAIN_USE_JSON_FILE_V2
+        if(pExpInfo->snr_mode != pAgainCtx->stExpInfo.snr_mode || pAgainCtx->eParamMode != mode) {
+            LOGD_ANR("param mode:%d snr_mode:%d\n", mode, pExpInfo->snr_mode);
+            pAgainCtx->eParamMode = mode;
+            Again_ConfigSettingParam_V2(pAgainCtx, pAgainCtx->eParamMode, pExpInfo->snr_mode);
+        }
+#endif
+
+        //select param
+        gain_select_params_by_ISO_V2(&pAgainCtx->stAuto.stParams, &pAgainCtx->stAuto.stSelect, pExpInfo);
+
 
     } else if(pAgainCtx->eMode == AGAINV2_OP_MODE_MANUAL) {
         //TODO
@@ -327,14 +344,77 @@ Again_result_V2_t Again_GetProcResult_V2(Again_Context_V2_t *pAgainCtx, Again_Pr
 
     //transfer to reg value
     gain_fix_transfer_v2(&pAgainResult->stSelect, &pAgainResult->stFix, &pAgainCtx->stExpInfo, pAgainCtx->stGainState.ratio);
-    //pAgainResult->stFix.gain_table_en = //pAgainCtx->mfnr_local_gain_en;
 
     LOGI_ANR("%s(%d): exit!\n", __FUNCTION__, __LINE__);
     return AGAINV2_RET_SUCCESS;
 }
 
 
+Again_result_V2_t Again_ConfigSettingParam_V2(Again_Context_V2_t *pAgainCtx, Again_ParamMode_V2_t eParamMode, int snr_mode)
+{
+    char snr_name[CALIBDB_NR_SHARP_NAME_LENGTH];
+    char param_mode_name[CALIBDB_MAX_MODE_NAME_LENGTH];
+    memset(param_mode_name, 0x00, sizeof(param_mode_name));
+    memset(snr_name, 0x00, sizeof(snr_name));
 
+    LOGI_ANR("%s(%d): enter!\n", __FUNCTION__, __LINE__);
+    if(pAgainCtx == NULL) {
+        LOGE_ANR("%s(%d): null pointer\n", __FUNCTION__, __LINE__);
+        return AGAINV2_RET_INVALID_PARM;
+    }
+
+    //select param mode first
+    if(eParamMode == AGAINV2_PARAM_MODE_NORMAL) {
+        sprintf(param_mode_name, "%s", "normal");
+    } else if(eParamMode == AGAINV2_PARAM_MODE_HDR) {
+        sprintf(param_mode_name, "%s", "hdr");
+    } else if(eParamMode == AGAINV2_PARAM_MODE_GRAY) {
+        sprintf(param_mode_name, "%s", "gray");
+    } else {
+        LOGE_ANR("%s(%d): not support param mode!\n", __FUNCTION__, __LINE__);
+        sprintf(param_mode_name, "%s", "normal");
+    }
+
+    //then select snr mode next
+    if(snr_mode == 1) {
+        sprintf(snr_name, "%s", "HSNR");
+    } else if(snr_mode == 0) {
+        sprintf(snr_name, "%s", "LSNR");
+    } else {
+        LOGE_ANR("%s(%d): not support snr mode:%d!\n", __FUNCTION__, __LINE__, snr_mode);
+        sprintf(snr_name, "%s", "LSNR");
+    }
+
+#if (AGAIN_USE_JSON_FILE_V2)
+    gain_config_setting_param_json_V2(&pAgainCtx->stAuto.stParams, &pAgainCtx->gain_v2, param_mode_name, snr_name);
+#endif
+    LOGI_ANR("%s(%d): exit!\n", __FUNCTION__, __LINE__);
+    return AGAINV2_RET_SUCCESS;
+}
+
+
+Again_result_V2_t Again_ParamModeProcess_V2(Again_Context_V2_t *pAgainCtx, Again_ExpInfo_V2_t *pExpInfo, Again_ParamMode_V2_t *mode)
+{
+    Again_result_V2_t res  = AGAINV2_RET_SUCCESS;
+    *mode = pAgainCtx->eParamMode;
+
+    if(pAgainCtx == NULL) {
+        LOGE_ANR("%s(%d): null pointer\n", __FUNCTION__, __LINE__);
+        return AGAINV2_RET_INVALID_PARM;
+    }
+
+    if(pAgainCtx->isGrayMode) {
+        *mode = AGAINV2_PARAM_MODE_GRAY;
+    } else if(pExpInfo->hdr_mode == 0) {
+        *mode = AGAINV2_PARAM_MODE_NORMAL;
+    } else if(pExpInfo->hdr_mode >= 1) {
+        *mode = AGAINV2_PARAM_MODE_HDR;
+    } else {
+        *mode = AGAINV2_PARAM_MODE_NORMAL;
+    }
+
+    return res;
+}
 
 RKAIQ_END_DECLARE
 

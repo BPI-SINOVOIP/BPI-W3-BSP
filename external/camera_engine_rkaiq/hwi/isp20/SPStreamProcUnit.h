@@ -72,6 +72,7 @@ public:
     virtual XCamReturn poll_event_failed (int64_t timestamp, const char *msg) { return XCAM_RETURN_ERROR_FAILED; }
     void update_af_meas_params(rk_aiq_isp_af_meas_t *sp_meas);
     int get_lowpass_fv(uint32_t sequence, SmartPtr<V4l2BufferProxy> buf_proxy);
+    void set_af_img_size(int w, int h, int w_align, int h_align);
 protected:
     XCAM_DEAD_COPY (SPStreamProcUnit);
     bool init_fbcbuf_fd();
@@ -89,6 +90,8 @@ protected:
     int _ds_height_align;
     int _src_width;
     int _src_height;
+    int img_ds_size_x;
+    int img_ds_size_y;
 
     std::map<int, int> _buf_fd_map;
     bool _first;
@@ -105,6 +108,10 @@ protected:
     uint32_t high_light2[RKAIQ_RAWAF_ROI_SUBWINS_NUM];
     rk_aiq_af_algo_meas_t _af_meas_params;
     rk_aiq_lens_descriptor _lens_des;
+    int af_img_width;
+    int af_img_height;
+    int af_img_width_align;
+    int af_img_height_align;
 };
 
 }

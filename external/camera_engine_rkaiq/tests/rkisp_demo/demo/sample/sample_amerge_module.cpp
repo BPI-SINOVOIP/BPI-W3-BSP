@@ -45,7 +45,12 @@ XCamReturn sample_amerge_module(const void *arg)
 
     mergeAttr_t attr;
     const demo_context_t *demo_ctx = (demo_context_t *)arg;
-    const rk_aiq_sys_ctx_t* ctx = (const rk_aiq_sys_ctx_t*)(demo_ctx->aiq_ctx);
+    const rk_aiq_sys_ctx_t* ctx ;
+    if (demo_ctx->camGroup) {
+        ctx = (rk_aiq_sys_ctx_t*)(demo_ctx->camgroup_ctx);
+    } else {
+        ctx = (rk_aiq_sys_ctx_t*)(demo_ctx->aiq_ctx);
+    }
 
     do {
         sample_amerge_usage ();
@@ -66,6 +71,7 @@ XCamReturn sample_amerge_module(const void *arg)
             attr.attrV30.stManual.BaseFrm = BASEFRAME_SHORT;
             attr.attrV30.stManual.ShortFrmModeData.OECurve.Smooth = 0.4;
             attr.attrV30.stManual.ShortFrmModeData.OECurve.Offset = 210;
+            attr.attrV30.stManual.ShortFrmModeData.MDCurve.Coef = 0.05;
             attr.attrV30.stManual.ShortFrmModeData.MDCurve.ms_thd0 = 0.00;
             attr.attrV30.stManual.ShortFrmModeData.MDCurve.lm_thd0 = 0.00;
             rk_aiq_user_api2_amerge_SetAttrib(ctx, attr);
@@ -77,8 +83,9 @@ XCamReturn sample_amerge_module(const void *arg)
             attr.sync.done = false;
             attr.attrV30.opMode = MERGE_OPMODE_MANU;
             attr.attrV30.stManual.BaseFrm = BASEFRAME_SHORT;
-            attr.attrV30.stManual.ShortFrmModeData.OECurve.Smooth = 0.4;
-            attr.attrV30.stManual.ShortFrmModeData.OECurve.Offset = 210;
+            attr.attrV30.stManual.ShortFrmModeData.OECurve.Smooth = 0.5;
+            attr.attrV30.stManual.ShortFrmModeData.OECurve.Offset = 230;
+            attr.attrV30.stManual.ShortFrmModeData.MDCurve.Coef = 0.07;
             attr.attrV30.stManual.ShortFrmModeData.MDCurve.ms_thd0 = 0.00;
             attr.attrV30.stManual.ShortFrmModeData.MDCurve.lm_thd0 = 0.00;
             rk_aiq_user_api2_amerge_SetAttrib(ctx, attr);
@@ -90,8 +97,8 @@ XCamReturn sample_amerge_module(const void *arg)
             attr.sync.done = false;
             attr.attrV30.opMode = MERGE_OPMODE_MANU;
             attr.attrV30.stManual.BaseFrm = BASEFRAME_LONG;
-            attr.attrV30.stManual.LongFrmModeData.OECurve.Smooth = 0.4;
-            attr.attrV30.stManual.LongFrmModeData.OECurve.Offset = 210;
+            attr.attrV30.stManual.LongFrmModeData.OECurve.Smooth = 0.6;
+            attr.attrV30.stManual.LongFrmModeData.OECurve.Offset = 240;
             attr.attrV30.stManual.LongFrmModeData.MDCurve.LM_smooth = 0.8;
             attr.attrV30.stManual.LongFrmModeData.MDCurve.LM_offset = 38;
             attr.attrV30.stManual.LongFrmModeData.MDCurve.MS_smooth = 0.8;
@@ -105,8 +112,8 @@ XCamReturn sample_amerge_module(const void *arg)
             attr.sync.done = false;
             attr.attrV30.opMode = MERGE_OPMODE_MANU;
             attr.attrV30.stManual.BaseFrm = BASEFRAME_LONG;
-            attr.attrV30.stManual.LongFrmModeData.OECurve.Smooth = 0.4;
-            attr.attrV30.stManual.LongFrmModeData.OECurve.Offset = 210;
+            attr.attrV30.stManual.LongFrmModeData.OECurve.Smooth = 0.7;
+            attr.attrV30.stManual.LongFrmModeData.OECurve.Offset = 280;
             attr.attrV30.stManual.LongFrmModeData.MDCurve.LM_smooth = 0.8;
             attr.attrV30.stManual.LongFrmModeData.MDCurve.LM_offset = 38;
             attr.attrV30.stManual.LongFrmModeData.MDCurve.MS_smooth = 0.8;

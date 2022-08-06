@@ -1,6 +1,167 @@
 #include "rk_aiq_again_algo_gain_v2.h"
 
 
+Again_result_V2_t gain_get_setting_by_name_json_V2(CalibDbV2_GainV2_t* pCalibdb, char *name, int *tuning_idx)
+{
+    int i = 0;
+    Again_result_V2_t res = AGAINV2_RET_SUCCESS;
+
+    if(pCalibdb == NULL || name == NULL || tuning_idx == NULL) {
+        LOGE_ANR("%s(%d): null pointer\n", __FUNCTION__, __LINE__);
+        return AGAINV2_RET_INVALID_PARM;
+    }
+
+    for(i = 0; i < pCalibdb->TuningPara.Setting_len; i++) {
+        if(strncmp(name, pCalibdb->TuningPara.Setting[i].SNR_Mode, strlen(name)*sizeof(char)) == 0) {
+            break;
+        }
+    }
+
+    if(i < pCalibdb->TuningPara.Setting_len) {
+        *tuning_idx = i;
+    } else {
+        *tuning_idx = 0;
+    }
+
+    LOGD_ANR("%s:%d snr_name:%s  snr_idx:%d i:%d \n", __FUNCTION__, __LINE__, name, *tuning_idx, i);
+    return res;
+
+
+}
+
+
+Again_result_V2_t gain_init_params_json_V2(RK_GAIN_Params_V2_t *pParams, CalibDbV2_GainV2_t* pCalibdb,  int tuning_idx)
+{
+    Again_result_V2_t res = AGAINV2_RET_SUCCESS;
+    CalibDbV2_GainV2_TuningPara_Setting_ISO_t *pTuningIso = NULL;
+
+    LOGI_ANR("%s:(%d) oyyf bayerner xml config start\n", __FUNCTION__, __LINE__);
+    if(pParams == NULL || pCalibdb == NULL) {
+        LOGE_ANR("%s(%d): null pointer\n", __FUNCTION__, __LINE__);
+        return AGAINV2_RET_INVALID_PARM;
+    }
+
+    pParams->hdrgain_ctrl_enable = pCalibdb->TuningPara.hdrgain_ctrl_enable;
+
+    if(tuning_idx <  pCalibdb->TuningPara.Setting_len) {
+        for(int i = 0; i < pCalibdb->TuningPara.Setting[tuning_idx].Tuning_ISO_len && i < RK_GAIN_V2_MAX_ISO_NUM; i++) {
+            pTuningIso = &pCalibdb->TuningPara.Setting[tuning_idx].Tuning_ISO[i];
+            pParams->iso[i] = pTuningIso->iso;
+            pParams->iso_params[i].hdr_gain_scale_s = pTuningIso->hdr_gain_scale_s;
+            pParams->iso_params[i].hdr_gain_scale_m = pTuningIso->hdr_gain_scale_m;
+            LOGD_ANR("iso[%d]:%d hdr_gain_scale:%f %f\n",
+                     i,
+                     pParams->iso[i],
+                     pParams->iso_params[i].hdr_gain_scale_s,
+                     pParams->iso_params[i].hdr_gain_scale_m);
+        }
+    }
+
+    LOGI_ANR("%s:(%d) oyyf bayerner xml config end!   \n", __FUNCTION__, __LINE__);
+
+    return res;
+}
+
+
+Again_result_V2_t gain_config_setting_param_json_V2(RK_GAIN_Params_V2_t *pParams, CalibDbV2_GainV2_t* pCalibdbV2, char* param_mode, char * snr_name)
+{
+    Again_result_V2_t res = AGAINV2_RET_SUCCESS;
+    int calib_idx = 0;
+    int tuning_idx = 0;
+
+    if(pParams == NULL || pCalibdbV2 == NULL
+            || param_mode == NULL || snr_name == NULL) {
+        LOGE_ANR("%s(%d): null pointer\n", __FUNCTION__, __LINE__);
+        return AGAINV2_RET_INVALID_PARM;
+    }
+
+    res = gain_get_setting_by_name_json_V2(pCalibdbV2, snr_name, &tuning_idx);
+    if(res != AGAINV2_RET_SUCCESS) {
+        LOGW_ANR("%s(%d): error!!!  can't find setting in iq files, use 0 instead\n", __FUNCTION__, __LINE__);
+
+    }
+
+    res = gain_init_params_json_V2(pParams, pCalibdbV2,  tuning_idx);
+
+    return res;
+
+}
+
+Again_result_V2_t gain_select_params_by_ISO_V2(RK_GAIN_Params_V2_t *pParams, RK_GAIN_Select_V2_t *pSelect, Again_ExpInfo_V2_t *pExpInfo)
+{
+    Again_result_V2_t res = AGAINV2_RET_SUCCESS;
+    int iso = 50;
+
+    if(pParams == NULL) {
+        LOGE_ANR("%s(%d): null pointer\n", __FUNCTION__, __LINE__);
+        return AGAINV2_RET_INVALID_PARM;
+    }
+
+    if(pSelect == NULL) {
+        LOGE_ANR("%s(%d): null pointer\n", __FUNCTION__, __LINE__);
+        return AGAINV2_RET_INVALID_PARM;
+    }
+
+    if(pExpInfo == NULL) {
+        LOGE_ANR("%s(%d): null pointer\n", __FUNCTION__, __LINE__);
+        return AGAINV2_RET_INVALID_PARM;
+    }
+
+    iso = pExpInfo->arIso[pExpInfo->hdr_mode];
+
+    LOGD_ANR("%s:%d iso:%d \n", __FUNCTION__, __LINE__, iso);
+
+    int isoGainStd[RK_GAIN_V2_MAX_ISO_NUM];
+    int isoGain = MAX(int(iso / 50), 1);
+    int isoGainLow = 0;
+    int isoGainHig = 0;
+    int isoGainCorrect = 1;
+    int isoLevelLow = 0;
+    int isoLevelHig = 0;
+    int isoLevelCorrect = 0;
+    int i, j;
+    float tmpf;
+
+#ifndef RK_SIMULATOR_HW
+    for(int i = 0; i < RK_GAIN_V2_MAX_ISO_NUM; i++) {
+        isoGainStd[i] = pParams->iso[i] / 50;
+    }
+#else
+    for(int i = 0; i < RK_GAIN_V2_MAX_ISO_NUM; i++) {
+        isoGainStd[i] = 1 * (1 << i);
+    }
+#endif
+
+    for (i = 0; i < RK_GAIN_V2_MAX_ISO_NUM - 1; i++)
+    {
+        if (isoGain >= isoGainStd[i] && isoGain <= isoGainStd[i + 1])
+        {
+            isoGainLow = isoGainStd[i];
+            isoGainHig = isoGainStd[i + 1];
+            isoLevelLow = i;
+            isoLevelHig = i + 1;
+            isoGainCorrect = ((isoGain - isoGainStd[i]) <= (isoGainStd[i + 1] - isoGain)) ? isoGainStd[i] : isoGainStd[i + 1];
+            isoLevelCorrect = ((isoGain - isoGainStd[i]) <= (isoGainStd[i + 1] - isoGain)) ? i : (i + 1);
+        }
+    }
+
+    pSelect->hdrgain_ctrl_enable = pParams->hdrgain_ctrl_enable;
+
+    pSelect->hdr_gain_scale_s = float(isoGainHig - isoGain) / float(isoGainHig - isoGainLow) * pParams->iso_params[isoLevelLow].hdr_gain_scale_s
+                                + float(isoGain - isoGainLow) / float(isoGainHig - isoGainLow) * pParams->iso_params[isoLevelHig].hdr_gain_scale_s;
+
+
+    pSelect->hdr_gain_scale_m = float(isoGainHig - isoGain) / float(isoGainHig - isoGainLow) * pParams->iso_params[isoLevelLow].hdr_gain_scale_m
+                                + float(isoGain - isoGainLow) / float(isoGainHig - isoGainLow) * pParams->iso_params[isoLevelHig].hdr_gain_scale_m;
+
+    LOGD_ANR("%s:%d iso:%d high:%d low:%d hdr_gain_scale:%f %f\n",
+             __FUNCTION__, __LINE__,
+             isoGain, isoGainHig, isoGainLow,
+             pSelect->hdr_gain_scale_s,
+             pSelect->hdr_gain_scale_m);
+    return res;
+}
+
 uint32_t gain_float_lim2_int(float In, int bit_deci_dst, int type)
 {
     int exp_val = (((uint32_t*)(&In))[0] >> 23) & 0xff;
@@ -19,8 +180,7 @@ uint32_t gain_float_lim2_int(float In, int bit_deci_dst, int type)
     return dst;
 }
 
-
-Again_result_V2_t gain_fix_transfer_v2(RK_GAIN_Params_V2_Select_t *pSelect, RK_GAIN_Fix_V2_t* pGainFix,  Again_ExpInfo_V2_t *pExpInfo, float gain_ratio)
+Again_result_V2_t gain_fix_transfer_v2( RK_GAIN_Select_V2_t *pSelect, RK_GAIN_Fix_V2_t* pGainFix,  Again_ExpInfo_V2_t *pExpInfo, float gain_ratio)
 {
     int i;
     double max_val = 0;
@@ -42,6 +202,8 @@ Again_result_V2_t gain_fix_transfer_v2(RK_GAIN_Params_V2_Select_t *pSelect, RK_G
         LOGE_ANR("%s(%d): null pointer\n", __FUNCTION__, __LINE__);
         return AGAINV2_RET_NULL_POINTER;
     }
+
+
 
 
 #if 1
@@ -103,12 +265,42 @@ Again_result_V2_t gain_fix_transfer_v2(RK_GAIN_Params_V2_Select_t *pSelect, RK_G
         uint32_t a = (1 << (GAIN_HDR_MERGE_IN2_FIX_BITS_INTE + GAIN_HDR_MERGE_IN_FIX_BITS_DECI)) - 1;
         dGain[i] = (frame_exp_ratio[i] * exp_gain[i]) / exp_gain[2];
         pGainFix->sw_gain[i] = gain_float_lim2_int(dGain[i], GAIN_HDR_MERGE_IN_FIX_BITS_DECI, 1);       // 12:6
-        if (i == 0)
-            pGainFix->sw_gain[i] = MIN(pGainFix->sw_gain[i], (1 << (GAIN_HDR_MERGE_IN2_FIX_BITS_INTE + GAIN_HDR_MERGE_IN_FIX_BITS_DECI)) - 1);
-        else if (i == 1)
-            pGainFix->sw_gain[i] = MIN(pGainFix->sw_gain[i], (1 << (GAIN_HDR_MERGE_IN1_FIX_BITS_INTE + GAIN_HDR_MERGE_IN_FIX_BITS_DECI)) - 1);
-        else
-            pGainFix->sw_gain[i] = MIN(pGainFix->sw_gain[i], (1 << (GAIN_HDR_MERGE_IN0_FIX_BITS_INTE + GAIN_HDR_MERGE_IN_FIX_BITS_DECI)) - 1);
+
+        if(pExpInfo->hdr_mode == 0) {
+            if (i == 0)
+                pGainFix->sw_gain[i] = MIN(pGainFix->sw_gain[i], (1 << (GAIN_HDR_MERGE_IN2_FIX_BITS_INTE + GAIN_HDR_MERGE_IN_FIX_BITS_DECI)) - 1);
+            else if (i == 1)
+                pGainFix->sw_gain[i] = MIN(pGainFix->sw_gain[i], (1 << (GAIN_HDR_MERGE_IN1_FIX_BITS_INTE + GAIN_HDR_MERGE_IN_FIX_BITS_DECI)) - 1);
+            else
+                pGainFix->sw_gain[i] = MIN(pGainFix->sw_gain[i], (1 << (GAIN_HDR_MERGE_IN0_FIX_BITS_INTE + GAIN_HDR_MERGE_IN_FIX_BITS_DECI)) - 1);
+        } else if(pExpInfo->hdr_mode == 1) {
+            LOGD_ANR("enter 2fram hdr mode, scale_s:%f\n", pSelect->hdr_gain_scale_s);
+            if (i == 0) {
+                if(pSelect->hdrgain_ctrl_enable) {
+                    pGainFix->sw_gain[i] = MIN(pGainFix->sw_gain[i] * pSelect->hdr_gain_scale_s, (1 << (GAIN_HDR_MERGE_IN2_FIX_BITS_INTE + GAIN_HDR_MERGE_IN_FIX_BITS_DECI)) - 1);
+                } else {
+                    pGainFix->sw_gain[i] = MIN(pGainFix->sw_gain[i], (1 << (GAIN_HDR_MERGE_IN2_FIX_BITS_INTE + GAIN_HDR_MERGE_IN_FIX_BITS_DECI)) - 1);
+                }
+            } else if (i == 1)
+                pGainFix->sw_gain[i] = MIN(pGainFix->sw_gain[i], (1 << (GAIN_HDR_MERGE_IN1_FIX_BITS_INTE + GAIN_HDR_MERGE_IN_FIX_BITS_DECI)) - 1);
+            else
+                pGainFix->sw_gain[i] = MIN(pGainFix->sw_gain[i], (1 << (GAIN_HDR_MERGE_IN0_FIX_BITS_INTE + GAIN_HDR_MERGE_IN_FIX_BITS_DECI)) - 1);
+        } else if(pExpInfo->hdr_mode == 2) {
+            if (i == 0) {
+                if(pSelect->hdrgain_ctrl_enable) {
+                    pGainFix->sw_gain[i] = MIN(pGainFix->sw_gain[i] * pSelect->hdr_gain_scale_s, (1 << (GAIN_HDR_MERGE_IN2_FIX_BITS_INTE + GAIN_HDR_MERGE_IN_FIX_BITS_DECI)) - 1);
+                } else {
+                    pGainFix->sw_gain[i] = MIN(pGainFix->sw_gain[i], (1 << (GAIN_HDR_MERGE_IN2_FIX_BITS_INTE + GAIN_HDR_MERGE_IN_FIX_BITS_DECI)) - 1);
+                }
+            } else if (i == 1) {
+                if(pSelect->hdrgain_ctrl_enable) {
+                    pGainFix->sw_gain[i] = MIN(pGainFix->sw_gain[i] * pSelect->hdr_gain_scale_m, (1 << (GAIN_HDR_MERGE_IN1_FIX_BITS_INTE + GAIN_HDR_MERGE_IN_FIX_BITS_DECI)) - 1);
+                } else {
+                    pGainFix->sw_gain[i] = MIN(pGainFix->sw_gain[i], (1 << (GAIN_HDR_MERGE_IN1_FIX_BITS_INTE + GAIN_HDR_MERGE_IN_FIX_BITS_DECI)) - 1);
+                }
+            } else
+                pGainFix->sw_gain[i] = MIN(pGainFix->sw_gain[i], (1 << (GAIN_HDR_MERGE_IN0_FIX_BITS_INTE + GAIN_HDR_MERGE_IN_FIX_BITS_DECI)) - 1);
+        }
 
     }
 

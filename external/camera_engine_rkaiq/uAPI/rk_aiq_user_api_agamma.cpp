@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2019 Rockchip Corporation
+ * Copyright (c) 2019-2022 Rockchip Eletronics Co., Ltd.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,11 +14,10 @@
  * limitations under the License.
  *
  */
-
-
 #include "rk_aiq_user_api_agamma.h"
-#include "include/uAPI2/rk_aiq_user_api2_agamma.h"
-#include "RkAiqHandleInt.h"
+
+#include "algo_handlers/RkAiqAgammaHandle.h"
+#include "uAPI2/rk_aiq_user_api2_agamma.h"
 
 RKAIQ_BEGIN_DECLARE
 

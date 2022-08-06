@@ -3,9 +3,9 @@
 # stress app test
 #
 ################################################################################
-STRESSAPPTEST_SITE = https://github.com/stressapptest/stressapptest
+STRESSAPPTEST_SITE = https://github.com/stressapptest/stressapptest.git
+STRESS_LICENSE = Apache-2.0
+STRESS_LICENSE_FILES = COPYING
 STRESSAPPTEST_VERSION = master
-STRESSAPPTEST_SITE_METHOD = git
-STRESSAPPTEST_GIT_SUBMODULES = YES
 
 $(eval $(autotools-package))

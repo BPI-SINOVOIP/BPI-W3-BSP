@@ -87,12 +87,15 @@ prepare(RkAiqAlgoCom* params)
 
     if(!!(params->u.prepare.conf_type & RK_AIQ_ALGO_CONFTYPE_UPDATECALIB )) {
 #if AGAIN_USE_JSON_FILE_V2
-#if 0
+#if 1
         void *pCalibDbV2 = (void*)(pCfgParam->com.u.prepare.calibv2);
-        CalibDbV2_MFNR_t* pCalibv2_mfnr_v1 =
-            (CalibDbV2_MFNR_t*)(CALIBDBV2_GET_MODULE_PTR(pCalibDbV2, mfnr_v1));
-        pAgainCtx->mfnr_mode_3to1 = pCalibv2_mfnr_v1->TuningPara.mode_3to1;
-        pAgainCtx->mfnr_local_gain_en = pCalibv2_mfnr_v1->TuningPara.local_gain_en;
+        CalibDbV2_GainV2_t * pcalibdbV2_gain_v2 =
+            (CalibDbV2_GainV2_t *)(CALIBDBV2_GET_MODULE_PTR((CamCalibDbV2Context_t*)pCalibDbV2, gain_v2));
+
+        pAgainCtx->gain_v2 = *pcalibdbV2_gain_v2;
+        pAgainCtx->isIQParaUpdate = true;
+        pAgainCtx->isReCalculate |= 1;
+        LOGE_ANR("enter!!\n");
 #endif
 #endif
     }
@@ -178,7 +181,7 @@ processing(const RkAiqAlgoCom* inparams, RkAiqAlgoResCom* outparams)
     RKAiqAecExpInfo_t *curExp = pAgainProcParams->com.u.proc.curExp;
 
     if(preExp != NULL && curExp != NULL) {
-        stExpInfo.cur_snr_mode = curExp->CISFeature.SNR;
+        stExpInfo.snr_mode = curExp->CISFeature.SNR;
         stExpInfo.pre_snr_mode = preExp->CISFeature.SNR;
         if(pAgainProcParams->hdr_mode == RK_AIQ_WORKING_MODE_NORMAL) {
             stExpInfo.hdr_mode = 0;
@@ -288,9 +291,15 @@ processing(const RkAiqAlgoCom* inparams, RkAiqAlgoResCom* outparams)
             result = XCAM_RETURN_ERROR_FAILED;
             LOGE_ANR("%s: processing ANR failed (%d)\n", __FUNCTION__, ret);
         }
-        Again_GetProcResult_V2(pAgainCtx, &pAgainProcResParams->stAgainProcResult);
+        Again_GetProcResult_V2(pAgainCtx, &pAgainCtx->stProcResult);
+        pAgainCtx->stProcResult.isNeedUpdate = true;
+    } else {
+        pAgainCtx->stProcResult.isNeedUpdate = false;
     }
 
+    memcpy(&pAgainProcResParams->stAgainProcResult, &pAgainCtx->stProcResult, sizeof(pAgainCtx->stProcResult));
+
+    pAgainCtx->isReCalculate = 0;
 #endif
 
     LOGI_ANR("%s: (exit)\n", __FUNCTION__ );

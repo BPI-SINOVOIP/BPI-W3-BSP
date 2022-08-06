@@ -10,8 +10,8 @@
 #include <QTimer>
 
 extern "C" {
-#include "DeviceIo/Rk_wifi.h"
-#include "DeviceIo/Rk_softap.h"
+#include "Rk_wifi.h"
+#include "Rk_softap.h"
 }
 
 class qtWifi : public QListWidget

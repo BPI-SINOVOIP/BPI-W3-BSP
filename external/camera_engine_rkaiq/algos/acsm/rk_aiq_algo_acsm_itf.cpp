@@ -30,9 +30,9 @@ static rk_aiq_acsm_params_t g_csm_def = {
     .y_offset = 0,
     .c_offset = 0,
     .coeff = {
-            0x021, 0x040, 0x00d,
-            0x1ed, 0x1db, 0x038,
-            0x038, 0x1d1, 0x1f7
+            0.299, 0.587, 0.114,
+            -0.169, -0.331, 0.5,
+            0.5, -0.419, -0.081
     }
 };
 
@@ -51,8 +51,12 @@ create_context(RkAiqAlgoContext **context, const AlgoCtxInstanceCfg* cfg)
     if (ctx->acsmCtx.calibv2) {
         Csm_Param_t *csm =
             (Csm_Param_t*)(CALIBDBV2_GET_MODULE_PTR(ctx->acsmCtx.calibv2, csm));
-        if (csm)
+        if (csm) {
             *params = *csm;
+        } else {
+            *params = g_csm_def;
+        }
+
     } else {
         // auto means using chip reset valuse
         *params = g_csm_def;

@@ -194,6 +194,7 @@ void AgammaApiFast(AgammaHandle_t* pGammaCtx)
         coef2 = pGammaCtx->agammaAttr.atrrV21.stFast.SlopeAtZero;
         coef2 = LIMIT_VALUE(coef2, 0.05, -0.05);
         pGammaCtx->agamma_config.gamma_en = pGammaCtx->agammaAttr.atrrV21.stFast.en ;
+        pGammaCtx->agamma_config.gamma_out_segnum = ISP3X_SEGNUM_LOG_45;
         for(int i = 0; i < CALIBDB_AGAMMA_KNOTS_NUM; i++) {
             Y_isp21[i] = 4095 * pow(X_isp21[i] / 4095, 1 / coef1 + coef2) + pGammaCtx->agamma_config.gamma_out_offset;
             Y_isp21[i] = LIMIT_VALUE(Y_isp21[i], 4095, 0);
@@ -205,13 +206,13 @@ void AgammaApiFast(AgammaHandle_t* pGammaCtx)
         coef2 = pGammaCtx->agammaAttr.atrrV30.stFast.SlopeAtZero;
         coef2 = LIMIT_VALUE(coef2, 0.05, -0.05);
         pGammaCtx->agamma_config.gamma_en = pGammaCtx->agammaAttr.atrrV30.stFast.en ;
+        pGammaCtx->agamma_config.gamma_out_segnum = ISP3X_SEGNUM_LOG_49;
         for(int i = 0; i < CALIBDB_AGAMMA_KNOTS_NUM_V30; i++) {
             Y_isp30[i] = 4095 * pow(X_isp30[i] / 4095, 1 / coef1 + coef2) + pGammaCtx->agamma_config.gamma_out_offset;
             Y_isp30[i] = LIMIT_VALUE(Y_isp30[i], 4095, 0);
             pGammaCtx->agamma_config.gamma_table[i] = (int)(Y_isp30[i] + 0.5);
         }
     }
-    pGammaCtx->agamma_config.gamma_out_segnum = 0;
     pGammaCtx->agamma_config.gamma_out_offset = 0;
 
     LOG1_AGAMMA("EXIT: %s \n", __func__);

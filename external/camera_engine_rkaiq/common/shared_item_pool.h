@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2021 Rockchip Eletronics Co., Ltd.
+ * Copyright (c) 2019-2022 Rockchip Eletronics Co., Ltd.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,6 +17,9 @@
 #ifndef RKCAM_SHARED_ITEM_POOL_H
 #define RKCAM_SHARED_ITEM_POOL_H
 
+#include <iostream>
+#include <typeinfo>
+
 #include "safe_list.h"
 #include "buffer_pool.h"
 
@@ -27,7 +30,7 @@ namespace RkCam {
 class SharedItemBase : public BufferProxy {
 public:
     explicit SharedItemBase (const SmartPtr<BufferData> &data):BufferProxy(data) {}
-    virtual ~SharedItemBase () {}
+    virtual ~SharedItemBase () = default;
 
     void setType(uint32_t type) { _type = type; }
     void setId(uint32_t id) { _id = id; }
@@ -38,16 +41,43 @@ public:
 protected:
     XCAM_DEAD_COPY (SharedItemBase);
 
-    uint32_t _type;
-    uint32_t _id;
+    uint32_t _type = -1;
+    uint32_t _id = -1;
 };
+
+class RkAiqFullParams;
+class RkAiqIspStats;
+typedef struct RkAiqSofInfoWrapper_s RkAiqSofInfoWrapper_t;
 
 template<typename T>
 class SharedItemProxy : public SharedItemBase
 {
 public:
     explicit SharedItemProxy(const SmartPtr<T> &data) : SharedItemBase(data), _data(data) {};
-    ~SharedItemProxy() { _data.release();};
+    virtual ~SharedItemProxy() {
+        check();
+        _data.release();
+        LOG1_ANALYZER("Release item : %s", typeid(T).name());
+    };
+
+    template <class U = T>
+    typename std::enable_if<(std::is_same<U, RkAiqFullParams>::value ||
+                             std::is_same<U, RkAiqIspStats>::value ||
+                             std::is_same<U, RkAiqSofInfoWrapper_t>::value),
+                            bool>::type
+    check() {
+        _data->reset();
+        return true;
+    }
+
+    template <class U = T>
+    typename std::enable_if<!(std::is_same<U, RkAiqFullParams>::value ||
+                              std::is_same<U, RkAiqIspStats>::value ||
+                              std::is_same<U, RkAiqSofInfoWrapper_t>::value),
+                            bool>::type
+    check() {
+        return false;
+    }
 
     SmartPtr<T> &data() {
         return _data;

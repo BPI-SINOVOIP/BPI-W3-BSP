@@ -178,8 +178,8 @@ IspParamsAssembler::queue_locked(SmartPtr<cam3aResult>& result)
             mParamsMap.erase(mParamsMap.find(frame_id));
             return ret;
         }
-        LOGD_CAMHW_SUBM(ISP20PARAM_SUBM, "%s, frame: %d params ready, mReadyNums: %d !",
-                        mName.c_str(), frame_id, mReadyNums);
+        LOGD_CAMHW_SUBM(ISP20PARAM_SUBM, "%s, camId:%d, frameId:%d params ready, mReadyNums: %d !",
+                        mName.c_str(), mCamPhyId, frame_id, mReadyNums);
     }
 
     bool overflow = false;
@@ -325,8 +325,8 @@ IspParamsAssembler::deQueOne(cam3aResultList& results, uint32_t& frame_id)
             LOGI_CAMHW_SUBM(ISP20PARAM_SUBM, "%s: mParamsMap is empty !", mName.c_str());
             return XCAM_RETURN_ERROR_PARAM;
         } else {
-            LOGD_CAMHW_SUBM(ISP20PARAM_SUBM, "%s: deque frame %d params, ready %d",
-                            mName.c_str(), it->first, it->second.ready);
+            LOGD_CAMHW_SUBM(ISP20PARAM_SUBM, "%s: camId:%d, deque frame %d params, ready %d",
+                            mName.c_str(), mCamPhyId, it->first, it->second.ready);
             results = it->second.params;
             frame_id = it->first;
             mParamsMap.erase(it);
@@ -1561,7 +1561,7 @@ template<class T>
 void
 Isp20Params::convertAiqDpccToIsp20Params(T& isp_cfg, rk_aiq_isp_dpcc_t &dpcc)
 {
-    LOGD_CAMHW_SUBM(ISP20PARAM_SUBM, "%s:(%d) enter \n", __FUNCTION__, __LINE__);
+    LOG1_CAMHW_SUBM(ISP20PARAM_SUBM, "%s:(%d) enter \n", __FUNCTION__, __LINE__);
 
     struct isp2x_dpcc_cfg * pDpccCfg = &isp_cfg.others.dpcc_cfg;
     rk_aiq_isp_dpcc_t *pDpccRst = &dpcc;
@@ -1778,7 +1778,7 @@ Isp20Params::convertAiqDpccToIsp20Params(T& isp_cfg, rk_aiq_isp_dpcc_t &dpcc)
     pDpccCfg->pdaf_forward_med = pDpccRst->stPdaf.pdaf_forward_med;
 
 
-    LOGD_CAMHW_SUBM(ISP20PARAM_SUBM, "%s:(%d) exit \n", __FUNCTION__, __LINE__);
+    LOG1_CAMHW_SUBM(ISP20PARAM_SUBM, "%s:(%d) exit \n", __FUNCTION__, __LINE__);
 }
 
 
@@ -1809,6 +1809,37 @@ Isp20Params::convertAiqLscToIsp20Params(T& isp_cfg,
     memcpy(cfg->gr_data_tbl, lsc.gr_data_tbl, sizeof(lsc.gr_data_tbl));
     memcpy(cfg->gb_data_tbl, lsc.gb_data_tbl, sizeof(lsc.gb_data_tbl));
     memcpy(cfg->b_data_tbl, lsc.b_data_tbl, sizeof(lsc.b_data_tbl));
+#ifdef ISP_HW_V30
+    #define MAX_LSC_VALUE 8191
+    struct isp21_bls_cfg &bls_cfg = isp_cfg.others.bls_cfg;
+    if(bls_cfg.bls1_en && bls_cfg.bls1_val.b >0 && bls_cfg.bls1_val.r>0
+        && bls_cfg.bls1_val.gb >0 && bls_cfg.bls1_val.gr>0 ){
+        if(lsc.lsc_en){
+            for(int i=0;i<ISP3X_LSC_DATA_TBL_SIZE;i++){
+                cfg->b_data_tbl[i] = cfg->b_data_tbl[i]*((1 << ISP2X_BLC_BIT_MAX) - 1) / ((1 << ISP2X_BLC_BIT_MAX) - 1 - bls_cfg.bls1_val.b);
+                cfg->b_data_tbl[i] = MIN(cfg->b_data_tbl[i],MAX_LSC_VALUE);
+                cfg->gb_data_tbl[i] = cfg->gb_data_tbl[i]*((1 << ISP2X_BLC_BIT_MAX) - 1) / ((1 << ISP2X_BLC_BIT_MAX) - 1 - bls_cfg.bls1_val.gb);
+                cfg->gb_data_tbl[i] = MIN(cfg->gb_data_tbl[i],MAX_LSC_VALUE);
+                cfg->r_data_tbl[i] = cfg->r_data_tbl[i]*((1 << ISP2X_BLC_BIT_MAX) - 1) / ((1 << ISP2X_BLC_BIT_MAX) - 1 - bls_cfg.bls1_val.r);
+                cfg->r_data_tbl[i] = MIN(cfg->r_data_tbl[i],MAX_LSC_VALUE);
+                cfg->gr_data_tbl[i] = cfg->gr_data_tbl[i]*((1 << ISP2X_BLC_BIT_MAX) - 1) / ((1 << ISP2X_BLC_BIT_MAX) - 1 - bls_cfg.bls1_val.gr);
+                cfg->gr_data_tbl[i] = MIN(cfg->gr_data_tbl[i],MAX_LSC_VALUE);
+            }
+        }else{
+            isp_cfg.module_ens |= ISP2X_MODULE_LSC; //force open lsc
+            for(int i=0;i<ISP3X_LSC_DATA_TBL_SIZE;i++){
+                cfg->b_data_tbl[i] = 1024*((1 << ISP2X_BLC_BIT_MAX) - 1) / ((1 << ISP2X_BLC_BIT_MAX) - 1 - bls_cfg.bls1_val.b);
+                cfg->b_data_tbl[i] = MIN(cfg->b_data_tbl[i],MAX_LSC_VALUE);
+                cfg->gb_data_tbl[i] = 1024*((1 << ISP2X_BLC_BIT_MAX) - 1) / ((1 << ISP2X_BLC_BIT_MAX) - 1 - bls_cfg.bls1_val.gb);
+                cfg->gb_data_tbl[i] = MIN(cfg->gb_data_tbl[i],MAX_LSC_VALUE);
+                cfg->r_data_tbl[i] = 1024*((1 << ISP2X_BLC_BIT_MAX) - 1) / ((1 << ISP2X_BLC_BIT_MAX) - 1 - bls_cfg.bls1_val.r);
+                cfg->r_data_tbl[i] = MIN(cfg->r_data_tbl[i],MAX_LSC_VALUE);
+                cfg->gr_data_tbl[i] = 1024*((1 << ISP2X_BLC_BIT_MAX) - 1) / ((1 << ISP2X_BLC_BIT_MAX) - 1 - bls_cfg.bls1_val.gr);
+                cfg->gr_data_tbl[i] = MIN(cfg->gr_data_tbl[i],MAX_LSC_VALUE);
+            }
+        }
+    }
+#endif
 }
 
 template<class T>
@@ -4004,7 +4035,7 @@ XCamReturn Isp20Params::merge_isp_results(cam3aResultList &results, void* isp_cf
     if (!mBlcResult.ptr())
         LOGE_CAMHW_SUBM(ISP20PARAM_SUBM, "get blc params failed!\n");
 
-    LOGD_CAMHW_SUBM(ISP20PARAM_SUBM, "%s, isp cam3a results size: %d\n", __FUNCTION__, results.size());
+    LOG1_CAMHW_SUBM(ISP20PARAM_SUBM, "%s, isp cam3a results size: %d\n", __FUNCTION__, results.size());
     for (cam3aResultList::iterator iter = results.begin ();
             iter != results.end (); iter++)
     {

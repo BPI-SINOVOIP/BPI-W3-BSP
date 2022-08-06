@@ -637,7 +637,7 @@ protected:
     XCamReturn handleOrbStats(const SmartPtr<VideoBuffer> &buffer);
     XCamReturn handlePdafStats(const SmartPtr<VideoBuffer> &buffer);
     inline uint64_t grpId2GrpMask(uint32_t grpId) {
-        return grpId == RK_AIQ_CORE_ANALYZE_ALL ? grpId : 1 << grpId;
+        return grpId == RK_AIQ_CORE_ANALYZE_ALL ? (uint64_t)grpId : (1ULL << grpId);
     }
 
     virtual void setReqAlgoResMask(int algoType, bool req);

@@ -153,6 +153,7 @@ typedef void* MppEnc;
 
 typedef struct MppEncInitCfg_t {
     MppCodingType       coding;
+    RK_S32              task_cnt;
     void                *mpp;
 } MppEncInitCfg;
 
@@ -164,6 +165,7 @@ MPP_RET mpp_enc_init_v2(MppEnc *ctx, MppEncInitCfg *cfg);
 MPP_RET mpp_enc_deinit_v2(MppEnc ctx);
 
 MPP_RET mpp_enc_start_v2(MppEnc ctx);
+MPP_RET mpp_enc_start_async(MppEnc ctx);
 MPP_RET mpp_enc_stop_v2(MppEnc ctx);
 
 MPP_RET mpp_enc_control_v2(MppEnc ctx, MpiCmd cmd, void *param);

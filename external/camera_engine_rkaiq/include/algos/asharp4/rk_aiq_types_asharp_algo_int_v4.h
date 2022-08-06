@@ -27,17 +27,20 @@
 #include "RkAiqCalibDbTypes.h"
 #include "asharp4/rk_aiq_types_asharp_algo_v4.h"
 #include "sharp_head_v4.h"
+#include "sharp_uapi_head_v4.h"
 
 
 RKAIQ_BEGIN_DECLARE
 #define RK_SHARP_V4_MAX_ISO_NUM             CALIBDB_MAX_ISO_LEVEL
 
+#if 0
 #define RK_SHARP_V4_LUMA_POINT_NUM             (8)
-
-#define ASHARPV4_RECALCULATE_DELTA_ISO        (10)
 #define RK_SHARP_V4_PBF_DIAM                    3
 #define RK_SHARP_V4_RF_DIAM                     5
 #define RK_SHARP_V4_BF_DIAM                     3
+#endif
+
+#define ASHARPV4_RECALCULATE_DELTA_ISO        (10)
 #define RK_SHARP_V4_AVG_DIAM                    3
 
 #define rk_sharp_V4_sharp_ratio_fix_bits        2
@@ -108,6 +111,7 @@ typedef struct Asharp4_ExpInfo_s {
 typedef struct RK_SHARP_Params_V4_s
 {
     int enable;
+    int kernel_sigma_enable;
 
     int iso[RK_SHARP_V4_MAX_ISO_NUM];
     short luma_point        [RK_SHARP_V4_LUMA_POINT_NUM];
@@ -123,16 +127,23 @@ typedef struct RK_SHARP_Params_V4_s
     float bf_ratio          [RK_SHARP_V4_MAX_ISO_NUM];
     short local_sharp_strength  [RK_SHARP_V4_MAX_ISO_NUM][RK_SHARP_V4_LUMA_POINT_NUM];
 
-    float prefilter_coeff[RK_SHARP_V4_MAX_ISO_NUM][RK_SHARP_V4_PBF_DIAM * RK_SHARP_V4_PBF_DIAM];
-    float GaussianFilter_coeff   [RK_SHARP_V4_MAX_ISO_NUM][RK_SHARP_V4_RF_DIAM * RK_SHARP_V4_RF_DIAM];
-    float hfBilateralFilter_coeff    [RK_SHARP_V4_MAX_ISO_NUM][RK_SHARP_V4_BF_DIAM * RK_SHARP_V4_BF_DIAM];
+    float prefilter_coeff[RK_SHARP_V4_MAX_ISO_NUM][3];
+    float GaussianFilter_coeff   [RK_SHARP_V4_MAX_ISO_NUM][6];
+    float hfBilateralFilter_coeff    [RK_SHARP_V4_MAX_ISO_NUM][3];
+
+    float prefilter_sigma[RK_SHARP_V4_MAX_ISO_NUM];
+    float GaussianFilter_sigma[RK_SHARP_V4_MAX_ISO_NUM];
+    float GaussianFilter_radius[RK_SHARP_V4_MAX_ISO_NUM];
+    float hfBilateralFilter_sigma[RK_SHARP_V4_MAX_ISO_NUM];
 
 
 } RK_SHARP_Params_V4_t;
 
+#if 0
 typedef struct RK_SHARP_Params_V4_Select_s
 {
     int enable;
+    int kernel_sigma_enable;
 
     short luma_point    [RK_SHARP_V4_LUMA_POINT_NUM];
     short luma_sigma    [RK_SHARP_V4_LUMA_POINT_NUM];
@@ -147,13 +158,17 @@ typedef struct RK_SHARP_Params_V4_Select_s
     float bf_ratio      ;
     short local_sharp_strength        [RK_SHARP_V4_LUMA_POINT_NUM];
 
-    float prefilter_coeff[RK_SHARP_V4_PBF_DIAM * RK_SHARP_V4_PBF_DIAM];
-    float GaussianFilter_coeff   [RK_SHARP_V4_RF_DIAM * RK_SHARP_V4_RF_DIAM];
-    float hfBilateralFilter_coeff    [RK_SHARP_V4_BF_DIAM * RK_SHARP_V4_BF_DIAM];
+    float prefilter_coeff[3];
+    float GaussianFilter_coeff   [6];
+    float hfBilateralFilter_coeff    [3];
 
+    float prefilter_sigma;
+    float GaussianFilter_sigma;
+    float GaussianFilter_radius;
+    float hfBilateralFilter_sigma;
 
 } RK_SHARP_Params_V4_Select_t;
-
+#endif
 
 typedef struct Asharp_Manual_Attr_V4_s
 {
@@ -207,6 +222,7 @@ typedef struct rk_aiq_sharp_strength_v4_s {
     rk_aiq_uapi_sync_t sync;
 
     float percent;
+    bool strength_enable;
 } rk_aiq_sharp_strength_v4_t;
 
 

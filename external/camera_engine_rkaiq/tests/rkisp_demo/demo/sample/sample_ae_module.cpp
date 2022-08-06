@@ -506,7 +506,13 @@ XCamReturn sample_ae_module (const void *arg)
     CLEAR();
 
     const demo_context_t *demo_ctx = (demo_context_t *)arg;
-    const rk_aiq_sys_ctx_t* ctx = (const rk_aiq_sys_ctx_t*)(demo_ctx->aiq_ctx);
+    const rk_aiq_sys_ctx_t* ctx;
+    if (demo_ctx->camGroup) {
+        ctx = (rk_aiq_sys_ctx_t*)(demo_ctx->camgroup_ctx);
+    } else {
+        ctx = (rk_aiq_sys_ctx_t*)(demo_ctx->aiq_ctx);
+    }
+
     if (ctx == nullptr) {
         ERR ("%s, ctx is nullptr\n", __FUNCTION__);
         return XCAM_RETURN_ERROR_PARAM;
@@ -634,46 +640,55 @@ XCamReturn sample_ae_module (const void *arg)
         case 'W':
             sample_set_exp_manual(ctx, RK_AIQ_UAPI_MODE_DEFAULT);
             printf("set exp manual, sync mode.\n\n");
+            memset(&expSwAttr, 0, sizeof(Uapi_ExpSwAttrV2_t));
             rk_aiq_user_api2_ae_getExpSwAttr(ctx, &expSwAttr);
             printf("\t sync = %d, done = %d\n", expSwAttr.sync.sync_mode, expSwAttr.sync.done);
 
             usleep(40 * 1000);
+            memset(&expSwAttr, 0, sizeof(Uapi_ExpSwAttrV2_t));
             rk_aiq_user_api2_ae_getExpSwAttr(ctx, &expSwAttr);
             printf("\t sync = %d, done = %d\n", expSwAttr.sync.sync_mode, expSwAttr.sync.done);
             break;
         case 'X':
             sample_set_exp_manual(ctx, RK_AIQ_UAPI_MODE_SYNC);
             printf("set exp manual, sync mode.\n\n");
+            memset(&expSwAttr, 0, sizeof(Uapi_ExpSwAttrV2_t));
             rk_aiq_user_api2_ae_getExpSwAttr(ctx, &expSwAttr);
             printf("\t sync = %d, done = %d\n", expSwAttr.sync.sync_mode, expSwAttr.sync.done);
 
             usleep(40 * 1000);
+            memset(&expSwAttr, 0, sizeof(Uapi_ExpSwAttrV2_t));
             rk_aiq_user_api2_ae_getExpSwAttr(ctx, &expSwAttr);
             printf("\t sync = %d, done = %d\n", expSwAttr.sync.sync_mode, expSwAttr.sync.done);
             break;
         case 'Y':
             sample_set_exp_manual(ctx, RK_AIQ_UAPI_MODE_ASYNC);
             printf("set exp manual, async mode.\n\n");
+            memset(&expSwAttr, 0, sizeof(Uapi_ExpSwAttrV2_t));
             rk_aiq_user_api2_ae_getExpSwAttr(ctx, &expSwAttr);
             printf("\t sync = %d, done = %d\n", expSwAttr.sync.sync_mode, expSwAttr.sync.done);
 
             usleep(40 * 1000);
+            memset(&expSwAttr, 0, sizeof(Uapi_ExpSwAttrV2_t));
             rk_aiq_user_api2_ae_getExpSwAttr(ctx, &expSwAttr);
             printf("\t sync = %d, done = %d\n", expSwAttr.sync.sync_mode, expSwAttr.sync.done);
             break;
         case 'Z':
             sample_set_exp_manual(ctx, RK_AIQ_UAPI_MODE_ASYNC);
             printf("set exp manual, async mode(two groups).\n\n");
+            memset(&expSwAttr, 0, sizeof(Uapi_ExpSwAttrV2_t));
             rk_aiq_user_api2_ae_getExpSwAttr(ctx, &expSwAttr);
             printf("\t sync = %d, done = %d\n", expSwAttr.sync.sync_mode, expSwAttr.sync.done);
             printf("\t get time = %f gain = %f\n", expSwAttr.stManual.LinearAE.TimeValue, expSwAttr.stManual.LinearAE.GainValue);
 
             sample_set_exp_manual_test(ctx, RK_AIQ_UAPI_MODE_ASYNC);
+            memset(&expSwAttr, 0, sizeof(Uapi_ExpSwAttrV2_t));
             rk_aiq_user_api2_ae_getExpSwAttr(ctx, &expSwAttr);
             printf("\t sync = %d, done = %d\n", expSwAttr.sync.sync_mode, expSwAttr.sync.done);
             printf("\t get time = %f gain = %f\n", expSwAttr.stManual.LinearAE.TimeValue, expSwAttr.stManual.LinearAE.GainValue);
 
             usleep(40 * 1000);
+            memset(&expSwAttr, 0, sizeof(Uapi_ExpSwAttrV2_t));
             rk_aiq_user_api2_ae_getExpSwAttr(ctx, &expSwAttr);
             printf("\t sync = %d, done = %d\n", expSwAttr.sync.sync_mode, expSwAttr.sync.done);
             printf("\t get time = %f gain = %f\n", expSwAttr.stManual.LinearAE.TimeValue, expSwAttr.stManual.LinearAE.GainValue);

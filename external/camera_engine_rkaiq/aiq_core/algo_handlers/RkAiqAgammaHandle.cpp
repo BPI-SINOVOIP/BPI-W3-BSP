@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2021 Rockchip Eletronics Co., Ltd.
+ * Copyright (c) 2019-2022 Rockchip Eletronics Co., Ltd.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,9 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#include "RkAiqAgammaHandle.h"
+
 #include "RkAiqCore.h"
-#include "RkAiqHandle.h"
-#include "RkAiqHandleInt.h"
 
 namespace RkCam {
 
@@ -46,7 +46,7 @@ XCamReturn RkAiqAgammaHandleInt::updateConfig(bool needSync) {
         mCurAtt   = mNewAtt;
         rk_aiq_uapi_agamma_SetAttrib(mAlgoCtx, mCurAtt, false);
         updateAtt = false;
-        waitSignal(mCurAtt.sync.sync_mode);
+        sendSignal(mCurAtt.sync.sync_mode);
     }
 
     if (needSync) mCfgMutex.unlock();
@@ -60,17 +60,24 @@ XCamReturn RkAiqAgammaHandleInt::setAttrib(rk_aiq_gamma_attrib_V2_t att) {
 
     XCamReturn ret = XCAM_RETURN_NO_ERROR;
     mCfgMutex.lock();
-    // TODO
-    // check if there is different between att & mCurAtt
+
+    // check if there is different between att & mCurAtt(sync)/mNewAtt(async)
     // if something changed, set att to mNewAtt, and
     // the new params will be effective later when updateConfig
     // called by RkAiqCore
+    bool isChanged = false;
+    if (att.sync.sync_mode == RK_AIQ_UAPI_MODE_ASYNC && \
+        memcmp(&mNewAtt, &att, sizeof(att)))
+        isChanged = true;
+    else if (att.sync.sync_mode != RK_AIQ_UAPI_MODE_ASYNC && \
+             memcmp(&mCurAtt, &att, sizeof(att)))
+        isChanged = true;
 
     // if something changed
-    if (0 != memcmp(&mCurAtt, &att, sizeof(rk_aiq_gamma_attrib_V2_t))) {
+    if (isChanged) {
         mNewAtt   = att;
         updateAtt = true;
-        sendSignal(att.sync.sync_mode);
+        waitSignal(att.sync.sync_mode);
     }
 
     mCfgMutex.unlock();

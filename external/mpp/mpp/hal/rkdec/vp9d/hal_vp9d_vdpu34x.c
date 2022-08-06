@@ -20,7 +20,6 @@
 #include <string.h>
 
 #include "mpp_env.h"
-#include "mpp_log.h"
 #include "mpp_mem.h"
 #include "mpp_common.h"
 #include "mpp_device.h"
@@ -824,12 +823,13 @@ static MPP_RET hal_vp9d_vdpu34x_gen_regs(void *hal, HalTaskInfo *task)
     vp9_hw_regs->common.reg011.dec_clkgate_e    = 1;
     vp9_hw_regs->common.reg011.dec_e_strmd_clkgate_dis = 0;
 
+    vp9_hw_regs->common.reg012.wait_reset_en    = 1;
     vp9_hw_regs->common.reg013.timeout_mode     = 1;
 
     vp9_hw_regs->common.reg026.swreg_block_gating_e =
         (mpp_get_soc_type() == ROCKCHIP_SOC_RK3588) ? 0xfffef : 0xfffff;
     vp9_hw_regs->common.reg026.reg_cfg_gating_en = 1;
-    vp9_hw_regs->common.reg032_timeout_threshold = 0x0fffffff;
+    vp9_hw_regs->common.reg032_timeout_threshold = 0x3ffff;
 
     //last info  update
     hw_ctx->ls_info.abs_delta_last = pic_param->stVP9Segments.abs_delta;

@@ -20,8 +20,8 @@
 #include <string.h>
 
 #include "mpp_env.h"
-#include "mpp_log.h"
 #include "mpp_mem.h"
+#include "mpp_debug.h"
 
 #include "hal_h265d_ctx.h"
 #include "hal_h265d_api.h"
@@ -62,6 +62,8 @@ MPP_RET hal_h265d_init(void *ctx, MppHalCfg *cfg)
         p->api = &hal_h265d_vdpu34x;
     else
         p->api = &hal_h265d_rkv;
+
+    cfg->support_fast_mode = 1;
 
     p->slots = cfg->frame_slots;
     p->dec_cb = cfg->dec_cb;

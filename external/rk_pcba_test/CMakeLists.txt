@@ -4,6 +4,23 @@ cmake_minimum_required(VERSION 2.8)
 message(${PROJECT_SOURCE_DIR})
 message(${PROJECT_BINARY_DIR})
 
+# 通过git获取版本宏 BUILD_LOG_VERSION
+execute_process(COMMAND git log -1 --pretty=format:%h
+    TIMEOUT 5
+    OUTPUT_VARIABLE BUILD_LOG_VERSION
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+message(STATUS "building from git log: ${BUILD_LOG_VERSION}")
+add_definitions(-DBUILD_LOG_VERSION=\"${BUILD_LOG_VERSION}\")
+
+execute_process(COMMAND date "+%Y-%m-%d-%H:%M:%S"
+    TIMEOUT 5
+    OUTPUT_VARIABLE BUILD_DATE
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+message(STATUS "building date: ${BUILD_DATE}")
+add_definitions(-DBUILD_DATE=\"${BUILD_DATE}\")
+
 if (DEFINED  PCBA_PX3SE)
 add_definitions("-DPCBA_PX3SE")
 endif()
@@ -141,8 +158,10 @@ endif()
 
 if (DEFINED PCBA_356X)
 MESSAGE(${CMAKE_CURRENT_SOURCE_DIR} "  ===========SOURCE DIR PCBA_356X ===========")
-else()
-message(${CMAKE_CURRENT_SOURCE_DIR} " #Error: not find define PCBA_356X")
+endif()
+
+if (DEFINED PCBA_3588)
+MESSAGE(${CMAKE_CURRENT_SOURCE_DIR} "  ===========SOURCE DIR PCBA_3588 ===========")
 endif()
 
 # pcba with ui

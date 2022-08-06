@@ -254,6 +254,7 @@ set (IPC_SERVER_SRC
     ipc_server/rkaiq_tool_sharp.cpp
     ipc_server/rkaiq_tool_sysctl.cpp
     ipc_server/command_process.cpp
+    ipc_server/MessageParser.cpp
     )
 
 set (INI_READER_SRC

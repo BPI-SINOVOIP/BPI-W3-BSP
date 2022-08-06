@@ -20,6 +20,7 @@
 #include "rga_debugger.h"
 #include "rga_drv.h"
 #include "rga_mm.h"
+#include "rga_common.h"
 
 #define RGA_DEBUGGER_ROOT_NAME "rkrga"
 
@@ -28,9 +29,14 @@
 int RGA_DEBUG_REG;
 int RGA_DEBUG_MSG;
 int RGA_DEBUG_TIME;
+int RGA_DEBUG_INT_FLAG;
+int RGA_DEBUG_MM;
 int RGA_DEBUG_CHECK_MODE;
 int RGA_DEBUG_NONUSE;
-int RGA_DEBUG_INT_FLAG;
+int RGA_DEBUG_DEBUG_MODE;
+int RGA_DEBUG_DUMP_IMAGE;
+
+static char g_dump_path[100] = "/data";
 
 static int rga_debug_show(struct seq_file *m, void *data)
 {
@@ -38,27 +44,25 @@ static int rga_debug_show(struct seq_file *m, void *data)
 		 "MSG [%s]\n"
 		 "TIME [%s]\n"
 		 "INT [%s]\n"
+		 "MM [%s]\n"
 		 "CHECK [%s]\n"
 		 "STOP [%s]\n",
 		 STR_ENABLE(RGA_DEBUG_REG),
 		 STR_ENABLE(RGA_DEBUG_MSG),
 		 STR_ENABLE(RGA_DEBUG_TIME),
+		 STR_ENABLE(RGA_DEBUG_INT_FLAG),
+		 STR_ENABLE(RGA_DEBUG_MM),
 		 STR_ENABLE(RGA_DEBUG_CHECK_MODE),
-		 STR_ENABLE(RGA_DEBUG_NONUSE),
-		 STR_ENABLE(RGA_DEBUG_INT_FLAG));
+		 STR_ENABLE(RGA_DEBUG_NONUSE));
 
 	seq_puts(m, "\nhelp:\n");
-	seq_puts(m,
-		 " 'echo reg > debug' to enable/disable register log printing.\n");
-	seq_puts(m,
-		 " 'echo msg > debug' to enable/disable message log printing.\n");
-	seq_puts(m,
-		 " 'echo time > debug' to enable/disable time log printing.\n");
-	seq_puts(m,
-		 " 'echo int > debug' to enable/disable interruppt log printing.\n");
+	seq_puts(m, " 'echo reg > debug' to enable/disable register log printing.\n");
+	seq_puts(m, " 'echo msg > debug' to enable/disable message log printing.\n");
+	seq_puts(m, " 'echo time > debug' to enable/disable time log printing.\n");
+	seq_puts(m, " 'echo int > debug' to enable/disable interruppt log printing.\n");
+	seq_puts(m, " 'echo mm > debug' to enable/disable memory manager log printing.\n");
 	seq_puts(m, " 'echo check > debug' to enable/disable check mode.\n");
-	seq_puts(m,
-		 " 'echo stop > debug' to enable/disable stop using hardware\n");
+	seq_puts(m, " 'echo stop > debug' to enable/disable stop using hardware\n");
 
 	return 0;
 }
@@ -98,6 +102,22 @@ static ssize_t rga_debug_write(struct file *file, const char __user *ubuf,
 			RGA_DEBUG_TIME = 1;
 			pr_info("open rga test time!\n");
 		}
+	} else if (strncmp(buf, "int", 3) == 0) {
+		if (RGA_DEBUG_INT_FLAG) {
+			RGA_DEBUG_INT_FLAG = 0;
+			pr_info("close inturrupt MSG!\n");
+		} else {
+			RGA_DEBUG_INT_FLAG = 1;
+			pr_info("open inturrupt MSG!\n");
+		}
+	} else if (strncmp(buf, "mm", 2) == 0) {
+		if (RGA_DEBUG_MM) {
+			RGA_DEBUG_MM = 0;
+			pr_info("close rga mm log!\n");
+		} else {
+			RGA_DEBUG_MM = 1;
+			pr_info("open rga mm log!\n");
+		}
 	} else if (strncmp(buf, "check", 5) == 0) {
 		if (RGA_DEBUG_CHECK_MODE) {
 			RGA_DEBUG_CHECK_MODE = 0;
@@ -114,13 +134,23 @@ static ssize_t rga_debug_write(struct file *file, const char __user *ubuf,
 			RGA_DEBUG_NONUSE = 1;
 			pr_info("stop using rga hardware!\n");
 		}
-	} else if (strncmp(buf, "int", 3) == 0) {
-		if (RGA_DEBUG_INT_FLAG) {
+	} else if (strncmp(buf, "debug", 3) == 0) {
+		if (RGA_DEBUG_DEBUG_MODE) {
+			RGA_DEBUG_REG = 0;
+			RGA_DEBUG_MSG = 0;
+			RGA_DEBUG_TIME = 0;
 			RGA_DEBUG_INT_FLAG = 0;
-			pr_info("close inturrupt MSG!\n");
+
+			RGA_DEBUG_DEBUG_MODE = 0;
+			pr_info("close debug mode!\n");
 		} else {
+			RGA_DEBUG_REG = 1;
+			RGA_DEBUG_MSG = 1;
+			RGA_DEBUG_TIME = 1;
 			RGA_DEBUG_INT_FLAG = 1;
-			pr_info("open inturrupt MSG!\n");
+
+			RGA_DEBUG_DEBUG_MODE = 1;
+			pr_info("open debug mode!\n");
 		}
 	} else if (strncmp(buf, "slt", 3) == 0) {
 		pr_err("Null");
@@ -138,49 +168,66 @@ static int rga_version_show(struct seq_file *m, void *data)
 
 static int rga_load_show(struct seq_file *m, void *data)
 {
-	struct rga_scheduler_t *rga_scheduler = NULL;
+	struct rga_scheduler_t *scheduler = NULL;
+	struct rga_session_manager *session_manager = NULL;
+	struct rga_session *session = NULL;
 	unsigned long flags;
+	int id = 0;
 	int i;
 	int load;
 	u32 busy_time_total;
+
+	session_manager = rga_drvdata->session_manager;
 
 	seq_printf(m, "num of scheduler = %d\n", rga_drvdata->num_of_scheduler);
 	seq_printf(m, "================= load ==================\n");
 
 	for (i = 0; i < rga_drvdata->num_of_scheduler; i++) {
-		rga_scheduler = rga_drvdata->rga_scheduler[i];
+		scheduler = rga_drvdata->scheduler[i];
 
 		seq_printf(m, "scheduler[%d]: %s\n",
-			i, dev_driver_string(rga_scheduler->dev));
+			i, dev_driver_string(scheduler->dev));
 
-		spin_lock_irqsave(&rga_scheduler->irq_lock, flags);
+		spin_lock_irqsave(&scheduler->irq_lock, flags);
 
-		busy_time_total = rga_scheduler->timer.busy_time_record;
+		busy_time_total = scheduler->timer.busy_time_record;
 
-		spin_unlock_irqrestore(&rga_scheduler->irq_lock, flags);
+		spin_unlock_irqrestore(&scheduler->irq_lock, flags);
 
-		load = (busy_time_total * 100000 / RGA_LOAD_INTERVAL);
-		seq_printf(m, "load = %d", load);
+		load = (busy_time_total * 100 / RGA_LOAD_INTERVAL_US);
+		if (load > 100)
+			load = 100;
+
+		seq_printf(m, "\t load = %d%%\n", load);
 		seq_printf(m, "-----------------------------------\n");
 	}
+
+	mutex_lock(&session_manager->lock);
+
+	idr_for_each_entry(&session_manager->ctx_id_idr, session, id)
+		seq_printf(m, "\t process %d: pid = %d, name: %s\n", id,
+			session->tgid, session->pname);
+
+	mutex_unlock(&session_manager->lock);
+
 	return 0;
 }
 
 static int rga_scheduler_show(struct seq_file *m, void *data)
 {
-	struct rga_scheduler_t *rga_scheduler = NULL;
+	struct rga_scheduler_t *scheduler = NULL;
 	int i;
 
 	seq_printf(m, "num of scheduler = %d\n", rga_drvdata->num_of_scheduler);
 	seq_printf(m, "===================================\n");
 
 	for (i = 0; i < rga_drvdata->num_of_scheduler; i++) {
-		rga_scheduler = rga_drvdata->rga_scheduler[i];
+		scheduler = rga_drvdata->scheduler[i];
 
 		seq_printf(m, "scheduler[%d]: %s\n",
-			i, dev_driver_string(rga_scheduler->dev));
+			i, dev_driver_string(scheduler->dev));
 		seq_printf(m, "-----------------------------------\n");
-		seq_printf(m, "pd_ref = %d\n", rga_scheduler->pd_refcount);
+		seq_printf(m, "pd_ref = %d\n", scheduler->pd_refcount);
 	}
 
 	return 0;
@@ -201,12 +248,13 @@ static int rga_mm_session_show(struct seq_file *m, void *data)
 	seq_puts(m, "===============================================================\n");
 
 	idr_for_each_entry(&mm_session->memory_idr, dump_buffer, id) {
-		seq_printf(m, "handle = %d	refcount = %d	mm_flag = 0x%x\n",
+		seq_printf(m, "handle = %d refcount = %d mm_flag = 0x%x	tgid = %d\n",
 			   dump_buffer->handle, kref_read(&dump_buffer->refcount),
-			   dump_buffer->mm_flag);
+			   dump_buffer->mm_flag, dump_buffer->session->tgid);
 
 		switch (dump_buffer->type) {
 		case RGA_DMA_BUFFER:
+		case RGA_DMA_BUFFER_PTR:
 			seq_puts(m, "dma_buffer:\n");
 			for (i = 0; i < dump_buffer->dma_buffer_size; i++) {
 				seq_printf(m, "\t core %d:\n", dump_buffer->dma_buffer[i].core);
@@ -246,12 +294,125 @@ static int rga_mm_session_show(struct seq_file *m, void *data)
 	return 0;
 }
 
-struct rga_debugger_list rga_debugger_root_list[] = {
+static int rga_request_manager_show(struct seq_file *m, void *data)
+{
+	int id, i;
+	struct rga_pending_request_manager *request_manager;
+	struct rga_request *request;
+	struct rga_req *task_list;
+	unsigned long flags;
+	int task_count = 0;
+	int finished_task_count = 0;
+
+	request_manager = rga_drvdata->pend_request_manager;
+
+	seq_puts(m, "rga internal request dump:\n");
+	seq_printf(m, "request count = %d\n", request_manager->request_count);
+	seq_puts(m, "===============================================================\n");
+
+	mutex_lock(&request_manager->lock);
+
+	idr_for_each_entry(&request_manager->request_idr, request, id) {
+		seq_printf(m, "------------------ request: %d ------------------\n", request->id);
+
+		spin_lock_irqsave(&request->lock, flags);
+
+		task_count = request->task_count;
+		finished_task_count = request->finished_task_count;
+		task_list = request->task_list;
+
+		spin_unlock_irqrestore(&request->lock, flags);
+
+		if (task_list == NULL) {
+			seq_puts(m, "\t can not find task list from id\n");
+			continue;
+		}
+
+		seq_printf(m, "\t set cmd num: %d, finish job sum: %d\n",
+				task_count, finished_task_count);
+
+		seq_puts(m, "\t cmd dump:\n\n");
+
+		for (i = 0; i < request->task_count; i++)
+			rga_request_task_debug_info(m, &(task_list[i]));
+
+	}
+
+	mutex_unlock(&request_manager->lock);
+
+	return 0;
+}
+
+static int rga_dump_path_show(struct seq_file *m, void *data)
+{
+	seq_printf(m, "dump path: %s\n", g_dump_path);
+
+	return 0;
+}
+
+static ssize_t rga_dump_path_write(struct file *file, const char __user *ubuf,
+				    size_t len, loff_t *offp)
+{
+	char buf[100];
+
+	if (len > sizeof(buf) - 1)
+		return -EINVAL;
+	if (copy_from_user(buf, ubuf, len))
+		return -EFAULT;
+	buf[len - 1] = '\0';
+
+	snprintf(g_dump_path, sizeof(buf), "%s", buf);
+	pr_info("dump path change to: %s\n", g_dump_path);
+
+	return len;
+}
+
+static int rga_dump_image_show(struct seq_file *m, void *data)
+{
+	seq_printf(m, "dump image count: %d\n", RGA_DEBUG_DUMP_IMAGE);
+
+	return 0;
+}
+
+static ssize_t rga_dump_image_write(struct file *file, const char __user *ubuf,
+				    size_t len, loff_t *offp)
+{
+	int ret;
+	int dump_count = 0;
+	char buf[14];
+
+	if (len > sizeof(buf) - 1)
+		return -EINVAL;
+	if (copy_from_user(buf, ubuf, len))
+		return -EFAULT;
+	buf[len - 1] = '\0';
+
+	ret = kstrtoint(buf, 10, &dump_count);
+	if (ret) {
+		pr_err("Failed to parse str[%s]\n", buf);
+		return -EFAULT;
+	}
+
+	if (dump_count <= 0) {
+		pr_err("dump_image count is invalid [%d]!\n", dump_count);
+		return -EINVAL;
+	}
+
+	RGA_DEBUG_DUMP_IMAGE = dump_count;
+	pr_info("dump image %d\n", RGA_DEBUG_DUMP_IMAGE);
+
+	return len;
+}
+
+static struct rga_debugger_list rga_debugger_root_list[] = {
 	{"debug", rga_debug_show, rga_debug_write, NULL},
 	{"driver_version", rga_version_show, NULL, NULL},
 	{"load", rga_load_show, NULL, NULL},
 	{"scheduler_status", rga_scheduler_show, NULL, NULL},
 	{"mm_session", rga_mm_session_show, NULL, NULL},
+	{"request_manager", rga_request_manager_show, NULL, NULL},
+	{"dump_path", rga_dump_path_show, rga_dump_path_write, NULL},
+	{"dump_image", rga_dump_image_show, rga_dump_image_write, NULL},
 };
 
 static ssize_t rga_debugger_write(struct file *file, const char __user *ubuf,
@@ -396,7 +557,7 @@ CREATE_FAIL:
 }
 #endif /* #ifdef CONFIG_ROCKCHIP_RGA_DEBUG_FS */
 
-#ifdef CONFIG_ROCKCHIP_RGA2_PROC_FS
+#ifdef CONFIG_ROCKCHIP_RGA_PROC_FS
 static int rga_procfs_open(struct inode *inode, struct file *file)
 {
 	struct rga_debugger_node *node = PDE_DATA(inode);
@@ -404,13 +565,12 @@ static int rga_procfs_open(struct inode *inode, struct file *file)
 	return single_open(file, node->info_ent->show, node);
 }
 
-static const struct file_operations rga_procfs_fops = {
-	.owner = THIS_MODULE,
-	.open = rga_procfs_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = single_release,
-	.write = rga_debugger_write,
+static const struct proc_ops rga_procfs_fops = {
+	.proc_open = rga_procfs_open,
+	.proc_read = seq_read,
+	.proc_lseek = seq_lseek,
+	.proc_release = single_release,
+	.proc_write = rga_debugger_write,
 };
 
 static int rga_procfs_remove_files(struct rga_debugger *debugger)
@@ -523,9 +683,43 @@ CREATE_FAIL:
 }
 #endif /* #ifdef CONFIG_ROCKCHIP_RGA_PROC_FS */
 
+void rga_request_task_debug_info(struct seq_file *m, struct rga_req *req)
+{
+	seq_printf(m, "\t\t rotate_mode = %d\n", req->rotate_mode);
+	seq_printf(m, "\t\t src: y = %lx uv = %lx v = %lx aw = %d ah = %d vw = %d vh = %d\n",
+		 (unsigned long)req->src.yrgb_addr, (unsigned long)req->src.uv_addr,
+		 (unsigned long)req->src.v_addr, req->src.act_w, req->src.act_h,
+		 req->src.vir_w, req->src.vir_h);
+	seq_printf(m, "\t\t src: xoff = %d, yoff = %d, format = 0x%x, rd_mode = %d\n",
+		req->src.x_offset, req->src.y_offset, req->src.format, req->src.rd_mode);
+
+	if (req->pat.yrgb_addr != 0 || req->pat.uv_addr != 0
+		|| req->pat.v_addr != 0) {
+		seq_printf(m, "\t\t pat: y=%lx uv=%lx v=%lx aw=%d ah=%d vw=%d vh=%d\n",
+			 (unsigned long)req->pat.yrgb_addr, (unsigned long)req->pat.uv_addr,
+			 (unsigned long)req->pat.v_addr, req->pat.act_w, req->pat.act_h,
+			 req->pat.vir_w, req->pat.vir_h);
+		seq_printf(m, "\t\t xoff = %d yoff = %d, format = 0x%x, rd_mode = %d\n",
+			req->pat.x_offset, req->pat.y_offset, req->pat.format, req->pat.rd_mode);
+	}
+
+	seq_printf(m, "\t\t dst: y=%lx uv=%lx v=%lx aw=%d ah=%d vw=%d vh=%d\n",
+		 (unsigned long)req->dst.yrgb_addr, (unsigned long)req->dst.uv_addr,
+		 (unsigned long)req->dst.v_addr, req->dst.act_w, req->dst.act_h,
+		 req->dst.vir_w, req->dst.vir_h);
+	seq_printf(m, "\t\t dst: xoff = %d, yoff = %d, format = 0x%x, rd_mode = %d\n",
+		req->dst.x_offset, req->dst.y_offset, req->dst.format, req->dst.rd_mode);
+
+	seq_printf(m, "\t\t mmu: mmu_flag=%x en=%x\n",
+		req->mmu_info.mmu_flag, req->mmu_info.mmu_en);
+	seq_printf(m, "\t\t alpha: rop_mode = %x\n", req->alpha_rop_mode);
+	seq_printf(m, "\t\t yuv2rgb mode is %x\n", req->yuv2rgb_mode);
+	seq_printf(m, "\t\t set core = %d, priority = %d, in_fence_fd = %d\n",
+		req->core, req->priority, req->in_fence_fd);
+}
+
 void rga_cmd_print_debug_info(struct rga_req *req)
 {
-	pr_info("============= start ==============\n");
 	pr_info("render_mode = %d, bitblit_mode=%d, rotate_mode = %d\n",
 		req->render_mode, req->bsfilter_flag,
 		req->rotate_mode);
@@ -569,4 +763,138 @@ void rga_cmd_print_debug_info(struct rga_req *req)
 	pr_info("yuv2rgb mode is %x\n", req->yuv2rgb_mode);
 	pr_info("set core = %d, priority = %d, in_fence_fd = %d\n",
 		req->core, req->priority, req->in_fence_fd);
+}
+
+void rga_dump_external_buffer(struct rga_external_buffer *buffer)
+{
+	pr_info("external: memory = 0x%lx, type = %s\n",
+		(unsigned long)buffer->memory, rga_get_memory_type_str(buffer->type));
+	pr_info("param: w = %d, h = %d, f = %s, size = %d\n",
+		buffer->memory_parm.width, buffer->memory_parm.height,
+		rga_get_format_name(buffer->memory_parm.format),
+		buffer->memory_parm.size);
+}
+
+static int rga_dump_image_to_file(struct rga_internal_buffer *dump_buffer,
+				  const char *channel_name,
+				  int plane_id,
+				  int core)
+{
+	char file_name[100];
+	struct file *file;
+	size_t size = 0;
+	loff_t pos = 0;
+	void *kvaddr = NULL;
+	void *kvaddr_origin = NULL;
+
+	switch (dump_buffer->type) {
+	case RGA_DMA_BUFFER:
+	case RGA_DMA_BUFFER_PTR:
+		if (IS_ERR_OR_NULL(dump_buffer->dma_buffer->dma_buf)) {
+			pr_err("Failed to dump dma_buf 0x%px\n",
+			       dump_buffer->dma_buffer->dma_buf);
+			return -EINVAL;
+		}
+
+		kvaddr = dma_buf_vmap(dump_buffer->dma_buffer->dma_buf);
+		if (!kvaddr) {
+			pr_err("can't vmap the dma buffer!\n");
+			return -EINVAL;
+		}
+
+		kvaddr_origin = kvaddr;
+		kvaddr += dump_buffer->dma_buffer->offset;
+		break;
+	case RGA_VIRTUAL_ADDRESS:
+		kvaddr = vmap(dump_buffer->virt_addr->pages, dump_buffer->virt_addr->page_count,
+			      VM_MAP, pgprot_writecombine(PAGE_KERNEL));
+		if (!kvaddr) {
+			pr_err("dump_vaddr vmap error!, 0x%lx\n",
+			       (unsigned long)dump_buffer->virt_addr->addr);
+			return -EFAULT;
+		}
+
+		kvaddr_origin = kvaddr;
+		kvaddr += dump_buffer->virt_addr->offset;
+		break;
+	case RGA_PHYSICAL_ADDRESS:
+		kvaddr = phys_to_virt(dump_buffer->phys_addr);
+		break;
+	default:
+		pr_err("unsupported memory type[%x]\n", dump_buffer->type);
+		return -EINVAL;
+	}
+
+	size = dump_buffer->size;
+
+	if (kvaddr == NULL) {
+		pr_err("dump addr is NULL!\n");
+		return -EFAULT;
+	}
+
+	if (size <= 0) {
+		pr_err("dump buffer size[%lx] is invalid!\n", (unsigned long)size);
+		return -EFAULT;
+	}
+
+	if (dump_buffer->memory_parm.width == 0 &&
+	    dump_buffer->memory_parm.height == 0)
+		snprintf(file_name, 100, "%s/%d_core%d_%s_plane%d_%s_size%zu_%s.bin",
+			 g_dump_path,
+			 RGA_DEBUG_DUMP_IMAGE, core, channel_name, plane_id,
+			 rga_get_memory_type_str(dump_buffer->type),
+			 size,
+			 rga_get_format_name(dump_buffer->memory_parm.format));
+	else
+		snprintf(file_name, 100, "%s/%d_core%d_%s_plane%d_%s_w%d_h%d_%s.bin",
+			 g_dump_path,
+			 RGA_DEBUG_DUMP_IMAGE, core, channel_name, plane_id,
+			 rga_get_memory_type_str(dump_buffer->type),
+			 dump_buffer->memory_parm.width,
+			 dump_buffer->memory_parm.height,
+			 rga_get_format_name(dump_buffer->memory_parm.format));
+
+	file = filp_open(file_name, O_RDWR | O_CREAT | O_TRUNC, 0600);
+	if (!IS_ERR(file)) {
+		kernel_write(file, kvaddr, size, &pos);
+		pr_info("dump image to: %s\n", file_name);
+		fput(file);
+	} else {
+		pr_info("open %s failed\n", file_name);
+	}
+
+	switch (dump_buffer->type) {
+	case RGA_DMA_BUFFER:
+	case RGA_DMA_BUFFER_PTR:
+		dma_buf_vunmap(dump_buffer->dma_buffer->dma_buf, kvaddr_origin);
+		break;
+	case RGA_VIRTUAL_ADDRESS:
+		vunmap(kvaddr_origin);
+		break;
+	}
+
+	return 0;
+}
+
+static inline void rga_dump_channel_image(struct rga_job_buffer *job_buffer,
+					  const char *channel_name,
+					  int core)
+{
+	if (job_buffer->y_addr)
+		rga_dump_image_to_file(job_buffer->y_addr, channel_name, 0, core);
+	if (job_buffer->uv_addr)
+		rga_dump_image_to_file(job_buffer->uv_addr, channel_name, 1, core);
+	if (job_buffer->v_addr)
+		rga_dump_image_to_file(job_buffer->v_addr, channel_name, 2, core);
+}
+
+void rga_dump_job_image(struct rga_job *dump_job)
+{
+	rga_dump_channel_image(&dump_job->src_buffer, "src", dump_job->core);
+	rga_dump_channel_image(&dump_job->src1_buffer, "src1", dump_job->core);
+	rga_dump_channel_image(&dump_job->dst_buffer, "dst", dump_job->core);
+	rga_dump_channel_image(&dump_job->els_buffer, "els", dump_job->core);
+
+	if (RGA_DEBUG_DUMP_IMAGE > 0)
+		RGA_DEBUG_DUMP_IMAGE--;
 }

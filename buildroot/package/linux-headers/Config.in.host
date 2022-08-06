@@ -6,7 +6,7 @@ config BR2_PACKAGE_HOST_LINUX_HEADERS
 choice
 	prompt "Kernel Headers"
 	default BR2_KERNEL_HEADERS_AS_KERNEL
-	default BR2_KERNEL_HEADERS_5_13
+	default BR2_KERNEL_HEADERS_5_15
 	help
 	  Select the kernel version to get headers from.
 
@@ -57,17 +57,13 @@ config BR2_KERNEL_HEADERS_5_10
 	bool "Linux 5.10.x kernel headers"
 	select BR2_TOOLCHAIN_HEADERS_AT_LEAST_5_10
 
-config BR2_KERNEL_HEADERS_5_11
-	bool "Linux 5.11.x kernel headers"
-	select BR2_TOOLCHAIN_HEADERS_AT_LEAST_5_11
+config BR2_KERNEL_HEADERS_5_14
+	bool "Linux 5.14.x kernel headers"
+	select BR2_TOOLCHAIN_HEADERS_AT_LEAST_5_14
 
-config BR2_KERNEL_HEADERS_5_12
-	bool "Linux 5.12.x kernel headers"
-	select BR2_TOOLCHAIN_HEADERS_AT_LEAST_5_12
-
-config BR2_KERNEL_HEADERS_5_13
-	bool "Linux 5.13.x kernel headers"
-	select BR2_TOOLCHAIN_HEADERS_AT_LEAST_5_13
+config BR2_KERNEL_HEADERS_5_15
+	bool "Linux 5.15.x kernel headers"
+	select BR2_TOOLCHAIN_HEADERS_AT_LEAST_5_15
 	select BR2_KERNEL_HEADERS_LATEST
 
 config BR2_KERNEL_HEADERS_VERSION
@@ -154,8 +150,16 @@ choice
 	  If your kernel headers are more recent than the latest version
 	  in the choice, then select the latest version.
 
+config BR2_PACKAGE_HOST_LINUX_HEADERS_CUSTOM_5_15
+	bool "5.15.x or later"
+	select BR2_TOOLCHAIN_HEADERS_AT_LEAST_5_15
+
+config BR2_PACKAGE_HOST_LINUX_HEADERS_CUSTOM_5_14
+	bool "5.14.x"
+	select BR2_TOOLCHAIN_HEADERS_AT_LEAST_5_14
+
 config BR2_PACKAGE_HOST_LINUX_HEADERS_CUSTOM_5_13
-	bool "5.13.x or later"
+	bool "5.13.x"
 	select BR2_TOOLCHAIN_HEADERS_AT_LEAST_5_13
 
 config BR2_PACKAGE_HOST_LINUX_HEADERS_CUSTOM_5_12
@@ -381,15 +385,14 @@ endchoice
 
 config BR2_DEFAULT_KERNEL_HEADERS
 	string
-	default "4.4.272"	if BR2_KERNEL_HEADERS_4_4
-	default "4.9.272"	if BR2_KERNEL_HEADERS_4_9
-	default "4.14.236"	if BR2_KERNEL_HEADERS_4_14
-	default "4.19.194"	if BR2_KERNEL_HEADERS_4_19
-	default "5.4.125"	if BR2_KERNEL_HEADERS_5_4
-	default "5.10.43"	if BR2_KERNEL_HEADERS_5_10
-	default "5.11.22"	if BR2_KERNEL_HEADERS_5_11
-	default "5.12.10"	if BR2_KERNEL_HEADERS_5_12
-	default "5.13.2"	if BR2_KERNEL_HEADERS_5_13
+	default "4.4.293"	if BR2_KERNEL_HEADERS_4_4
+	default "4.9.291"	if BR2_KERNEL_HEADERS_4_9
+	default "4.14.256"	if BR2_KERNEL_HEADERS_4_14
+	default "4.19.219"	if BR2_KERNEL_HEADERS_4_19
+	default "5.4.163"	if BR2_KERNEL_HEADERS_5_4
+	default "5.10.83"	if BR2_KERNEL_HEADERS_5_10
+	default "5.14.21"	if BR2_KERNEL_HEADERS_5_14
+	default "5.15.6"	if BR2_KERNEL_HEADERS_5_15
 	default BR2_DEFAULT_KERNEL_VERSION if BR2_KERNEL_HEADERS_VERSION
 	default "custom"	if BR2_KERNEL_HEADERS_CUSTOM_TARBALL || BR2_KERNEL_HEADERS_CUSTOM_LOCAL
 	default BR2_KERNEL_HEADERS_CUSTOM_REPO_VERSION \

@@ -1299,6 +1299,52 @@ void GetDehazeLocalGainSettingV30(RkAiqAdehazeProcResult_t* pProcRes, CalibDbV2_
     LOG1_ADEHAZE("EIXT: %s \n", __func__);
 }
 
+void GetManuDehazeLocalGainSettingV30(RkAiqAdehazeProcResult_t* pProcRes, mDehazeAttr_t* pstManu) {
+    LOG1_ADEHAZE("ENTER: %s \n", __func__);
+
+    // get noiseSigma
+    float* noiseSigma = (float*)malloc(sizeof(float) * (ISP3X_DHAZ_SIGMA_LUT_NUM));
+    memset(noiseSigma, 0x0, sizeof(float) * (ISP3X_DHAZ_SIGMA_LUT_NUM));
+
+    for (int i = 0; i < ISP3X_DHAZ_SIGMA_LUT_NUM; i++) {
+        float ave1, ave2, ave3, ave4;
+        if (i == (ISP3X_DHAZ_SIGMA_LUT_NUM - 1))
+            ave1 = (float)YNR_ISO_CURVE_SECT_VALUE1;
+        else
+            ave1 = (float)(i * YNR_ISO_CURVE_SECT_VALUE);
+
+        ave2 = ave1 * ave1;
+        ave3 = ave2 * ave1;
+        ave4 = ave3 * ave1;
+
+        noiseSigma[i] = pstManu->sigma_curve[0] * ave4 + pstManu->sigma_curve[1] * ave3 +
+                        pstManu->sigma_curve[2] * ave2 + pstManu->sigma_curve[3] * ave1 +
+                        pstManu->sigma_curve[4];
+    }
+
+    // get proc res
+    // get sigma_idx
+    for (int i = 0; i < ISP3X_DHAZ_SIGMA_IDX_NUM; i++)
+        pProcRes->ProcResV30.sigma_idx[i] = (i + 1) * YNR_CURVE_STEP;
+
+    // get sigma_lut
+    int tmp = 0;
+    for (int i = 0; i < ISP3X_DHAZ_SIGMA_LUT_NUM; i++) {
+        tmp                               = LIMIT_VALUE(noiseSigma[i], ADHZ10BITMAX, ADHZ10BITMIN);
+        pProcRes->ProcResV30.sigma_lut[i] = tmp;
+    }
+
+    free(noiseSigma);
+#if 0
+            LOGE_ADEHAZE("%s(%d) dehaze local gain IDX(0~5): 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x\n", __func__, __LINE__, pProcRes->ProcResV30.sigma_idx[0], pProcRes->ProcResV30.sigma_idx[1],
+                         pProcRes->ProcResV30.sigma_idx[2], pProcRes->ProcResV30.sigma_idx[3], pProcRes->ProcResV30.sigma_idx[4], pProcRes->ProcResV30.sigma_idx[5]);
+            LOGE_ADEHAZE("%s(%d) dehaze local gain LUT(0~5): 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x\n", __func__, __LINE__, pProcRes->ProcResV30.sigma_lut[0], pProcRes->ProcResV30.sigma_lut[1],
+                         pProcRes->ProcResV30.sigma_lut[2], pProcRes->ProcResV30.sigma_lut[3], pProcRes->ProcResV30.sigma_lut[4], pProcRes->ProcResV30.sigma_lut[5]);
+#endif
+
+    LOG1_ADEHAZE("EIXT: %s \n", __func__);
+}
+
 void AdehazeApiToolProcess(CalibDbV2_dehaze_V20_t* pStool, RkAiqAdehazeProcResult_t* ProcRes, float CtrlValue)
 {
     LOG1_ADEHAZE("ENTER: %s \n", __func__);
@@ -1326,7 +1372,7 @@ void AdehazeApiToolProcess(CalibDbV2_dehaze_V20_t* pStool, RkAiqAdehazeProcResul
 void AdehazeApiManuV21Process(RkAiqAdehazeProcResult_t* pProcRes, mDehazeAttr_t* pStManu)
 {
     LOG1_ADEHAZE("ENTER: %s \n", __func__);
-    LOGD_ADEHAZE(" %s: Adehaze Api off!!!\n", __func__);
+    LOGD_ADEHAZE(" %s: Adehaze Api stManual!!!\n", __func__);
 
     //cfg setting
     pProcRes->ProcResV21.cfg_alpha = (int)LIMIT_VALUE((pStManu->cfg_alpha * 256.0), 255, 0);
@@ -1349,7 +1395,7 @@ void AdehazeApiManuV21Process(RkAiqAdehazeProcResult_t* pProcRes, mDehazeAttr_t*
 void AdehazeApiManuV30Process(RkAiqAdehazeProcResult_t* pProcRes, mDehazeAttr_t* pStManu)
 {
     LOG1_ADEHAZE("ENTER: %s \n", __func__);
-    LOGD_ADEHAZE(" %s: Adehaze Api off!!!\n", __func__);
+    LOGD_ADEHAZE(" %s: Adehaze Api stManual!!!\n", __func__);
 
     //cfg setting
     pProcRes->ProcResV30.cfg_alpha = (int)LIMIT_VALUE((pStManu->cfg_alpha * 256.0), 255, 0);
@@ -1877,7 +1923,12 @@ XCamReturn AdehazeProcessV30(AdehazeHandle_t* pAdehazeCtx, float CtrlValue)
     GetDehazeHistDuoISPSettingV30(&pAdehazeCtx->ProcRes, &pAdehazeCtx->stats, pAdehazeCtx->is_multi_isp_mode, pAdehazeCtx->FrameID);
 
     //get local gain setting
-    GetDehazeLocalGainSettingV30(&pAdehazeCtx->ProcRes, &pAdehazeCtx->Calib.Dehaze_v30.YnrCalibPara, pAdehazeCtx->CurrData.V30.ISO, pAdehazeCtx->CurrData.V30.SnrMode);
+    if (pAdehazeCtx->AdehazeAtrr.mode == DEHAZE_API_MANUAL)
+        GetManuDehazeLocalGainSettingV30(&pAdehazeCtx->ProcRes, &pAdehazeCtx->AdehazeAtrr.stManual);
+    else
+        GetDehazeLocalGainSettingV30(
+            &pAdehazeCtx->ProcRes, &pAdehazeCtx->Calib.Dehaze_v30.YnrCalibPara,
+            pAdehazeCtx->CurrData.V30.ISO, pAdehazeCtx->CurrData.V30.SnrMode);
 
     LOG1_ADEHAZE("EXIT: %s \n", __func__);
     return ret;
@@ -1973,19 +2024,36 @@ void AdehazeGetEnvLvISO
         return;
     }
 
-    pAdehazeCtx->CurrData.V21.EnvLv = pAePreRes->ae_pre_res_rk.GlobalEnvLv[pAePreRes->ae_pre_res_rk.NormalIndex];
+    if(CHECK_ISP_HW_V21()) {
+        pAdehazeCtx->CurrData.V21.EnvLv = pAePreRes->ae_pre_res_rk.GlobalEnvLv[pAePreRes->ae_pre_res_rk.NormalIndex];
 
-    //Normalize the current envLv for AEC
-    pAdehazeCtx->CurrData.V21.EnvLv = (pAdehazeCtx->CurrData.V21.EnvLv  - MIN_ENV_LV) / (MAX_ENV_LV - MIN_ENV_LV);
-    pAdehazeCtx->CurrData.V21.EnvLv = LIMIT_VALUE(pAdehazeCtx->CurrData.V21.EnvLv, ENVLVMAX, ENVLVMIN);
+        //Normalize the current envLv for AEC
+        pAdehazeCtx->CurrData.V21.EnvLv = (pAdehazeCtx->CurrData.V21.EnvLv  - MIN_ENV_LV) / (MAX_ENV_LV - MIN_ENV_LV);
+        pAdehazeCtx->CurrData.V21.EnvLv = LIMIT_VALUE(pAdehazeCtx->CurrData.V21.EnvLv, ENVLVMAX, ENVLVMIN);
 
-    //get iso
-    if(pAdehazeCtx->FrameNumber == LINEAR_NUM)
-        pAdehazeCtx->CurrData.V30.ISO = pAePreRes->ae_pre_res_rk.LinearExp.exp_real_params.analog_gain *
-                                        pAePreRes->ae_pre_res_rk.LinearExp.exp_real_params.digital_gain * 50.0;
-    else if(pAdehazeCtx->FrameNumber == HDR_2X_NUM || pAdehazeCtx->FrameNumber == HDR_3X_NUM)
-        pAdehazeCtx->CurrData.V30.ISO = pAePreRes->ae_pre_res_rk.HdrExp[1].exp_real_params.analog_gain *
-                                        pAePreRes->ae_pre_res_rk.HdrExp[1].exp_real_params.digital_gain * 50.0;
+        //get iso
+        if(pAdehazeCtx->FrameNumber == LINEAR_NUM)
+            pAdehazeCtx->CurrData.V21.ISO = pAePreRes->ae_pre_res_rk.LinearExp.exp_real_params.analog_gain *
+                                            pAePreRes->ae_pre_res_rk.LinearExp.exp_real_params.digital_gain * 50.0;
+        else if(pAdehazeCtx->FrameNumber == HDR_2X_NUM || pAdehazeCtx->FrameNumber == HDR_3X_NUM)
+            pAdehazeCtx->CurrData.V21.ISO = pAePreRes->ae_pre_res_rk.HdrExp[1].exp_real_params.analog_gain *
+                                            pAePreRes->ae_pre_res_rk.HdrExp[1].exp_real_params.digital_gain * 50.0;
+    }
+    else if(CHECK_ISP_HW_V30()) {
+        pAdehazeCtx->CurrData.V30.EnvLv = pAePreRes->ae_pre_res_rk.GlobalEnvLv[pAePreRes->ae_pre_res_rk.NormalIndex];
+
+        //Normalize the current envLv for AEC
+        pAdehazeCtx->CurrData.V30.EnvLv = (pAdehazeCtx->CurrData.V30.EnvLv  - MIN_ENV_LV) / (MAX_ENV_LV - MIN_ENV_LV);
+        pAdehazeCtx->CurrData.V30.EnvLv = LIMIT_VALUE(pAdehazeCtx->CurrData.V30.EnvLv, ENVLVMAX, ENVLVMIN);
+
+        //get iso
+        if(pAdehazeCtx->FrameNumber == LINEAR_NUM)
+            pAdehazeCtx->CurrData.V30.ISO = pAePreRes->ae_pre_res_rk.LinearExp.exp_real_params.analog_gain *
+                                            pAePreRes->ae_pre_res_rk.LinearExp.exp_real_params.digital_gain * 50.0;
+        else if(pAdehazeCtx->FrameNumber == HDR_2X_NUM || pAdehazeCtx->FrameNumber == HDR_3X_NUM)
+            pAdehazeCtx->CurrData.V30.ISO = pAePreRes->ae_pre_res_rk.HdrExp[1].exp_real_params.analog_gain *
+                                            pAePreRes->ae_pre_res_rk.HdrExp[1].exp_real_params.digital_gain * 50.0;
+    }
 
     LOG1_ADEHAZE( "%s:exit!\n", __FUNCTION__);
 }

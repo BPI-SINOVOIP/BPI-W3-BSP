@@ -45,7 +45,7 @@
 #define CLEAR(x) memset(&(x), 0, sizeof(x))
 #define FMT_NUM_PLANES 1
 
-#define BUFFER_COUNT 2
+#define BUFFER_COUNT 6
 
 #ifdef ANDROID
 #define CAPTURE_RAW_PATH "/data"
@@ -1056,7 +1056,7 @@ static int read_frame(demo_context_t *ctx)
         }
 #endif
 #else
-        drmDspFrame(ctx->width, ctx->height, dispWidth, dispHeight, ctx->buffers[i].start, DRM_FORMAT_NV12);
+        drmDspFrame(ctx->width, ctx->height, dispWidth, dispHeight, ctx->buffers[i].export_fd, DRM_FORMAT_NV12);
 #endif
     }
 

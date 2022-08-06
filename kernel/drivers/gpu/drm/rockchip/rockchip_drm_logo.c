@@ -121,6 +121,32 @@ err_put_encoder:
 	return sub_dev;
 }
 
+static void rockchip_drm_release_reserve_vm(struct drm_device *drm, struct drm_mm_node *node)
+{
+	struct rockchip_drm_private *private = drm->dev_private;
+
+	mutex_lock(&private->mm_lock);
+	if (drm_mm_node_allocated(node))
+		drm_mm_remove_node(node);
+	mutex_unlock(&private->mm_lock);
+}
+
+static int rockchip_drm_reserve_vm(struct drm_device *drm, struct drm_mm *mm,
+				   struct drm_mm_node *node, u64 size, u64 offset)
+{
+	struct rockchip_drm_private *private = drm->dev_private;
+	int ret;
+
+	node->size = size;
+	node->start = offset;
+	node->color = 0;
+	mutex_lock(&private->mm_lock);
+	ret = drm_mm_reserve_node(mm, node);
+	mutex_unlock(&private->mm_lock);
+
+	return ret;
+}
+
 static unsigned long
 rockchip_drm_free_reserved_area(void *start, void *end, int poison, const char *s)
 {
@@ -175,6 +201,7 @@ void rockchip_free_loader_memory(struct drm_device *drm)
 		u32 pg_size = 1UL << __ffs(private->domain->pgsize_bitmap);
 
 		iommu_unmap(private->domain, logo->dma_addr, ALIGN(logo->size, pg_size));
+		rockchip_drm_release_reserve_vm(drm, &logo->logo_reserved_node);
 	}
 
 	memblock_free(logo->start, logo->size);
@@ -220,6 +247,9 @@ static int init_loader_memory(struct drm_device *drm_dev)
 	logo->kvaddr = phys_to_virt(start);
 
 	if (private->domain) {
+		ret = rockchip_drm_reserve_vm(drm_dev, &private->mm, &logo->logo_reserved_node, size, start);
+		if (ret)
+			dev_err(drm_dev->dev, "failed to reserve vm for logo memory\n");
 		ret = iommu_map(private->domain, start, start, ALIGN(size, pg_size),
 				IOMMU_WRITE | IOMMU_READ);
 		if (ret) {
@@ -251,18 +281,31 @@ static int init_loader_memory(struct drm_device *drm_dev)
 
 	private->cubic_lut_kvaddr = phys_to_virt(start);
 	if (private->domain) {
+		private->clut_reserved_node = kmalloc(sizeof(struct drm_mm_node), GFP_KERNEL);
+		if (!private->clut_reserved_node)
+			return -ENOMEM;
+
+		ret = rockchip_drm_reserve_vm(drm_dev, &private->mm, private->clut_reserved_node, size, start);
+		if (ret)
+			dev_err(drm_dev->dev, "failed to reserve vm for clut memory\n");
+
 		ret = iommu_map(private->domain, start, start, ALIGN(size, pg_size),
 				IOMMU_WRITE | IOMMU_READ);
 		if (ret) {
 			dev_err(drm_dev->dev, "failed to create 1v1 mapping for cubic lut\n");
-			goto err_free_logo;
+			goto err_free_clut;
 		}
 	}
 	private->cubic_lut_dma_addr = start;
 
 	return 0;
 
+err_free_clut:
+	rockchip_drm_release_reserve_vm(drm_dev, private->clut_reserved_node);
+	kfree(private->clut_reserved_node);
+	private->clut_reserved_node = NULL;
 err_free_logo:
+	rockchip_drm_release_reserve_vm(drm_dev, &logo->logo_reserved_node);
 	kfree(logo);
 
 	return ret;
@@ -417,6 +460,8 @@ of_parse_display_resource(struct drm_device *drm_dev, struct device_node *route)
 	else
 		set->hue = 50;
 
+	set->force_output = of_property_read_bool(route, "force-output");
+
 	if (!of_property_read_u32(route, "cubic_lut,offset", &val)) {
 		private->cubic_lut[crtc->index].enable = true;
 		private->cubic_lut[crtc->index].offset = val;
@@ -435,7 +480,8 @@ of_parse_display_resource(struct drm_device *drm_dev, struct device_node *route)
 }
 
 static int rockchip_drm_fill_connector_modes(struct drm_connector *connector,
-					     uint32_t maxX, uint32_t maxY)
+					     uint32_t maxX, uint32_t maxY,
+					     bool force_output)
 {
 	struct drm_device *dev = connector->dev;
 	struct drm_display_mode *mode;
@@ -453,6 +499,8 @@ static int rockchip_drm_fill_connector_modes(struct drm_connector *connector,
 	list_for_each_entry(mode, &connector->modes, head)
 		mode->status = MODE_STALE;
 
+	if (force_output)
+		connector->force = DRM_FORCE_ON;
 	if (connector->force) {
 		if (connector->force == DRM_FORCE_ON ||
 		    connector->force == DRM_FORCE_ON_DIGITAL)
@@ -507,10 +555,13 @@ static int rockchip_drm_fill_connector_modes(struct drm_connector *connector,
 		goto prune;
 	}
 
-	count = (*connector_funcs->get_modes)(connector);
+	if (!force_output)
+		count = (*connector_funcs->get_modes)(connector);
 
 	if (count == 0 && connector->status == connector_status_connected)
 		count = drm_add_modes_noedid(connector, 1024, 768);
+	if (force_output)
+		count += rockchip_drm_add_modes_noedid(connector);
 	if (count == 0)
 		goto prune;
 
@@ -593,6 +644,8 @@ static int setup_initial_state(struct drm_device *drm_dev,
 	if (!set->hdisplay || !set->vdisplay || !set->vrefresh)
 		is_crtc_enabled = false;
 
+	crtc->state->state = state;
+
 	conn_state = drm_atomic_get_connector_state(state, connector);
 	if (IS_ERR(conn_state))
 		return PTR_ERR(conn_state);
@@ -606,7 +659,7 @@ static int setup_initial_state(struct drm_device *drm_dev,
 
 	if (set->sub_dev->loader_protect)
 		set->sub_dev->loader_protect(conn_state->best_encoder, true);
-	num_modes = rockchip_drm_fill_connector_modes(connector, 4096, 4096);
+	num_modes = rockchip_drm_fill_connector_modes(connector, 7680, 7680, set->force_output);
 	if (!num_modes) {
 		dev_err(drm_dev->dev, "connector[%s] can't found any modes\n",
 			connector->name);
@@ -957,6 +1010,8 @@ void rockchip_drm_show_logo(struct drm_device *drm_dev)
 	 */
 
 	list_for_each_entry_safe(set, tmp, &mode_set_list, head) {
+		if (set->force_output)
+			set->sub_dev->connector->force = DRM_FORCE_UNSPECIFIED;
 		list_del(&set->head);
 		kfree(set);
 	}

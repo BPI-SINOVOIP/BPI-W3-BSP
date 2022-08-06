@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2019 Rockchip Corporation
+ * Copyright (c) 2019-2022 Rockchip Eletronics Co., Ltd.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -12,7 +12,6 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
 
 #include "shared_item_pool.h"
@@ -65,6 +64,7 @@ SharedItemPool<T>::get_item()
         XCAM_LOG_DEBUG ("BufferPool failed to get buffer");
         return NULL;
     }
+    LOG1_ANALYZER("Get item : %s remain count %d", typeid(T).name(), _buf_list.size());
     SmartPtr<T> data_t = data.dynamic_cast_ptr<T>();
     ret_buf = new SharedItemProxy<T> (data_t);;
     ret_buf->set_buf_pool (SmartPtr<BufferPool>(this));
@@ -75,6 +75,7 @@ SharedItemPool<T>::get_item()
 template<typename T>
 SmartPtr<BufferData> SharedItemPool<T>::allocate_data (const VideoBufferInfo &buffer_info)
 {
+    LOG1_ANALYZER("New item : %s size %d", typeid(T).name(), sizeof(T));
     return new T();
 }
 

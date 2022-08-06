@@ -22,7 +22,7 @@
 #include "mpp_buf_slot.h"
 #include "mpp_platform.h"
 
-#include "hal_task.h"
+#include "hal_dec_task.h"
 #include "mpp_dec_cfg.h"
 #include "mpp_device.h"
 
@@ -44,12 +44,11 @@ typedef struct MppHalCfg_t {
     MppDecCfgSet        *cfg;
     MppCbCtx            *dec_cb;
 
-    // output from mpp_hal
-    HalTaskGroup        tasks;
     // output from hardware module
     const MppDecHwCap   *hw_info;
     // codec dev
     MppDev              dev;
+    RK_S32              support_fast_mode;
 } MppHalCfg;
 
 typedef struct MppHalApi_t {
@@ -96,4 +95,3 @@ MPP_RET mpp_hal_control(MppHal ctx, MpiCmd cmd, void *param);
 #endif
 
 #endif /*__MPP_HAL_H__*/
-

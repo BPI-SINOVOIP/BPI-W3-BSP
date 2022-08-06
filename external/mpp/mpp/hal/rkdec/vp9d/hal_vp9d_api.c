@@ -19,7 +19,6 @@
 #include <string.h>
 
 #include "mpp_env.h"
-#include "mpp_log.h"
 
 #include "hal_vp9d_debug.h"
 #include "hal_vp9d_api.h"
@@ -50,6 +49,8 @@ MPP_RET hal_vp9d_init(void *ctx, MppHalCfg *cfg)
         p->api = &hal_vp9d_vdpu34x;
     else
         p->api = &hal_vp9d_rkv;
+
+    cfg->support_fast_mode = 1;
 
     p->slots = cfg->frame_slots;
     p->dec_cb = cfg->dec_cb;

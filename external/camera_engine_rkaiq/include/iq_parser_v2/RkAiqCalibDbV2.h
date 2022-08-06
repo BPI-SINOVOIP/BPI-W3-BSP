@@ -158,15 +158,16 @@ private:
     static int CamCalibDbFreeMergeV2Ctx(CalibDbV2_merge_V2_t* merge);
     static int CamCalibDbFreeCacCtx(CalibDbV2_Cac_t* cac_calib);
 
-	static int CamCalibDbFreeBayer2dnrV2Ctx(CalibDbV2_Bayer2dnr_V2_t* bayer2dnr_v2);
+    static int CamCalibDbFreeBayer2dnrV2Ctx(CalibDbV2_Bayer2dnr_V2_t* bayer2dnr_v2);
 
-	static int CamCalibDbFreeBayertnrV2Ctx(CalibDbV2_BayerTnr_V2_t* bayertnr_v2);
+    static int CamCalibDbFreeBayertnrV2Ctx(CalibDbV2_BayerTnr_V2_t* bayertnr_v2);
 
-	static int CamCalibDbFreeCnrV2Ctx(CalibDbV2_CNRV2_t* cnr_v2);
-	static int CamCalibDbFreeYnrV3Ctx(CalibDbV2_YnrV3_t* ynr_v3);
-	static int CamCalibDbFreeSharpV4Ctx(CalibDbV2_SharpV4_t* sharp_v4);
-	
+    static int CamCalibDbFreeCnrV2Ctx(CalibDbV2_CNRV2_t* cnr_v2);
+    static int CamCalibDbFreeYnrV3Ctx(CalibDbV2_YnrV3_t* ynr_v3);
+    static int CamCalibDbFreeSharpV4Ctx(CalibDbV2_SharpV4_t* sharp_v4);
+
     static int CamCalibDbFreeAfV30Ctx(CalibDbV2_AFV30_t* af);
+    static int CamCalibDbFreeGainV2Ctx(CalibDbV2_GainV2_t* gain_v2);
 };
 
 } // namespace RkCam

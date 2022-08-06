@@ -61,7 +61,7 @@ DECLARE_GLOBAL_DATA_PTR;
 #define DWCMSHC_EMMC_DLL_INC_VALUE	2
 #define DWCMSHC_EMMC_DLL_INC		8
 #define DWCMSHC_EMMC_DLL_DLYENA		BIT(27)
-#define DLL_TXCLK_TAPNUM_DEFAULT	0x8
+#define DLL_TXCLK_TAPNUM_DEFAULT	0x10
 #define DLL_TXCLK_TAPNUM_90_DEGREES	0x8
 #define DLL_STRBIN_TAPNUM_DEFAULT	0x3
 #define DLL_TXCLK_TAPNUM_FROM_SW	BIT(24)
@@ -292,7 +292,7 @@ static int rk3399_emmc_get_phy(struct udevice *dev)
 	}
 
 	grf_base = syscon_get_first_range(ROCKCHIP_SYSCON_GRF);
-	if (grf_base < 0)
+	if (IS_ERR(grf_base))
 		printf("%s Get syscon grf failed", __func__);
 	grf_phy_offset = ofnode_read_u32_default(phy_node, "reg", 0);
 
@@ -323,7 +323,7 @@ static int dwcmshc_sdhci_emmc_set_clock(struct sdhci_host *host, unsigned int cl
 {
 	struct rockchip_sdhc *priv = container_of(host, struct rockchip_sdhc, host);
 	struct sdhci_data *data = (struct sdhci_data *)dev_get_driver_data(priv->dev);
-	u32 txclk_tapnum = DLL_TXCLK_TAPNUM_90_DEGREES, extra;
+	u32 extra;
 	int timeout = 500, ret;
 
 	ret = rockchip_emmc_set_clock(host, clock);
@@ -356,7 +356,7 @@ static int dwcmshc_sdhci_emmc_set_clock(struct sdhci_host *host, unsigned int cl
 		extra = DWCMSHC_EMMC_DLL_DLYENA |
 			DLL_TXCLK_TAPNUM_FROM_SW |
 			DLL_TXCLK_NO_INVERTER|
-			txclk_tapnum;
+			DLL_TXCLK_TAPNUM_DEFAULT;
 
 		sdhci_writel(host, extra, DWCMSHC_EMMC_DLL_TXCLK);
 
@@ -371,8 +371,7 @@ static int dwcmshc_sdhci_emmc_set_clock(struct sdhci_host *host, unsigned int cl
 
 		/* reset the clock phase when the frequency is lower than 100MHz */
 		sdhci_writel(host, 0, DWCMSHC_EMMC_DLL_CTRL);
-		extra = DLL_RXCLK_NO_INVERTER << DWCMSHC_EMMC_DLL_RXCLK_SRCSEL;
-		sdhci_writel(host, extra, DWCMSHC_EMMC_DLL_RXCLK);
+		sdhci_writel(host, 0, DWCMSHC_EMMC_DLL_RXCLK);
 		sdhci_writel(host, 0, DWCMSHC_EMMC_DLL_TXCLK);
 		sdhci_writel(host, 0, DWCMSHC_EMMC_DLL_STRBIN);
 		sdhci_writel(host, 0, DECMSHC_EMMC_DLL_CMDOUT);
@@ -400,6 +399,12 @@ static void dwcmshc_sdhci_set_ios_post(struct sdhci_host *host)
 		extra = DLL_CMDOUT_SRC_CLK_NEG |
 			DLL_CMDOUT_EN_SRC_CLK_NEG;
 		sdhci_writel(host, extra, DECMSHC_EMMC_DLL_CMDOUT);
+
+		extra = DWCMSHC_EMMC_DLL_DLYENA |
+			DLL_TXCLK_TAPNUM_FROM_SW |
+			DLL_TXCLK_NO_INVERTER|
+			DLL_TXCLK_TAPNUM_90_DEGREES;
+		sdhci_writel(host, extra, DWCMSHC_EMMC_DLL_TXCLK);
 	}
 }
 
@@ -485,7 +490,6 @@ static int rockchip_sdhci_probe(struct udevice *dev)
 
 	host->ops = &rockchip_sdhci_ops;
 
-	host->quirks = SDHCI_QUIRK_WAIT_SEND_CMD;
 	host->max_clk = max_frequency;
 
 	if (dev_read_bool(dev, "mmc-hs200-1_8v"))

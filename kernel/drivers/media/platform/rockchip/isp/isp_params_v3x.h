@@ -164,6 +164,8 @@ struct rkisp_isp_params_ops_v3x {
 			     bool en, u32 id);
 	void (*csm_config)(struct rkisp_isp_params_vdev *params_vdev,
 			   const struct isp21_csm_cfg *arg, u32 id);
+	void (*cgc_config)(struct rkisp_isp_params_vdev *params_vdev,
+			   const struct isp21_cgc_cfg *arg, u32 id);
 };
 
 struct rkisp_isp_params_val_v3x {
@@ -196,7 +198,6 @@ struct rkisp_isp_params_val_v3x {
 	bool mge_en;
 	bool lut3d_en;
 	bool bay3d_en;
-	bool is_bigmode;
 };
 
 #if IS_ENABLED(CONFIG_VIDEO_ROCKCHIP_ISP_VERSION_V30)

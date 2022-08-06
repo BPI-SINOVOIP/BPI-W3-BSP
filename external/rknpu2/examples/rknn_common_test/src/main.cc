@@ -1,18 +1,23 @@
-/****************************************************************************
- *
- *    Copyright (c) 2017 - 2018 by Rockchip Corp.  All rights reserved.
- *
- *    The material in this file is confidential and contains trade secrets
- *    of Rockchip Corporation. This is proprietary information owned by
- *    Rockchip Corporation. No part of this work may be disclosed,
- *    reproduced, copied, transmitted, or used in any way for any purpose,
- *    without the express written permission of Rockchip Corporation.
- *
- *****************************************************************************/
+// Copyright (c) 2021 by Rockchip Electronics Co., Ltd. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 /*-------------------------------------------
                 Includes
 -------------------------------------------*/
+#include "opencv2/core/core.hpp"
+#include "opencv2/imgcodecs.hpp"
+#include "opencv2/imgproc.hpp"
 #include "rknn_api.h"
 
 #include <float.h>
@@ -20,10 +25,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/time.h>
-
-#include "opencv2/core/core.hpp"
-#include "opencv2/imgproc.hpp"
-#include "opencv2/imgcodecs.hpp"
 
 using namespace std;
 using namespace cv;
@@ -73,7 +74,6 @@ static void dump_tensor_attr(rknn_tensor_attr* attr)
          attr->n_elems, attr->size, get_format_string(attr->fmt), get_type_string(attr->type),
          get_qnt_type_string(attr->qnt_type), attr->zp, attr->scale);
 }
-
 
 /*-------------------------------------------
                   Main Functions
@@ -162,7 +162,6 @@ int main(int argc, char* argv[])
   rknn_tensor_format input_layout = RKNN_TENSOR_NHWC;
 
   // Load image
-  //input_data = load_image(input_path, &input_attrs[0]);
   int req_height  = 0;
   int req_width   = 0;
   int req_channel = 0;
@@ -187,17 +186,20 @@ int main(int argc, char* argv[])
   int width   = 0;
   int channel = 0;
 
-
   cv::Mat orig_img = imread(input_path, cv::IMREAD_COLOR);
-  if(!orig_img.data) {
-      printf("cv::imread %s fail!\n", input_path);
-      return -1;
+  if (!orig_img.data) {
+    printf("cv::imread %s fail!\n", input_path);
+    return -1;
   }
 
-  cv::Mat img = orig_img.clone();
-  if(orig_img.cols != req_width || orig_img.rows != req_height) {
-      printf("resize %d %d to %d %d\n", orig_img.cols, orig_img.rows, req_width, req_height);
-      cv::resize(orig_img, img, cv::Size(req_width, req_height), (0, 0), (0, 0), cv::INTER_LINEAR);
+  // if origin model is from Caffe, you maybe not need do BGR2RGB.
+  cv::Mat orig_img_rgb;
+  cv::cvtColor(orig_img, orig_img_rgb, cv::COLOR_BGR2RGB);
+
+  cv::Mat img = orig_img_rgb.clone();
+  if (orig_img.cols != req_width || orig_img.rows != req_height) {
+    printf("resize %d %d to %d %d\n", orig_img.cols, orig_img.rows, req_width, req_height);
+    cv::resize(orig_img_rgb, img, cv::Size(req_width, req_height), (0, 0), (0, 0), cv::INTER_LINEAR);
   }
   input_data = img.data;
   if (!input_data) {
@@ -215,11 +217,11 @@ int main(int argc, char* argv[])
   input_mems[0] = rknn_create_mem(ctx, input_attrs[0].size_with_stride);
 
   // Copy input data to input tensor memory
-  width  = input_attrs[0].dims[2];
-  int stride = input_attrs[0].stride;
+  width      = input_attrs[0].dims[2];
+  int stride = input_attrs[0].w_stride;
 
   if (width == stride) {
-    memcpy(input_mems[0]->virt_addr, input_data, width*input_attrs[0].dims[1]*input_attrs[0].dims[3]);
+    memcpy(input_mems[0]->virt_addr, input_data, width * input_attrs[0].dims[1] * input_attrs[0].dims[3]);
   } else {
     int height  = input_attrs[0].dims[1];
     int channel = input_attrs[0].dims[3];
@@ -294,14 +296,13 @@ int main(int argc, char* argv[])
     }
   }
 
-  // Destory rknn memory
-  rknn_destory_mem(ctx, input_mems[0]);
+  // Destroy rknn memory
+  rknn_destroy_mem(ctx, input_mems[0]);
   for (uint32_t i = 0; i < io_num.n_output; ++i) {
-    rknn_destory_mem(ctx, output_mems[i]);
+    rknn_destroy_mem(ctx, output_mems[i]);
   }
 
-  // destory
+  // destroy
   rknn_destroy(ctx);
-  free(input_data);
   return 0;
 }

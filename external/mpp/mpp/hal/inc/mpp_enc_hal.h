@@ -25,10 +25,14 @@ typedef struct MppEncHalCfg_t {
     // input for encoder
     MppCodingType   coding;
     MppEncCfgSet    *cfg;
+    MppCbCtx        *output_cb;
+    RK_S32          task_cnt;
 
     // output from enc_impl
     MppClientType   type;
     MppDev          dev;
+    RK_S32          cap_recn_out;
+    HalTaskGroup    tasks;
 } MppEncHalCfg;
 
 typedef struct MppEncHalApi_t {

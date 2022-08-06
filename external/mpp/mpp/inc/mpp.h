@@ -61,6 +61,13 @@
 #define MPP_ENC_CONTROL                     (0x00000010)
 #define MPP_ENC_RESET                       (MPP_RESET)
 
+typedef enum MppIOMode_e {
+    MPP_IO_MODE_DEFAULT                     = -1,
+    MPP_IO_MODE_NORMAL                      = 0,
+    MPP_IO_MODE_TASK                        = 1,
+    MPP_IO_MODE_BUTT,
+} MppIoMode;
+
 /*
  * mpp hierarchy
  *
@@ -96,7 +103,7 @@
 class Mpp
 {
 public:
-    Mpp(MppCtx ctx);
+    Mpp(MppCtx ctx = NULL);
     ~Mpp();
     MPP_RET init(MppCtxType type, MppCodingType coding);
 
@@ -122,8 +129,10 @@ public:
     MPP_RET notify(RK_U32 flag);
     MPP_RET notify(MppBufferGroup group);
 
-    mpp_list        *mPackets;
-    mpp_list        *mFrames;
+    mpp_list        *mPktIn;
+    mpp_list        *mPktOut;
+    mpp_list        *mFrmIn;
+    mpp_list        *mFrmOut;
     /* counters for debug */
     RK_U32          mPacketPutCount;
     RK_U32          mPacketGetCount;
@@ -176,7 +185,9 @@ public:
     MppDec          mDec;
     MppEnc          mEnc;
 
-    RK_U32          mEncVersion;
+    RK_U32          mEncAyncIo;
+    RK_U32          mEncAyncProc;
+    MppIoMode       mIoMode;
 
 private:
     void clear();
@@ -185,7 +196,6 @@ private:
     MppCodingType   mCoding;
 
     RK_U32          mInitDone;
-    RK_U32          mMultiFrame;
 
     RK_U32          mStatus;
 
@@ -207,6 +217,12 @@ private:
     MPP_RET control_dec(MpiCmd cmd, MppParam param);
     MPP_RET control_enc(MpiCmd cmd, MppParam param);
     MPP_RET control_isp(MpiCmd cmd, MppParam param);
+
+    /* for special encoder async io mode */
+    MPP_RET put_frame_async(MppFrame frame);
+    MPP_RET get_packet_async(MppPacket *packet);
+
+    void set_io_mode(MppIoMode mode);
 
     Mpp(const Mpp &);
     Mpp &operator=(const Mpp &);

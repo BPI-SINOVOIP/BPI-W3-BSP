@@ -1,3 +1,0 @@
-config BR2_PACKAGE_EQ_DRC_PROCESS
-    bool "Equalizer and DRC process"
-

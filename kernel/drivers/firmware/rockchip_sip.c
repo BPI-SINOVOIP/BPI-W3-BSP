@@ -264,6 +264,54 @@ struct arm_smccc_res sip_smc_lastlog_request(void)
 }
 EXPORT_SYMBOL_GPL(sip_smc_lastlog_request);
 
+int sip_smc_amp_config(u32 sub_func_id, u32 arg1, u32 arg2, u32 arg3)
+{
+	struct arm_smccc_res res;
+
+	arm_smccc_smc(RK_SIP_AMP_CFG, sub_func_id, arg1, arg2, arg3,
+		      0, 0, 0, &res);
+	return res.a0;
+}
+EXPORT_SYMBOL_GPL(sip_smc_amp_config);
+
+struct arm_smccc_res sip_smc_get_amp_info(u32 sub_func_id, u32 arg1)
+{
+	struct arm_smccc_res res;
+
+	arm_smccc_smc(RK_SIP_AMP_CFG, sub_func_id, arg1, 0, 0, 0, 0, 0, &res);
+	return res;
+}
+EXPORT_SYMBOL_GPL(sip_smc_get_amp_info);
+
+void __iomem *sip_hdcp_request_share_memory(int id)
+{
+	static void __iomem *base;
+	struct arm_smccc_res res;
+
+	if (id < 0 || id >= MAX_DEVICE) {
+		pr_err("%s: invalid device id\n", __func__);
+		return NULL;
+	}
+
+	if (!base) {
+		/* request page share memory */
+		res = sip_smc_request_share_mem(2, SHARE_PAGE_TYPE_HDCP);
+		if (IS_SIP_ERROR(res.a0))
+			return NULL;
+		base = (void __iomem *)res.a1;
+	}
+
+	return base + id * 1024;
+}
+
+struct arm_smccc_res sip_hdcp_config(u32 arg0, u32 arg1, u32 arg2)
+{
+	struct arm_smccc_res res;
+
+	res = __invoke_sip_fn_smc(SIP_HDCP_CONFIG, arg0, arg1, arg2);
+	return res;
+}
+
 /************************** fiq debugger **************************************/
 /*
  * AArch32 is not allowed to call SMC64(ATF framework does not support), so we
@@ -282,18 +330,19 @@ static int fiq_sip_enabled;
 static int fiq_target_cpu;
 static phys_addr_t ft_fiq_mem_phy;
 static void __iomem *ft_fiq_mem_base;
-static void (*sip_fiq_debugger_uart_irq_tf)(struct pt_regs _pt_regs,
+static void (*sip_fiq_debugger_uart_irq_tf)(struct pt_regs *_pt_regs,
 					    unsigned long cpu);
+static struct pt_regs fiq_pt_regs;
+
 int sip_fiq_debugger_is_enabled(void)
 {
 	return fiq_sip_enabled;
 }
 EXPORT_SYMBOL_GPL(sip_fiq_debugger_is_enabled);
 
-static struct pt_regs sip_fiq_debugger_get_pt_regs(void *reg_base,
-						   unsigned long sp_el1)
+static void sip_fiq_debugger_get_pt_regs(void *reg_base,
+					 unsigned long sp_el1)
 {
-	struct pt_regs fiq_pt_regs;
 	__maybe_unused struct sm_nsec_ctx *nsec_ctx = reg_base;
 	__maybe_unused struct gp_regs_ctx *gp_regs = reg_base;
 
@@ -365,22 +414,19 @@ static struct pt_regs sip_fiq_debugger_get_pt_regs(void *reg_base,
 		fiq_pt_regs.ARM_pc = nsec_ctx->und_lr;
 	}
 #endif
-
-	return fiq_pt_regs;
 }
 
 static void sip_fiq_debugger_uart_irq_tf_cb(unsigned long sp_el1,
 					    unsigned long offset,
 					    unsigned long cpu)
 {
-	struct pt_regs fiq_pt_regs;
 	char *cpu_context;
 
 	/* calling fiq handler */
 	if (ft_fiq_mem_base) {
 		cpu_context = (char *)ft_fiq_mem_base + offset;
-		fiq_pt_regs = sip_fiq_debugger_get_pt_regs(cpu_context, sp_el1);
-		sip_fiq_debugger_uart_irq_tf(fiq_pt_regs, cpu);
+		sip_fiq_debugger_get_pt_regs(cpu_context, sp_el1);
+		sip_fiq_debugger_uart_irq_tf(&fiq_pt_regs, cpu);
 	}
 
 	/* fiq handler done, return to EL3(then EL3 return to EL1 entry) */
@@ -526,6 +572,27 @@ void sip_fiq_debugger_enable_fiq(bool enable, uint32_t tgt_cpu)
 	__invoke_sip_fn_smc(SIP_UARTDBG_FN, tgt_cpu, 0, en);
 }
 EXPORT_SYMBOL_GPL(sip_fiq_debugger_enable_fiq);
+
+int sip_fiq_control(u32 sub_func, u32 irq, unsigned long data)
+{
+	struct arm_smccc_res res;
+
+	res = __invoke_sip_fn_smc(RK_SIP_FIQ_CTRL,
+				  sub_func, irq, data);
+	return res.a0;
+}
+EXPORT_SYMBOL_GPL(sip_fiq_control);
+
+int sip_wdt_config(u32 sub_func, u32 arg1, u32 arg2, u32 arg3)
+{
+	struct arm_smccc_res res;
+
+	arm_smccc_smc(SIP_WDT_CFG, sub_func, arg1, arg2, arg3,
+		      0, 0, 0, &res);
+
+	return res.a0;
+}
+EXPORT_SYMBOL_GPL(sip_wdt_config);
 
 /******************************************************************************/
 #ifdef CONFIG_ARM

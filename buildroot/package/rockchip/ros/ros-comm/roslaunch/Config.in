@@ -1,6 +1,0 @@
-config BR2_PACKAGE_ROSLAUNCH
-    bool "roslaunch"
-    help
-        roslaunch is a tool for easily launching multiple ROS
-        nodes locally and remotely via SSH, as well as setting
-        parameters on the Parameter Server.

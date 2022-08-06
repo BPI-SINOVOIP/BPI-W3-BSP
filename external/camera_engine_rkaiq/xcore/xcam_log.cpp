@@ -37,7 +37,8 @@
 #endif
 #endif
 
-static char log_file_name[XCAM_MAX_STR_SIZE] = {0};
+#define LOG_FILE_NAME_MAX_LENGTH 256
+static char log_file_name[LOG_FILE_NAME_MAX_LENGTH] = {0};
 /* use a 64 bits value to represent all modules bug level, and the
  * module bit maps is as follow:
  *
@@ -171,7 +172,7 @@ void xcam_get_runtime_log_level() {
             g_cam_engine_log_level = strtoull(level, nullptr, 16);
             unsigned long long module_mask = g_cam_engine_log_level >> 12;
             for (int i = 0; i < XCORE_LOG_MODULE_MAX; i++) {
-                if (module_mask & (1 << i)) {
+                if (module_mask & (1ULL << i)) {
                     g_xcore_log_infos[i].log_level = g_cam_engine_log_level & 0xf;
                     g_xcore_log_infos[i].sub_modules = (g_cam_engine_log_level >> 4) & 0xff;
                 }
@@ -193,12 +194,15 @@ int xcam_get_log_level() {
     xcam_get_enviroment_value("persist_camera_engine_log",
                               &g_cam_engine_log_level);
 #endif
+    printf("rkaiq log level %llx\n", g_cam_engine_log_level);
     unsigned long long module_mask = g_cam_engine_log_level >> 12;
 
     for (int i = 0; i < XCORE_LOG_MODULE_MAX; i++) {
-        if (module_mask & ((long long )1 << i)) {
+        if (module_mask & (1ULL << i)) {
             g_xcore_log_infos[i].log_level = g_cam_engine_log_level & 0xf;
             g_xcore_log_infos[i].sub_modules = (g_cam_engine_log_level >> 4) & 0xff;
+        } else if ( g_cam_engine_log_level == 0) {
+            g_xcore_log_infos[i].log_level = 0;
         }
     }
 
@@ -217,6 +221,7 @@ char* timeString() {
 void xcam_print_log (int module, int sub_modules, int level, const char* format, ...) {
     char buffer[XCAM_MAX_STR_SIZE] = {0};
     va_list va_list;
+    if ((g_cam_engine_log_level & 0xf) == 0) return;
     va_start (va_list, format);
     vsnprintf (buffer, XCAM_MAX_STR_SIZE, format, va_list);
     va_end (va_list);
@@ -251,14 +256,15 @@ void xcam_print_log (int module, int sub_modules, int level, const char* format,
         break;
     }
 #else
-    printf ("[%s][%s]:%s", timeString(), g_xcore_log_infos[module].module_name, buffer);
+    printf ("%s:%s", g_xcore_log_infos[module].module_name, buffer);
 #endif
 }
 
 void xcam_set_log (const char* file_name) {
     if (NULL != file_name) {
-        memset (log_file_name, 0, XCAM_MAX_STR_SIZE);
-        strncpy (log_file_name, file_name, XCAM_MAX_STR_SIZE);
+        memset (log_file_name, 0, LOG_FILE_NAME_MAX_LENGTH);
+        strncpy (log_file_name, file_name, LOG_FILE_NAME_MAX_LENGTH - 1);
+        log_file_name[LOG_FILE_NAME_MAX_LENGTH - 1] = '\0';
     }
 }
 void xcam_get_awb_log_level(unsigned char *log_level, unsigned char *sub_modules)

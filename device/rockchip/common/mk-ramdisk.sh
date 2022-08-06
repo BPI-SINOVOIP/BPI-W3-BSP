@@ -1,6 +1,52 @@
 #!/bin/bash
 
 set -e
+
+rk_ramdisk_security_bootup_normal()
+{
+	echo "[$0] Build ramdisk with sha256 digest"
+	ROOTFS_IMAGE_DIGEST=$(dirname $ROOTFS_IMAGE)/ramdisk.gz.digest
+
+	openssl dgst -sha256 -binary -out $ROOTFS_IMAGE_DIGEST $ROOTFS_IMAGE || exit 1
+	rootfs_image_digest_size=$(du -b $ROOTFS_IMAGE |sed -r -e 's/[[:space:]]+.*$//')
+
+	if [ "$RK_ARCH" == "arm" ]; then
+		kernel_dts_file="kernel/arch/arm/boot/dts/$RK_KERNEL_DTS.dts"
+	else
+		kernel_dts_file="kernel/arch/arm64/boot/dts/rockchip/$RK_KERNEL_DTS.dts"
+	fi
+
+	cp $kernel_dts_file ${kernel_dts_file}.backup
+cat << EOF >> ${kernel_dts_file}
+&ramdisk_c {
+	size = <$rootfs_image_digest_size>;
+	hash {
+		algo = "sha256";
+		value = /incbin/("$ROOTFS_IMAGE_DIGEST");
+	};
+};
+EOF
+	./build.sh kernel
+	mv ${kernel_dts_file}.backup $kernel_dts_file
+}
+
+rk_ramdisk_build_init()
+{
+	echo "Try to build init for $1"
+
+	if [ "$RK_SYSTEM_CHECK_METHOD" = "DM-V" ]; then
+		SYSTEM_IMAGE=$TOP_DIR/buildroot/output/$RK_CFG_BUILDROOT/images/rootfs.squashfs
+	else
+		SYSTEM_IMAGE=$TOP_DIR/buildroot/output/$RK_CFG_BUILDROOT/images/rootfs.${RK_ROOTFS_TYPE}
+	fi
+	if [ ! -e "$SYSTEM_IMAGE" ]; then
+		echo "ERROR: Please build system first"
+		exit -1
+	fi
+
+	$COMMON_DIR/mk-dm.sh $1 $SYSTEM_IMAGE
+}
+
 COMMON_DIR=$(cd `dirname $0`; pwd)
 if [ -h $0 ]
 then
@@ -56,6 +102,16 @@ fi
 
 eval ROOTFS_IMAGE=\$${RAMDISK_TYPE}_IMG
 
+if [ "$RK_RAMDISK_SECURITY_BOOTUP" = "true" ];then
+	case "$RK_SYSTEM_CHECK_METHOD" in
+	"DM-V" | "DM-E")
+		rk_ramdisk_build_init $RK_SYSTEM_CHECK_METHOD
+		;;
+	*)
+		echo "do nothing ($RK_SYSTEM_CHECK_METHOD)"
+	esac
+fi
+
 # build ramdisk
 echo "====Start build $RAMDISK_CFG===="
 $TOP_DIR/buildroot/utils/brmake
@@ -81,30 +137,9 @@ fi
 echo -n "pack $RAMDISK_IMG..."
 if [ -f "$TOP_DIR/device/rockchip/$RK_TARGET_PRODUCT/$RK_RECOVERY_FIT_ITS" ];then
 	if [ "$RK_RAMDISK_SECURITY_BOOTUP" = "true" ];then
-		echo "[$0] Build ramdisk with sha256 digest"
-		ROOTFS_IMAGE_DIGEST=$(dirname $ROOTFS_IMAGE)/ramdisk.gz.digest
-
-		openssl dgst -sha256 -binary -out $ROOTFS_IMAGE_DIGEST $ROOTFS_IMAGE || exit 1
-		rootfs_image_digest_size=$(du -b $ROOTFS_IMAGE |sed -r -e 's/[[:space:]]+.*$//')
-
-		if [ "$RK_ARCH" == "arm" ]; then
-			kernel_dts_file="kernel/arch/arm/boot/dts/$RK_KERNEL_DTS.dts"
-		else
-			kernel_dts_file="kernel/arch/arm64/boot/dts/rockchip/$RK_KERNEL_DTS.dts"
+		if [ -z "$RK_SYSTEM_CHECK_METHOD" ]; then
+			rk_ramdisk_security_bootup_normal $0
 		fi
-
-		cp $kernel_dts_file ${kernel_dts_file}.backup
-cat << EOF >> ${kernel_dts_file}
-&ramdisk_c {
-	size = <$rootfs_image_digest_size>;
-	hash {
-		algo = "sha256";
-		value = /incbin/("$ROOTFS_IMAGE_DIGEST");
-	};
-};
-EOF
-		./build.sh kernel
-		mv ${kernel_dts_file}.backup $kernel_dts_file
 	fi
 
 	$COMMON_DIR/mk-fitimage.sh $TARGET_IMAGE $TOP_DIR/device/rockchip/$RK_TARGET_PRODUCT/$RK_RECOVERY_FIT_ITS $ROOTFS_IMAGE $KERNEL_IMAGE

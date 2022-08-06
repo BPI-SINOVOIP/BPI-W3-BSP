@@ -193,7 +193,7 @@ static MPP_RET vepu54x_h265_setup_hal_bufs(H265eV541HalContext *ctx)
     hal_h265e_enter();
 
     mb_wd64 = (prep->width + 63) / 64;
-    mb_h64 = (prep->height + 63) / 64;
+    mb_h64 = (prep->height + 63) / 64 + 1;
 
     frame_size = MPP_ALIGN(prep->width, 16) * MPP_ALIGN(prep->height, 16);
     vepu541_set_fmt(fmt, ctx->cfg->prep.format);
@@ -656,6 +656,7 @@ MPP_RET hal_h265e_v541_init(void *hal, MppEncHalCfg *cfg)
 
     ctx->osd_cfg.reg_base = ctx->regs;
     ctx->osd_cfg.dev = ctx->dev;
+    ctx->osd_cfg.reg_cfg = NULL;
     ctx->osd_cfg.plt_cfg = &ctx->cfg->plt_cfg;
     ctx->osd_cfg.osd_data = NULL;
     ctx->osd_cfg.osd_data2 = NULL;
@@ -1309,7 +1310,7 @@ void vepu54x_h265_set_hw_address(H265eV541HalContext *ctx, H265eV541RegSet *regs
 {
     HalEncTask *enc_task = task;
     HalBuf *recon_buf, *ref_buf;
-    MppBuffer mv_info_buf = enc_task->mv_info;
+    MppBuffer md_info_buf = enc_task->md_info;
     H265eSyntax_new *syn = (H265eSyntax_new *)enc_task->syntax.data;
     MppDevRegOffsetCfg cfg_fd;
 
@@ -1359,9 +1360,9 @@ void vepu54x_h265_set_hw_address(H265eV541HalContext *ctx, H265eV541RegSet *regs
         regs->lpfr_addr_hevc = mpp_buffer_get_fd(ctx->hw_tile_buf[1]);
     }
 
-    if (mv_info_buf) {
+    if (md_info_buf) {
         regs->enc_pic.mei_stor    = 1;
-        regs->meiw_addr_hevc = mpp_buffer_get_fd(mv_info_buf);
+        regs->meiw_addr_hevc = mpp_buffer_get_fd(md_info_buf);
     } else {
         regs->enc_pic.mei_stor    = 0;
         regs->meiw_addr_hevc = 0;
@@ -1787,7 +1788,7 @@ static MPP_RET vepu541_h265_set_feedback(H265eV541HalContext *ctx, HalEncTask *e
         hal_h265e_dbg_detail("RKV_ENC_INT_ONE_FRAME_FINISH");
 
     if (hw_status & RKV_ENC_INT_ONE_SLICE_FINISH)
-        hal_h265e_err("RKV_ENC_INT_ONE_SLICE_FINISH");
+        hal_h265e_dbg_detail("RKV_ENC_INT_ONE_SLICE_FINISH");
 
     if (hw_status & RKV_ENC_INT_SAFE_CLEAR_FINISH)
         hal_h265e_err("RKV_ENC_INT_SAFE_CLEAR_FINISH");
@@ -1892,7 +1893,9 @@ MPP_RET hal_h265e_v541_get_task(void *hal, HalEncTask *task)
         return MPP_ERR_MALLOC;
     }
 
-    ctx->last_frame_type = ctx->frame_type;
+    if (!frm_status->reencode)
+        ctx->last_frame_type = ctx->frame_type;
+
     if (frm_status->is_intra) {
         ctx->frame_type = INTRA_FRAME;
     } else {
@@ -1901,11 +1904,11 @@ MPP_RET hal_h265e_v541_get_task(void *hal, HalEncTask *task)
     if (!frm_status->reencode && mpp_frame_has_meta(task->frame)) {
         MppMeta meta = mpp_frame_get_meta(frame);
 
-        mpp_meta_get_ptr(meta, KEY_ROI_DATA, (void **)&ctx->roi_data);
-        mpp_meta_get_ptr(meta, KEY_ROI_DATA2, (void **)&ctx->roi_data2);
-        mpp_meta_get_ptr(meta, KEY_OSD_DATA, (void **)&ctx->osd_cfg.osd_data);
-        mpp_meta_get_ptr(meta, KEY_OSD_DATA2, (void **)&ctx->osd_cfg.osd_data2);
-        mpp_meta_get_buffer(meta, KEY_QPMAP0, &ctx->qpmap);
+        mpp_meta_get_ptr_d(meta, KEY_ROI_DATA, (void **)&ctx->roi_data, NULL);
+        mpp_meta_get_ptr_d(meta, KEY_ROI_DATA2, (void **)&ctx->roi_data2, NULL);
+        mpp_meta_get_ptr_d(meta, KEY_OSD_DATA, (void **)&ctx->osd_cfg.osd_data, NULL);
+        mpp_meta_get_ptr_d(meta, KEY_OSD_DATA2, (void **)&ctx->osd_cfg.osd_data2, NULL);
+        mpp_meta_get_buffer_d(meta, KEY_QPMAP0, &ctx->qpmap, NULL);
     }
     memset(&ctx->feedback, 0, sizeof(vepu541_h265_fbk));
 

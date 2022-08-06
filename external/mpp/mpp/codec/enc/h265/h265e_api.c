@@ -23,6 +23,7 @@
 
 #include "rc.h"
 #include "mpp_enc_cfg_impl.h"
+#include "mpp_packet_impl.h"
 
 #include "h265e_api.h"
 #include "h265e_slice.h"
@@ -54,7 +55,6 @@ static MPP_RET h265e_init(void *ctx, EncImplCfg *ctrlCfg)
     p->cfg = ctrlCfg->cfg;
 
     memset(&p->syntax, 0, sizeof(p->syntax));
-    ctrlCfg->task_count = 1;
 
     p->extra_info = mpp_calloc(H265eExtraInfo, 1);
 
@@ -298,6 +298,7 @@ static MPP_RET h265e_add_sei(MppPacket pkt, RK_S32 *length, RK_U8 uuid[16],
     *length = new_length;
 
     mpp_packet_set_length(pkt, offset + new_length);
+    mpp_packet_add_segment_info(pkt, NAL_SEI_PREFIX, offset, new_length);
 
     return MPP_OK;
 }
@@ -447,19 +448,26 @@ static MPP_RET h265e_proc_h265_cfg(MppEncH265Cfg *dst, MppEncH265Cfg *src)
     return MPP_OK;
 }
 
-static MPP_RET h265e_proc_split_cfg(MppEncH265SliceCfg *dst, MppEncSliceSplit *src)
+static MPP_RET h265e_proc_split_cfg(MppEncSliceSplit *dst, MppEncSliceSplit *src)
 {
-    if (src->split_mode > MPP_ENC_SPLIT_NONE) {
-        dst->split_enable = 1;
-        dst->split_mode = 0;
-        if (src->split_mode == MPP_ENC_SPLIT_BY_CTU)
-            dst->split_mode = 1;
-        dst->slice_size =  src->split_arg;
-    } else {
-        dst->split_enable = 0;
+    MPP_RET ret = MPP_OK;
+    RK_U32 change = src->change;
+
+    if (change & MPP_ENC_SPLIT_CFG_CHANGE_MODE) {
+        dst->split_mode = src->split_mode;
+        dst->split_arg = src->split_arg;
     }
 
-    return MPP_OK;
+    if (change & MPP_ENC_SPLIT_CFG_CHANGE_ARG)
+        dst->split_arg = src->split_arg;
+
+    if (change & MPP_ENC_SPLIT_CFG_CHANGE_OUTPUT)
+        dst->split_out = src->split_out;
+
+    dst->change |= change;
+    src->change = 0;
+
+    return ret;
 }
 
 static MPP_RET h265e_proc_cfg(void *ctx, MpiCmd cmd, void *param)
@@ -485,7 +493,7 @@ static MPP_RET h265e_proc_cfg(void *ctx, MpiCmd cmd, void *param)
             src->codec.h265.change = 0;
         }
         if (src->split.change) {
-            ret |= h265e_proc_split_cfg(&cfg->codec.h265.slice_cfg, &src->split);
+            ret |= h265e_proc_split_cfg(&cfg->split, &src->split);
             src->split.change = 0;
         }
     } break;

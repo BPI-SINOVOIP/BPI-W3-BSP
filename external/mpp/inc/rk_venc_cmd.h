@@ -150,6 +150,49 @@
  */
 
 /*
+ * encoder query interface is only for debug usage
+ */
+#define MPP_ENC_QUERY_STATUS        (0x00000001)
+#define MPP_ENC_QUERY_WAIT          (0x00000002)
+#define MPP_ENC_QUERY_FPS           (0x00000004)
+#define MPP_ENC_QUERY_BPS           (0x00000008)
+#define MPP_ENC_QUERY_ENC_IN_FRM    (0x00000010)
+#define MPP_ENC_QUERY_ENC_WORK      (0x00000020)
+#define MPP_ENC_QUERY_ENC_OUT_PKT   (0x00000040)
+
+#define MPP_ENC_QUERY_ALL           (MPP_ENC_QUERY_STATUS       | \
+                                     MPP_ENC_QUERY_WAIT         | \
+                                     MPP_ENC_QUERY_FPS          | \
+                                     MPP_ENC_QUERY_BPS          | \
+                                     MPP_ENC_QUERY_ENC_IN_FRM   | \
+                                     MPP_ENC_QUERY_ENC_WORK     | \
+                                     MPP_ENC_QUERY_ENC_OUT_PKT)
+
+typedef struct MppEncQueryCfg_t {
+    /*
+     * 32 bit query flag for query data check
+     * Each bit represent a query data switch.
+     * bit 0 - for querying encoder runtime status
+     * bit 1 - for querying encoder runtime waiting status
+     * bit 2 - for querying encoder realtime encode fps
+     * bit 3 - for querying encoder realtime output bps
+     * bit 4 - for querying encoder input frame count
+     * bit 5 - for querying encoder start hardware times
+     * bit 6 - for querying encoder output packet count
+     */
+    RK_U32      query_flag;
+
+    /* 64 bit query data output */
+    RK_U32      rt_status;
+    RK_U32      rt_wait;
+    RK_U32      rt_fps;
+    RK_U32      rt_bps;
+    RK_U32      enc_in_frm_cnt;
+    RK_U32      enc_hw_run_cnt;
+    RK_U32      enc_out_pkt_cnt;
+} MppEncQueryCfg;
+
+/*
  * base working mode parameter
  */
 typedef enum MppEncBaseCfgChange_e {
@@ -397,6 +440,9 @@ typedef struct MppEncHwCfg_t {
 
     /* vepu1/2 */
     RK_S32                  mb_rc_disable;
+
+    /* vepu580 */
+    RK_S32                  extra_buf;
 } MppEncHwCfg;
 
 /*
@@ -856,6 +902,7 @@ typedef struct MppEncH265SliceCfg_t {
      * when splitmode is 1, this value presents lcu line number
      */
     RK_U32  slice_size;
+    RK_U32  slice_out;
     RK_U32  loop_filter_across_slices_enabled_flag;
 } MppEncH265SliceCfg;
 
@@ -1048,6 +1095,7 @@ typedef enum MppEncSliceSplit_e {
     /* change on quant parameter */
     MPP_ENC_SPLIT_CFG_CHANGE_MODE           = (1 << 0),
     MPP_ENC_SPLIT_CFG_CHANGE_ARG            = (1 << 1),
+    MPP_ENC_SPLIT_CFG_CHANGE_OUTPUT         = (1 << 2),
     MPP_ENC_SPLIT_CFG_CHANGE_ALL            = (0xFFFFFFFF),
 } MppEncSliceSplitChange;
 
@@ -1078,6 +1126,14 @@ typedef struct MppEncSliceSplit_t {
      * for each slice.
      */
     RK_U32  split_arg;
+
+    /*
+     * slice split output mode
+     *
+     * 0    - output all slice in one packet
+     * 1    - output each slice in a single packet
+     */
+    RK_U32  split_out;
 } MppEncSliceSplit;
 
 /**
@@ -1240,5 +1296,22 @@ typedef struct MppEncUserDataSet_t {
     RK_U32              count;
     MppEncUserDataFull  *datas;
 } MppEncUserDataSet;
+
+typedef enum MppEncSceneMode_e {
+    MPP_ENC_SCENE_MODE_DEFAULT,
+    MPP_ENC_SCENE_MODE_IPC,
+    MPP_ENC_SCENE_MODE_BUTT,
+} MppEncSceneMode;
+
+typedef enum MppEncFineTuneCfgChange_e {
+    /* change on scene mode */
+    MPP_ENC_TUNE_CFG_CHANGE_SCENE_MODE      = (1 << 0),
+} MppEncFineTuneCfgChange;
+
+typedef struct MppEncFineTuneCfg_t {
+    RK_U32              change;
+
+    MppEncSceneMode     scene_mode;
+} MppEncFineTuneCfg;
 
 #endif /*__RK_VENC_CMD_H__*/

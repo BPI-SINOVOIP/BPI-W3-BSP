@@ -788,10 +788,8 @@ drmmode_crtc_modeset(xf86CrtcPtr crtc, uint32_t fb_id,
     width = mode->hdisplay;
     height = mode->vdisplay;
 
-    /* shadow bo or front bo size matched */
-    if (fb_id != drmmode->fb_id ||
-        (width <= drmmode->front_bo.width &&
-         height <= drmmode->front_bo.height))
+    /* flip-fb disabled or shadow bo */
+    if (!drmmode_crtc->flip_fb_enabled || fb_id != drmmode->fb_id)
         return drmModeSetCrtc(drmmode->fd, drmmode_crtc->mode_crtc->crtc_id,
                               fb_id, x, y, output_ids, output_count, mode);
 
@@ -807,7 +805,7 @@ drmmode_crtc_modeset(xf86CrtcPtr crtc, uint32_t fb_id,
         goto err;
 
     ret = drmModeSetCrtc(drmmode->fd, drmmode_crtc->mode_crtc->crtc_id,
-                         fb_id, x, y, output_ids, output_count, mode);
+                         fb_id, 0, 0, output_ids, output_count, mode);
     if (ret < 0) {
         old_fb_id = fb_id;
         goto err;
@@ -2466,14 +2464,14 @@ drmmode_crtc_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, drmModeResPtr mode_res
         xf86OutputPtr output = config->output[o];
         drmmode_output_private_ptr drmmode_output = output->driver_private;
 
-	if (drmmode_output->possible_crtcs & (1 << num)) {
-		output->possible_crtcs |= 1 << config->num_crtc;
-		found = 1;
-	}
+        if (drmmode_output->possible_crtcs & (1 << num)) {
+            output->possible_crtcs |= 1 << config->num_crtc;
+            found = 1;
+        }
     }
 
     if (!found)
-	    return 0;
+        return 0;
 
     crtc = xf86CrtcCreate(pScrn, &drmmode_crtc_funcs);
     if (crtc == NULL)
@@ -3325,13 +3323,18 @@ drmmode_output_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, drmModeResPtr mode_r
     output->driver_private = drmmode_output;
     output->non_desktop = nonDesktop;
 
-    /* would be updated in crtc init */
-    output->possible_crtcs = 0;
-
     drmmode_output->possible_crtcs = 0x7f;
     for (i = 0; i < koutput->count_encoders; i++) {
         drmmode_output->possible_crtcs &= kencoders[i]->possible_crtcs;
     }
+
+    if (!dynamic) {
+        /* would be updated in crtc init */
+        output->possible_crtcs = 0;
+    } else {
+        output->possible_crtcs = drmmode_output->possible_crtcs;
+    }
+
     /* work out the possible clones later */
     output->possible_clones = 0;
 
@@ -4189,6 +4192,8 @@ drmmode_create_initial_bos(ScrnInfoPtr pScrn, drmmode_ptr drmmode)
 
     if (!drmmode_create_bo(drmmode, &drmmode->front_bo, width, height, bpp))
         return FALSE;
+    if (drmmode_bo_import(drmmode, &drmmode->front_bo, &drmmode->fb_id) < 0)
+        return FALSE;
     pScrn->displayWidth = drmmode_bo_get_pitch(&drmmode->front_bo) / cpp;
 
     width = ms->cursor_width;
@@ -4550,45 +4555,102 @@ drmmode_flip_damage_destroy(DamagePtr damage, void *closure)
 static RegionPtr
 drmmode_transform_region(xf86CrtcPtr crtc, RegionPtr src)
 {
-    RegionPtr region;
-    BoxPtr box;
+#define MS_MAX_NUM_BOX 4
+    RegionPtr region = RegionCreate(NULL, 0);
+    BoxRec rects[MS_MAX_NUM_BOX];
+    BoxPtr box, rect;
     Bool empty;
-    int n;
+    int n, i;
 
-    /* draw the extents rather than small rects */
-    if (RegionNumRects(src) > 4)
-        region = RegionCreate(&src->extents, 1);
-    else
-        region = RegionDuplicate(src);
-
-    if (!RegionNotEmpty(region))
+    if (!RegionNotEmpty(src))
         return region;
 
-    n = RegionNumRects(region);
-    box = RegionRects(region);
+    if (RegionNumRects(src) < MS_MAX_NUM_BOX) {
+        n = RegionNumRects(src);
+        box = RegionRects(src);
+    } else {
+        /* draw the extents rather than small rects */
+        n = 1;
+        box = RegionExtents(src);
+    }
 
     empty = TRUE;
-    while(n--) {
-        box->x1 -= crtc->filter_width >> 1;
-        box->x2 += crtc->filter_width >> 1;
-        box->y1 -= crtc->filter_height >> 1;
-        box->y2 += crtc->filter_height >> 1;
-        pixman_f_transform_bounds(&crtc->f_framebuffer_to_crtc, box);
-        box->x1 = max(box->x1, 0);
-        box->y1 = max(box->y1, 0);
-        box->x2 = min(box->x2, crtc->mode.HDisplay);
-        box->y2 = min(box->y2, crtc->mode.VDisplay);
+    for (i = 0; i < n; i++) {
+        rect = &rects[i];
 
-        if (box->x1 < box->x2 && box->y1 < box->y2)
+        rect->x1 = box[i].x1 - crtc->filter_width / 2;
+        rect->x2 = box[i].x2 + crtc->filter_width / 2;
+        rect->y1 = box[i].y1 - crtc->filter_height / 2;
+        rect->y2 = box[i].y2 + crtc->filter_height / 2;
+        pixman_f_transform_bounds(&crtc->f_framebuffer_to_crtc, rect);
+        rect->x1 = max(rect->x1, 0);
+        rect->y1 = max(rect->y1, 0);
+        rect->x2 = min(rect->x2, crtc->mode.HDisplay);
+        rect->y2 = min(rect->y2, crtc->mode.VDisplay);
+
+        if (rect->x1 < rect->x2 && rect->y1 < rect->y2)
             empty = FALSE;
+    }
+
+    if (empty)
+        return region;
+
+    RegionInitBoxes(region, rects, n);
+    return region;
+}
+
+Bool
+ms_copy_area(PixmapPtr pSrc, PixmapPtr pDst,
+             pixman_f_transform_t *transform, RegionPtr clip)
+{
+    ScreenPtr screen = pSrc->drawable.pScreen;
+    PictFormatPtr format = PictureWindowFormat(screen->root);
+    PicturePtr src = NULL, dst = NULL;
+    pixman_transform_t t;
+    Bool ret = FALSE;
+    BoxPtr box;
+    int n, error;
+
+    src = CreatePicture(None, &pSrc->drawable,
+                        format, 0L, NULL, serverClient, &error);
+    if (!src)
+        return FALSE;
+
+    dst = CreatePicture(None, &pDst->drawable,
+                        format, 0L, NULL, serverClient, &error);
+    if (!dst)
+        goto out;
+
+    if (transform) {
+        if (!pixman_transform_from_pixman_f_transform(&t, transform))
+            goto out;
+
+        error = SetPictureTransform(src, &t);
+        if (error)
+            goto out;
+    }
+
+    box = REGION_RECTS(clip);
+    n = REGION_NUM_RECTS(clip);
+
+    while (n--) {
+        CompositePicture(PictOpSrc,
+                         src, NULL, dst,
+                         box->x1, box->y1, 0, 0, box->x1,
+                         box->y1, box->x2 - box->x1,
+                         box->y2 - box->y1);
 
         box++;
     }
 
-    if (empty)
-        RegionEmpty(region);
+    ret = TRUE;
+out:
+    if (src)
+        FreePicture(src, None);
+    if (dst)
+        FreePicture(dst, None);
 
-    return region;
+    return ret;
 }
 
 static Bool
@@ -4597,6 +4659,7 @@ drmmode_update_fb(xf86CrtcPtr crtc, drmmode_fb *fb)
     drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
     ScrnInfoPtr scrn = crtc->scrn;
     modesettingPtr ms = modesettingPTR(scrn);
+    drmmode_ptr drmmode = &ms->drmmode;
     ScreenPtr screen = xf86ScrnToScreen(scrn);
     SourceValidateProcPtr SourceValidate = screen->SourceValidate;
     RegionPtr dirty;
@@ -4626,7 +4689,7 @@ drmmode_update_fb(xf86CrtcPtr crtc, drmmode_fb *fb)
     }
 
     /* scaled screens may not be able to map areas(due to precision) */
-    if (drmmode_crtc->is_scale)
+    if (drmmode_crtc->is_scale && drmmode->exa)
         fb->need_clear = TRUE;
 
     dirty = NULL;
@@ -4650,8 +4713,12 @@ drmmode_update_fb(xf86CrtcPtr crtc, drmmode_fb *fb)
         goto out;
     }
 
-    screen->SourceValidate = NULL;
-    ret = ms_exa_copy_area(screen->GetScreenPixmap(screen), fb->pixmap,
+    screen->SourceValidate = miSourceValidate;
+    if (drmmode->exa)
+        ret = ms_exa_copy_area(screen->GetScreenPixmap(screen), fb->pixmap,
+                               &crtc->f_crtc_to_framebuffer, dirty);
+    else
+        ret = ms_copy_area(screen->GetScreenPixmap(screen), fb->pixmap,
                            &crtc->f_crtc_to_framebuffer, dirty);
     screen->SourceValidate = SourceValidate;
 
@@ -4692,6 +4759,8 @@ drmmode_flip_fb(xf86CrtcPtr crtc, int *timeout)
     drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
     drmmode_ptr drmmode = drmmode_crtc->drmmode;
     ScreenPtr screen = xf86ScrnToScreen(drmmode->scrn);
+    ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
+    modesettingPtr ms = modesettingPTR(scrn);
     drmmode_fb *fb;
     struct timeval tv;
     uint64_t now_ms, diff_ms;
@@ -4759,7 +4828,7 @@ drmmode_flip_fb(xf86CrtcPtr crtc, int *timeout)
     }
 
     if (!ms_do_pageflip_bo(screen, &fb->bo, drmmode_crtc,
-                           drmmode_crtc->vblank_pipe, crtc, TRUE,
+                           drmmode_crtc->vblank_pipe, crtc, ms->async_pageflip,
                            drmmode_flip_fb_handler, drmmode_flip_fb_abort)) {
         /* HACK: Workaround commit random interrupted case */
         if (errno != EPERM) {

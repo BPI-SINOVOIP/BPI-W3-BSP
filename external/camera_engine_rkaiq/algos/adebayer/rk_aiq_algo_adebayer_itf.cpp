@@ -18,7 +18,7 @@
  */
 
 #include "adebayer/rk_aiq_algo_adebayer_itf.h"
-#include "adebayer/rk_aiq_types_algo_adebayer_prvt.h"
+#include "adebayer/rk_aiq_algo_adebayer.h"
 #include "rk_aiq_algo_types.h"
 
 RKAIQ_BEGIN_DECLARE
@@ -37,10 +37,10 @@ create_context
         LOGE_ADEBAYER( "%s: create adebayer context fail!\n", __FUNCTION__);
         return XCAM_RETURN_ERROR_MEM;
     }
-    LOGI_ADEBAYER("%s: (enter)\n", __FUNCTION__ );
+    LOGV_ADEBAYER("%s: (enter)\n", __FUNCTION__ );
     AdebayerInit(&ctx->adebayerCtx, cfg->calib, cfg->calibv2);
     *context = ctx;
-    LOGI_ADEBAYER("%s: (exit)\n", __FUNCTION__ );
+    LOGV_ADEBAYER("%s: (exit)\n", __FUNCTION__ );
     return result;
 }
 
@@ -52,11 +52,11 @@ destroy_context
 {
     XCamReturn result = XCAM_RETURN_NO_ERROR;
 
-    LOGI_ADEBAYER("%s: (enter)\n", __FUNCTION__ );
+    LOGV_ADEBAYER("%s: (enter)\n", __FUNCTION__ );
     AdebayerContext_t* pAdebayerCtx = (AdebayerContext_t*)&context->adebayerCtx;
     AdebayerRelease(pAdebayerCtx);
     delete context;
-    LOGI_ADEBAYER("%s: (exit)\n", __FUNCTION__ );
+    LOGV_ADEBAYER("%s: (exit)\n", __FUNCTION__ );
     return result;
 }
 
@@ -68,16 +68,16 @@ prepare
 {
     XCamReturn result = XCAM_RETURN_NO_ERROR;
 
-    LOGI_ADEBAYER("%s: (enter)\n", __FUNCTION__ );
+    LOGV_ADEBAYER("%s: (enter)\n", __FUNCTION__ );
     AdebayerContext_t* pAdebayerCtx = (AdebayerContext_t *)&params->ctx->adebayerCtx;
     RkAiqAlgoConfigAdebayer* pCfgParam = (RkAiqAlgoConfigAdebayer*)params;
 
-	if(!!(params->u.prepare.conf_type & RK_AIQ_ALGO_CONFTYPE_UPDATECALIB )){
-		AdebayerInit(pAdebayerCtx, pCfgParam->com.u.prepare.calib, pCfgParam->com.u.prepare.calibv2);
+    if(!!(params->u.prepare.conf_type & RK_AIQ_ALGO_CONFTYPE_UPDATECALIB )) {
+        AdebayerInit(pAdebayerCtx, pCfgParam->com.u.prepare.calib, pCfgParam->com.u.prepare.calibv2);
     }
 
     AdebayerStart(pAdebayerCtx);
-    LOGI_ADEBAYER("%s: (exit)\n", __FUNCTION__ );
+    LOGV_ADEBAYER("%s: (exit)\n", __FUNCTION__ );
     return result;
 }
 
@@ -88,9 +88,9 @@ pre_process
     RkAiqAlgoResCom* outparams
 )
 {
-    LOGI_ADEBAYER("%s: (enter)\n", __FUNCTION__ );
+    LOGV_ADEBAYER("%s: (enter)\n", __FUNCTION__ );
 
-    LOGI_ADEBAYER("%s: (exit)\n", __FUNCTION__ );
+    LOGV_ADEBAYER("%s: (exit)\n", __FUNCTION__ );
     return XCAM_RETURN_NO_ERROR;
 }
 
@@ -108,7 +108,7 @@ processing
     RkAiqAlgoProcResAdebayer* pAdebayerProcResParams = (RkAiqAlgoProcResAdebayer*)outparams;
     AdebayerContext_t* pAdebayerCtx = (AdebayerContext_t *)&inparams->ctx->adebayerCtx;
 
-    LOGI_ADEBAYER("%s: (enter)\n", __FUNCTION__ );
+    LOGV_ADEBAYER("%s: (enter)\n", __FUNCTION__ );
 
     if (pAdebayerProcParams->com.u.proc.is_bw_sensor) {
         pAdebayerCtx->config.enable = 0;
@@ -150,7 +150,7 @@ processing
 
     AdebayerGetProcResult(pAdebayerCtx, &pAdebayerProcResParams->debayerRes);
 
-    LOGI_ADEBAYER("%s: (exit)\n", __FUNCTION__ );
+    LOGV_ADEBAYER("%s: (exit)\n", __FUNCTION__ );
     return XCAM_RETURN_NO_ERROR;
 }
 
@@ -161,9 +161,9 @@ post_process
     RkAiqAlgoResCom* outparams
 )
 {
-    LOGI_ADEBAYER("%s: (enter)\n", __FUNCTION__ );
+    LOGV_ADEBAYER("%s: (enter)\n", __FUNCTION__ );
 
-    LOGI_ADEBAYER("%s: (exit)\n", __FUNCTION__ );
+    LOGV_ADEBAYER("%s: (exit)\n", __FUNCTION__ );
     return XCAM_RETURN_NO_ERROR;
 }
 

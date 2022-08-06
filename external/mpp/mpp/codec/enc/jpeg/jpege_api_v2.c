@@ -19,10 +19,9 @@
 #include <string.h>
 
 #include "mpp_err.h"
-#include "mpp_log.h"
 #include "mpp_env.h"
-#include "mpp_common.h"
 #include "mpp_mem.h"
+#include "mpp_common.h"
 #include "mpp_2str.h"
 
 #include "jpege_debug.h"
@@ -75,7 +74,6 @@ static MPP_RET jpege_init_v2(void *ctx, EncImplCfg *cfg)
     p->cfg = cfg->cfg;
 
     mpp_assert(cfg->coding = MPP_VIDEO_CodingMJPEG);
-    cfg->task_count = 1;
 
     {
         /* init default rc config */

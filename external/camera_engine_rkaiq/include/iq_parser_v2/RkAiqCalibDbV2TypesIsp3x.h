@@ -26,6 +26,7 @@
 #include "sharp_head_v4.h"
 #include "bayer2dnr_head_v2.h"
 #include "bayertnr_head_v2.h"
+#include "gain_head_v2.h"
 
 
 #include "cac_head.h"
@@ -85,6 +86,8 @@ typedef struct CamCalibDbV2ContextIsp30_s {
     CalibDbV2_Cac_t cac_calib;
     // M4_STRUCT_DESC("af_calib", "normal_ui_style")
     CalibDbV2_AFV30_t af_v30;
+    // M4_STRUCT_DESC("gain_v2", "normal_ui_style")
+    CalibDbV2_GainV2_t gain_v2;
 } CamCalibDbV2ContextIsp30_t;
 
 RKAIQ_END_DECLARE

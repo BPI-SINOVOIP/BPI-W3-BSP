@@ -36,6 +36,7 @@ static inline bool is_rockchip(enum analogix_dp_devtype type)
 struct analogix_dp_plat_data {
 	enum analogix_dp_devtype dev_type;
 	struct drm_panel *panel;
+	struct drm_bridge *bridge;
 	struct drm_encoder *encoder;
 	struct drm_connector *connector;
 	bool skip_connector;
@@ -57,6 +58,8 @@ struct analogix_dp_plat_data {
 	void (*convert_to_origin_mode)(struct drm_display_mode *);
 };
 
+int analogix_dp_resume(struct analogix_dp_device *dp);
+int analogix_dp_suspend(struct analogix_dp_device *dp);
 int analogix_dp_runtime_resume(struct analogix_dp_device *dp);
 int analogix_dp_runtime_suspend(struct analogix_dp_device *dp);
 

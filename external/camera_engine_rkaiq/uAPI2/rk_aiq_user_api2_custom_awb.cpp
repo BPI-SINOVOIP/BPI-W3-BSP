@@ -100,6 +100,41 @@ static XCamReturn AwbDemoDestroyCtx(RkAiqAlgoContext *context)
     LOGD_AWB_SUBM(0xff, "%s EXIT", __func__);
     return XCAM_RETURN_NO_ERROR;
 }
+
+static XCamReturn initCustomAwbHwConfigGw(rk_aiq_customAwb_hw_cfg_t  *awbHwConfig)
+{
+    LOG1_AWB_SUBM(0xff, "%s ENTER", __func__);
+    XCamReturn ret = XCAM_RETURN_NO_ERROR;
+    memset(awbHwConfig,0,sizeof(rk_aiq_customAwb_hw_cfg_t));
+    awbHwConfig->awbEnable             =    1;
+    awbHwConfig->xyDetectionEnable          =    0;
+    awbHwConfig->uvDetectionEnable          =    0;
+    awbHwConfig->threeDyuvEnable          =    0;
+    awbHwConfig->blkWeightEnable    =    0;
+    awbHwConfig->lscBypEnable    =    0;
+    awbHwConfig->blkMeasureMode     =    RK_AIQ_AWB_BLK_STAT_MODE_REALWP_V201;
+    awbHwConfig->xyRangeTypeForBlkStatistics     =    (rk_aiq_awb_xy_type_v201_t)0;
+    awbHwConfig->illIdxForBlkStatistics     =    (rk_aiq_awb_blk_stat_realwp_ill_e)7;
+    awbHwConfig->wpDiffWeiEnable   =    0;
+    awbHwConfig->xyRangeTypeForWpHist    =    (rk_aiq_awb_xy_type_v201_t)0;
+    awbHwConfig->lightNum      =    7;
+    awbHwConfig->windowSet[0]         =    0;
+    awbHwConfig->windowSet[1]          =    0;
+    awbHwConfig->windowSet[2]         =    3840;
+    awbHwConfig->windowSet[3]         =    2160;
+    awbHwConfig->maxR          =    230;
+    awbHwConfig->maxG          =    230;
+    awbHwConfig->maxB          =    230;
+    awbHwConfig->maxY          =    230;
+    awbHwConfig->minR          =    3;
+    awbHwConfig->minG          =    3;
+    awbHwConfig->minB          =    3;
+    awbHwConfig->minY          =    3;
+    awbHwConfig->multiwindow_en  =    0;
+    LOG1_AWB_SUBM(0xff, "%s EXIT", __func__);
+    return ret;
+}
+
 static XCamReturn initCustomAwbHwConfigWp(rk_aiq_customAwb_hw_cfg_t  *awbHwConfig)
 {
     LOG1_AWB_SUBM(0xff, "%s ENTER", __func__);
@@ -111,7 +146,7 @@ static XCamReturn initCustomAwbHwConfigWp(rk_aiq_customAwb_hw_cfg_t  *awbHwConfi
     awbHwConfig->threeDyuvEnable          =    1;//uv detect  enable for all  light
     awbHwConfig->blkWeightEnable    =    0;
     awbHwConfig->lscBypEnable    =    0;
-    awbHwConfig->blkMeasureMode     =    (rk_aiq_awb_blk_stat_mode_v201_t)0;
+    awbHwConfig->blkMeasureMode     =    RK_AIQ_AWB_BLK_STAT_MODE_REALWP_V201;
     awbHwConfig->xyRangeTypeForBlkStatistics     =    (rk_aiq_awb_xy_type_v201_t)0;
     awbHwConfig->illIdxForBlkStatistics     =    (rk_aiq_awb_blk_stat_realwp_ill_e)7;
     awbHwConfig->wpDiffWeiEnable   =    0;
@@ -731,7 +766,9 @@ static XCamReturn initAwbHwFullConfigGw(rk_aiq_isp_awb_meas_cfg_v3x_t  *awbHwCon
     awbHwConfig->pre_wbgain_inv_r  =    256;
     awbHwConfig->pre_wbgain_inv_g  =    256;
     awbHwConfig->pre_wbgain_inv_b  =    256;
+#ifdef ISP_HW_V30
     awbHwConfig->multiwindow_en  =    0;
+#endif
     awbHwConfig->blk_rtdw_measure_en  =    0;
     LOG1_AWB_SUBM(0xff, "%s EXIT", __func__);
     return ret;
@@ -1018,6 +1055,7 @@ static XCamReturn initAwbHwFullConfigWp(rk_aiq_isp_awb_meas_cfg_v3x_t  *awbHwCon
     awbHwConfig->pre_wbgain_inv_r  =    256;
     awbHwConfig->pre_wbgain_inv_g  =    256;
     awbHwConfig->pre_wbgain_inv_b  =    256;
+#ifdef ISP_HW_V30
     awbHwConfig->multiwindow_en  =    0;
     awbHwConfig->multiwindow[0][0]  =    0;
     awbHwConfig->multiwindow[0][1]  =    0;
@@ -1035,6 +1073,7 @@ static XCamReturn initAwbHwFullConfigWp(rk_aiq_isp_awb_meas_cfg_v3x_t  *awbHwCon
     awbHwConfig->multiwindow[3][1]  =    0;
     awbHwConfig->multiwindow[3][2]  =    0;
     awbHwConfig->multiwindow[3][3]  =    0;
+#endif
     awbHwConfig->excludeWpRange[0].excludeEnable[RK_AIQ_AWB_XY_TYPE_NORMAL_V201]   =     1;
     awbHwConfig->excludeWpRange[0].excludeEnable[RK_AIQ_AWB_XY_TYPE_BIG_V201]   =     1;
     awbHwConfig->excludeWpRange[0].measureEnable   =     0;
@@ -1360,8 +1399,10 @@ static void initCustomAwbRes(rk_aiq_customeAwb_results_t* customAwb, rk_aiq_rkAw
     awbHwConfig->wpDiffWeiEnable   = awbHwConfigFull->wpDiffWeiEnable[0];
     awbHwConfig->blkWeightEnable   = awbHwConfigFull->blkWeightEnable[0];
     awbHwConfig->blkMeasureMode   = awbHwConfigFull->blkMeasureMode;
+#ifdef ISP_HW_V30
     awbHwConfig->multiwindow_en   = awbHwConfigFull->multiwindow_en;
     memcpy(awbHwConfig->multiwindow, awbHwConfigFull->multiwindow,sizeof(awbHwConfigFull->multiwindow));
+#endif
     awbHwConfig->frameChoose   = awbHwConfigFull->frameChoose;
     memcpy(awbHwConfig->windowSet,awbHwConfigFull->windowSet,sizeof(awbHwConfigFull->windowSet));
     awbHwConfig->lightNum   = awbHwConfigFull->lightNum;
@@ -1472,10 +1513,14 @@ void _rkAwbStats2CustomAwbStats(rk_aiq_customAwb_stats_t* customAwb,
 {
     LOG1_AWB_SUBM(0xff, "%s ENTER", __func__);
     memcpy(customAwb->light,rkAwb->light,sizeof(customAwb->light));
+#ifdef ISP_HW_V30
     memcpy(customAwb->WpNo2,rkAwb->WpNo2,sizeof(customAwb->WpNo2));
+#endif
     memcpy(customAwb->blockResult,rkAwb->blockResult,sizeof(customAwb->blockResult));
+#ifdef ISP_HW_V30
     memcpy(customAwb->multiwindowLightResult,rkAwb->multiwindowLightResult,sizeof(customAwb->multiwindowLightResult));
     memcpy(customAwb->excWpRangeResult,rkAwb->excWpRangeResult,sizeof(customAwb->excWpRangeResult));
+#endif
     memcpy(customAwb->WpNoHist,rkAwb->WpNoHist,sizeof(customAwb->WpNoHist));
     LOG1_AWB_SUBM(0xff, "%s EXIT", __func__);
 }
@@ -1494,8 +1539,10 @@ static void _customAwbHw2rkAwbHwCfg( const rk_aiq_customeAwb_results_t* customAw
     }
     memcpy(awbHwConfigFull->threeDyuvIllu,awbHwConfig->threeDyuvIllu, sizeof(awbHwConfig->threeDyuvIllu));
     awbHwConfigFull->blkMeasureMode   = awbHwConfig->blkMeasureMode;
+#ifdef ISP_HW_V30
     awbHwConfigFull->multiwindow_en   = awbHwConfig->multiwindow_en;
     memcpy(awbHwConfigFull->multiwindow, awbHwConfig->multiwindow,sizeof(awbHwConfig->multiwindow));
+#endif
     awbHwConfigFull->frameChoose   = awbHwConfig->frameChoose;
     memcpy(awbHwConfigFull->windowSet,awbHwConfig->windowSet,sizeof(awbHwConfig->windowSet));
     awbHwConfigFull->lightNum   = awbHwConfig->lightNum;
@@ -1659,8 +1706,10 @@ static void _customGruopAwbHw2rkAwbHwCfg( const rk_aiq_customeAwb_single_results
     for(int i=0;i<RK_AIQ_AWB_XY_TYPE_MAX_V201;i++){
         awbHwConfigFull->blkWeightEnable[i]   = awbHwConfig->blkWeightEnable;
     }
+#ifdef ISP_HW_V30
     awbHwConfigFull->multiwindow_en   = awbHwConfig->multiwindow_en;
     memcpy(awbHwConfigFull->multiwindow, awbHwConfig->multiwindow,sizeof(awbHwConfig->multiwindow));
+#endif
     memcpy(awbHwConfigFull->windowSet,awbHwConfig->windowSet,sizeof(awbHwConfig->windowSet));
     memcpy(awbHwConfigFull->blkWeight, awbHwConfig->blkWeight,sizeof(awbHwConfig->blkWeight));
     *awb_gain_algo = &customAwbSingelRes->awb_gain_algo;

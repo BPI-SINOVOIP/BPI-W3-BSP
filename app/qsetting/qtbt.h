@@ -11,9 +11,9 @@
 #include <QThread>
 #include <QTimer>
 #include <QWidget>
-#ifdef RKDEVICEIO
-#include <DeviceIo/RkBtSource.h>
-#include <DeviceIo/RkBtBase.h>
+#ifdef RKWIFIBTAPP
+#include <RkBtSource.h>
+#include <RkBtBase.h>
 #else
 
 typedef enum {
@@ -84,7 +84,7 @@ public slots:
     void on_btnClicked();
     void on_itemClicked(QListWidgetItem *item);
 private:
-#ifdef RKDEVICEIO
+#ifdef RKWIFIBTAPP
     RkBtContent bt_content;
 #endif
     QList<struct bt_dev_info*> dev_list;

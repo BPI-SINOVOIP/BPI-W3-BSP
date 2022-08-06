@@ -32,6 +32,16 @@ rk_aiq_uapi2_sysctl_preInit(const char* sns_ent_name,
     return rk_aiq_uapi_sysctl_preInit(sns_ent_name, mode, force_iq_file);
 }
 
+XCamReturn
+rk_aiq_uapi2_sysctl_regHwEvtCb(const char* sns_ent_name,
+                               rk_aiq_hwevt_cb hwevt_cb,
+                               void* cb_ctx)
+{
+    g_rk_aiq_sys_preinit_cfg_map[sns_ent_name].hwevt_cb = hwevt_cb;
+    g_rk_aiq_sys_preinit_cfg_map[sns_ent_name].hwevt_cb_ctx = cb_ctx;
+
+    return XCAM_RETURN_NO_ERROR;
+}
 
 XCamReturn
 rk_aiq_uapi2_sysctl_preInit_scene(const char* sns_ent_name, const char *main_scene,
@@ -211,13 +221,13 @@ char* rk_aiq_uapi2_sysctl_readiq(const rk_aiq_sys_ctx_t* sys_ctx, char* param)
 XCamReturn
 rk_aiq_uapi2_sysctl_prepareRkRaw(const rk_aiq_sys_ctx_t* ctx, rk_aiq_raw_prop_t prop)
 {
-    return rk_aiq_uapi2_sysctl_prepareRkRaw(ctx, prop);
+    return rk_aiq_uapi_sysctl_prepareRkRaw(ctx, prop);
 }
 
 XCamReturn
 rk_aiq_uapi2_sysctl_enqueueRkRawBuf(const rk_aiq_sys_ctx_t* ctx, void *rawdata, bool sync)
 {
-    return rk_aiq_uapi2_sysctl_enqueueRkRawBuf(ctx, rawdata, sync);
+    return rk_aiq_uapi_sysctl_enqueueRkRawBuf(ctx, rawdata, sync);
 }
 
 XCamReturn
@@ -229,7 +239,7 @@ rk_aiq_uapi2_sysctl_enqueueRkRawFile(const rk_aiq_sys_ctx_t* ctx, const char *pa
 XCamReturn
 rk_aiq_uapi2_sysctl_registRkRawCb(const rk_aiq_sys_ctx_t* ctx, void (*callback)(void*))
 {
-    return rk_aiq_uapi2_sysctl_registRkRawCb(ctx, callback);
+    return rk_aiq_uapi_sysctl_registRkRawCb(ctx, callback);
 }
 
 XCamReturn
@@ -272,5 +282,21 @@ void
 rk_aiq_uapi2_sysctl_release3AStatsRef(const rk_aiq_sys_ctx_t* ctx,
                                      rk_aiq_isp_stats_t *stats)
 {
-    return rk_aiq_uapi2_sysctl_release3AStatsRef(ctx, stats);
+    return rk_aiq_uapi_sysctl_release3AStatsRef(ctx, stats);
+}
+
+XCamReturn
+rk_aiq_uapi2_sysctl_getWorkingMode(const rk_aiq_sys_ctx_t* ctx, rk_aiq_working_mode_t *mode)
+{
+    ENTER_XCORE_FUNCTION();
+    if (!mode || !ctx)
+        return XCAM_RETURN_ERROR_PARAM;
+
+    RKAIQ_API_SMART_LOCK(ctx);
+    *mode = ctx->_rkAiqManager->getWorkingMode();
+    if (*mode < 0)
+        return XCAM_RETURN_ERROR_OUTOFRANGE;
+    EXIT_XCORE_FUNCTION();
+
+    return XCAM_RETURN_NO_ERROR;
 }

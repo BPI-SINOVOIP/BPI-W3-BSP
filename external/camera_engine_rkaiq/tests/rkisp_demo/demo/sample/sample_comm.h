@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2019 Rockchip Corporation
+ * Copyright (c) 2021-2022 Rockchip Eletronics Co., Ltd.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -12,9 +12,7 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
-
 #ifndef _SAMPLE_COMM_H_
 #define _SAMPLE_COMM_H_
 
@@ -48,8 +46,29 @@ enum RK_ISP_HW_MODULE_e {
     RK_ISP_ABAYERTNR,
     RK_ISP_CSM,
     RK_ISP_ABLC,
+    RK_ISP_AGIC,
+    RK_ISP_ALDCH,
+    RK_ISP_ADEBAYER,
+    RK_ISP_ACP,
+    RK_ISP_AIE,
+    RK_ISP_AGAIN,
     RK_ISP_MAX,
 };
+
+typedef int (*uapi_case_func)(const void*);
+
+typedef struct __uapi_case {
+    // description of this uapi
+    const char* desc;
+    // uapi function
+    uapi_case_func func;
+} uapi_case_t;
+
+int uapi_usage_show(uapi_case_t* uapi_list);
+
+int uapi_list_count(uapi_case_t* uapi_list);
+
+int uapi_process_loop(const rk_aiq_sys_ctx_t* ctx, uapi_case_t* uapi_list);
 
 #endif
 

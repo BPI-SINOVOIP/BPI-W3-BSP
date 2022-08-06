@@ -1,4 +1,5 @@
 export GST_DEBUG_NO_COLOR=1
+export GST_INSPECT_NO_COLORS=1
 
 # Skip vstride aligning, which is not required when using RKVENC.
 # export GST_MPP_ENC_UNALIGNED_VSTRIDE=1
@@ -37,6 +38,15 @@ export GST_VIDEO_CONVERT_PREFERRED_FORMAT=NV12:NV16:I420:YUY2
 # Using libv4l2 for V4L2
 export GST_V4L2_USE_LIBV4L2=1
 
+# Default device for v4l2src
+export GST_V4L2SRC_DEFAULT_DEVICE=/dev/video-camera0
+
+# Available builtin devices for v4l2src
+export GST_V4L2SRC_DEVICES=rkisp_mainpath:rkisp_selfpath
+
+# Max resolution for v4l2src
+export GST_V4L2SRC_MAX_RESOLUTION=3840x2160
+
 # Preferred sinks for playbin3(autoaudiosink/autovideosink) and playbin.
 # export AUTOAUDIOSINK_PREFERRED=alsasink
 # export AUTOVIDEOSINK_PREFERRED=waylandsink
@@ -45,8 +55,8 @@ export GST_V4L2_USE_LIBV4L2=1
 
 # Try RGA 2D accel in videoconvert, videoscale and videoflip.
 # NOTE: Might not success, and might behave different from the official plugin.
-export GST_VIDEO_CONVERT_USE_RGA=1
-export GST_VIDEO_FLIP_USE_RGA=1
+# export GST_VIDEO_CONVERT_USE_RGA=1
+# export GST_VIDEO_FLIP_USE_RGA=1
 
 # Default rotation for camerabin2:
 # clockwise(90)|rotate-180|counterclockwise(270)|horizontal-flip|vertical-flip

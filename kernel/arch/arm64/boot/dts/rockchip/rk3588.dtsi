@@ -50,20 +50,6 @@
 		status = "disabled";
 	};
 
-	reserved-memory {
-		#address-cells = <2>;
-		#size-cells = <2>;
-		ranges;
-
-		/* Reserve 128MB cma memory for hdmirx driver */
-		hdmirx_reserved: hdmirx@10000000 {
-			compatible = "shared-dma-pool";
-			reusable;
-			reg = <0x0 0x10000000 0x0 (128 * 0x100000)>;
-			status = "disabled";
-		};
-	};
-
 	rkcif_mipi_lvds4: rkcif-mipi-lvds4 {
 		compatible = "rockchip,rkcif-mipi-lvds";
 		rockchip,hw = <&rkcif>;
@@ -77,6 +63,24 @@
 		status = "disabled";
 	};
 
+	rkcif_mipi_lvds4_sditf_vir1: rkcif-mipi-lvds4-sditf-vir1 {
+		compatible = "rockchip,rkcif-sditf";
+		rockchip,cif = <&rkcif_mipi_lvds4>;
+		status = "disabled";
+	};
+
+	rkcif_mipi_lvds4_sditf_vir2: rkcif-mipi-lvds4-sditf-vir2 {
+		compatible = "rockchip,rkcif-sditf";
+		rockchip,cif = <&rkcif_mipi_lvds4>;
+		status = "disabled";
+	};
+
+	rkcif_mipi_lvds4_sditf_vir3: rkcif-mipi-lvds4-sditf-vir3 {
+		compatible = "rockchip,rkcif-sditf";
+		rockchip,cif = <&rkcif_mipi_lvds4>;
+		status = "disabled";
+	};
+
 	rkcif_mipi_lvds5: rkcif-mipi-lvds5 {
 		compatible = "rockchip,rkcif-mipi-lvds";
 		rockchip,hw = <&rkcif>;
@@ -85,6 +89,24 @@
 	};
 
 	rkcif_mipi_lvds5_sditf: rkcif-mipi-lvds5-sditf {
+		compatible = "rockchip,rkcif-sditf";
+		rockchip,cif = <&rkcif_mipi_lvds5>;
+		status = "disabled";
+	};
+
+	rkcif_mipi_lvds5_sditf_vir1: rkcif-mipi-lvds5-sditf-vir1 {
+		compatible = "rockchip,rkcif-sditf";
+		rockchip,cif = <&rkcif_mipi_lvds5>;
+		status = "disabled";
+	};
+
+	rkcif_mipi_lvds5_sditf_vir2: rkcif-mipi-lvds5-sditf-vir2 {
+		compatible = "rockchip,rkcif-sditf";
+		rockchip,cif = <&rkcif_mipi_lvds5>;
+		status = "disabled";
+	};
+
+	rkcif_mipi_lvds5_sditf_vir3: rkcif-mipi-lvds5-sditf-vir3 {
 		compatible = "rockchip,rkcif-sditf";
 		rockchip,cif = <&rkcif_mipi_lvds5>;
 		status = "disabled";
@@ -201,7 +223,7 @@
 		dmas = <&dmac1 22>;
 		dma-names = "tx";
 		clock-names = "mclk", "hclk";
-		clocks = <&cru MCLK_SPDIF5_DP1>, <&cru HCLK_SPDIF5_DP1>;
+		clocks = <&cru MCLK_SPDIF5>, <&cru HCLK_SPDIF5_DP1>;
 		assigned-clocks = <&cru CLK_SPDIF5_DP1_SRC>;
 		assigned-clock-parents = <&cru PLL_AUPLL>;
 		power-domains = <&power RK3588_PD_VO0>;
@@ -334,13 +356,16 @@
 		compatible = "rockchip,rk3588-dp";
 		reg = <0x0 0xfde60000 0x0 0x4000>;
 		interrupts = <GIC_SPI 162 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&cru PCLK_DP1>, <&cru CLK_AUX16M_1>, <&hclk_vo0>;
-		clock-names = "apb", "aux", "hclk";
+		clocks = <&cru PCLK_DP1>, <&cru CLK_AUX16M_1>,
+			 <&cru MCLK_I2S8_8CH_TX>, <&cru MCLK_SPDIF5_DP1>,
+			 <&hclk_vo0>;
+		clock-names = "apb", "aux", "i2s", "spdif", "hclk";
 		assigned-clocks = <&cru CLK_AUX16M_1>;
 		assigned-clock-rates = <16000000>;
 		resets = <&cru SRST_DP1>;
 		phys = <&usbdp_phy1_dp>;
 		power-domains = <&power RK3588_PD_VO0>;
+		#sound-dai-cells = <1>;
 		status = "disabled";
 
 		ports {
@@ -386,8 +411,21 @@
 			 <&cru CLK_HDMITX1_EARC>,
 			 <&cru CLK_HDMITX1_REF>,
 			 <&cru MCLK_I2S6_8CH_TX>,
+			 <&cru DCLK_VOP0>,
+			 <&cru DCLK_VOP1>,
+			 <&cru DCLK_VOP2>,
+			 <&cru DCLK_VOP3>,
 			 <&hclk_vo1>;
-		clock-names = "pclk", "hpd", "earc", "hdmitx_ref", "aud", "hclk_vo1";
+		clock-names = "pclk",
+			      "hpd",
+			      "earc",
+			      "hdmitx_ref",
+			      "aud",
+			      "dclk_vp0",
+			      "dclk_vp1",
+			      "dclk_vp2",
+			      "dclk_vp3",
+			      "hclk_vo1";
 		resets = <&cru SRST_HDMITX1_REF>, <&cru SRST_HDMIHDP1>;
 		reset-names = "ref", "hdp";
 		power-domains = <&power RK3588_PD_VO1>;
@@ -477,25 +515,34 @@
 	};
 
 	hdmirx_ctrler: hdmirx-controller@fdee0000 {
-		compatible = "rk3588,hdmirx-ctrler", "rockchip,hdmirx-ctrler";
+		compatible = "rockchip,rk3588-hdmirx-ctrler", "rockchip,hdmirx-ctrler";
 		reg = <0x0 0xfdee0000 0x0 0x6000>;
 		reg-names = "hdmirx_regs";
 		power-domains = <&power RK3588_PD_VO1>;
 		rockchip,grf = <&sys_grf>;
 		rockchip,vo1_grf = <&vo1_grf>;
-		memory-region = <&hdmirx_reserved>;
 		interrupts = <GIC_SPI 177 IRQ_TYPE_LEVEL_HIGH>,
-			     <GIC_SPI 178 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 436 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 179 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "cec", "hdmi", "dma";
-		clocks = <&cru ACLK_HDMIRX>, <&cru CLK_HDMIRX_AUD>,
-			 <&cru CLK_CR_PARA>, <&cru PCLK_HDMIRX>,
-			 <&cru CLK_HDMIRX_REF>, <&hclk_vo1>;
-		clock-names = "aclk", "audio", "cr_para", "pclk", "ref", "hclk_vo1";
+		clocks = <&cru ACLK_HDMIRX>,
+			 <&cru CLK_HDMIRX_AUD>,
+			 <&cru CLK_CR_PARA>,
+			 <&cru PCLK_HDMIRX>,
+			 <&cru CLK_HDMIRX_REF>,
+			 <&cru PCLK_S_HDMIRX>,
+			 <&hclk_vo1>;
+		clock-names = "aclk",
+			      "audio",
+			      "cr_para",
+			      "pclk",
+			      "ref",
+			      "hclk_s_hdmirx",
+			      "hclk_vo1";
 		resets = <&cru SRST_A_HDMIRX>, <&cru SRST_P_HDMIRX>,
-			 <&cru SRST_HDMIRX_REF>;
-		reset-names = "rst_a", "rst_p", "rst_ref";
-		pinctrl-0 = <&hdmim1_rx_cec &hdmim1_rx_hpdin &hdmim1_rx_scl &hdmim1_rx_sda>;
+			 <&cru SRST_HDMIRX_REF>, <&cru SRST_A_HDMIRX_BIU>;
+		reset-names = "rst_a", "rst_p", "rst_ref", "rst_biu";
+		pinctrl-0 = <&hdmim1_rx>;
 		pinctrl-names = "default";
 		status = "disabled";
 	};
@@ -541,8 +588,8 @@
 		reg = <0x0 0xfe150000 0x0 0x10000>,
 		      <0xa 0x40000000 0x0 0x400000>;
 		reg-names = "pcie-apb", "pcie-dbi";
-		resets = <&cru SRST_PCIE0_POWER_UP>;
-		reset-names = "pipe";
+		resets = <&cru SRST_PCIE0_POWER_UP>, <&cru SRST_P_PCIE0>;
+		reset-names = "pcie", "periph";
 		rockchip,pipe-grf = <&php_grf>;
 		status = "disabled";
 
@@ -596,8 +643,8 @@
 		reg = <0x0 0xfe160000 0x0 0x10000>,
 		      <0xa 0x40400000 0x0 0x400000>;
 		reg-names = "pcie-apb", "pcie-dbi";
-		resets = <&cru SRST_PCIE1_POWER_UP>;
-		reset-names = "pipe";
+		resets = <&cru SRST_PCIE1_POWER_UP>, <&cru SRST_P_PCIE1>;
+		reset-names = "pcie", "periph";
 		rockchip,pipe-grf = <&php_grf>;
 		status = "disabled";
 
@@ -650,8 +697,8 @@
 		reg = <0x0 0xfe170000 0x0 0x10000>,
 		      <0xa 0x40800000 0x0 0x400000>;
 		reg-names = "pcie-apb", "pcie-dbi";
-		resets = <&cru SRST_PCIE2_POWER_UP>;
-		reset-names = "pipe";
+		resets = <&cru SRST_PCIE2_POWER_UP>, <&cru SRST_P_PCIE2>;
+		reset-names = "pcie", "periph";
 		rockchip,pipe-grf = <&php_grf>;
 		status = "disabled";
 
@@ -756,8 +803,12 @@
 			      "lcpll";
 		rockchip,grf = <&hdptxphy1_grf>;
 		#phy-cells = <0>;
-		#clock-cells = <0>;
 		status = "disabled";
+
+		hdptxphy_hdmi_clk1: clk-port {
+			#clock-cells = <0>;
+			status = "disabled";
+		};
 	};
 
 
@@ -836,31 +887,26 @@
 
 };
 
-&vop {
-	clocks = <&cru ACLK_VOP>,
-		 <&cru HCLK_VOP>,
-		 <&cru DCLK_VOP0>,
-		 <&cru DCLK_VOP1>,
-		 <&cru DCLK_VOP2>,
-		 <&cru DCLK_VOP3>,
-		 <&cru PCLK_VOP_ROOT>,
-		 <&cru DCLK_VOP0_SRC>,
-		 <&cru DCLK_VOP1_SRC>,
-		 <&cru DCLK_VOP2_SRC>,
-		 <&hdptxphy_hdmi0>,
-		 <&hdptxphy_hdmi1>;
-	clock-names = "aclk_vop",
-		      "hclk_vop",
-		      "dclk_vp0",
-		      "dclk_vp1",
-		      "dclk_vp2",
-		      "dclk_vp3",
-		      "pclk_vop",
-		      "dclk_src_vp0",
-		      "dclk_src_vp1",
-		      "dclk_src_vp2",
-		      "hdmi0_phy_pll",
-		      "hdmi1_phy_pll";
+&display_subsystem {
+	route {
+		route_dp1: route-dp1 {
+			status = "disabled";
+			logo,uboot = "logo.bmp";
+			logo,kernel = "logo_kernel.bmp";
+			logo,mode = "center";
+			charge_logo,mode = "center";
+			connect = <&vp1_out_dp1>;
+		};
+
+		route_hdmi1: route-hdmi1 {
+			status = "disabled";
+			logo,uboot = "logo.bmp";
+			logo,kernel = "logo_kernel.bmp";
+			logo,mode = "center";
+			charge_logo,mode = "center";
+			connect = <&vp1_out_hdmi1>;
+		};
+	};
 };
 
 &vp0 {

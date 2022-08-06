@@ -1,0 +1,57 @@
+#/** @file
+#
+#    Copyright (c) 2016, Hisilicon Limited. All rights reserved.
+#    Copyright (c) 2016, Linaro Limited. All rights reserved.
+#
+#    SPDX-License-Identifier: BSD-2-Clause-Patent
+#
+#**/
+
+
+[Defines]
+  INF_VERSION                    = 0x00010005
+  BASE_NAME                      = PcieInitDxe
+  FILE_GUID                      = 8EB6E216-BA47-4B30-B68A-2B371F7232A6
+  MODULE_TYPE                    = DXE_DRIVER
+  VERSION_STRING                 = 1.0
+  ENTRY_POINT                    = PcieInitEntry
+
+[Sources]
+  PcieInit.c
+
+[Packages]
+  MdePkg/MdePkg.dec
+  MdeModulePkg/MdeModulePkg.dec
+  ArmPkg/ArmPkg.dec
+  Silicon/Rockchip/RockchipPkg.dec
+
+[LibraryClasses]
+  UefiDriverEntryPoint
+  UefiBootServicesTableLib
+  UefiLib
+  BaseLib
+  DebugLib
+  ArmLib
+  TimerLib
+  PcdLib
+  IoLib
+  RockchipPlatfromLib
+
+[Protocols]
+  #gEfiPcieRootBridgeProtocolGuid
+
+[Pcd]
+  gArmTokenSpaceGuid.PcdGicDistributorBase
+  gRockchipTokenSpaceGuid.PcdPcieRootPortApbBaseAddress|0xfe150000
+  gRockchipTokenSpaceGuid.PcdPcieRootPortDbiBaseAddress|0xf5000000
+  gRockchipTokenSpaceGuid.PcdPcieRootPortCfgBaseAddress|0xf0000000
+  #gRockchipTokenSpaceGuid.PcdPcieRootPortCfgSize|0x100000
+  #gRockchipTokenSpaceGuid.PcdPcieRootPortIoBaseAddress|0xf0100000
+  #gRockchipTokenSpaceGuid.PcdPcieRootPortIoSize|0x100000
+  #gRockchipTokenSpaceGuid.PcdPcieRootPortMemBaseAddress|0xf0200000
+  #gRockchipTokenSpaceGuid.PcdPcieRootPortMemSize|0xe00000
+
+[depex]
+  TRUE
+
+

@@ -265,8 +265,11 @@ int rockchip_chg_get_type(void)
 
 	ret = uclass_get_device_by_name(UCLASS_PHY, "usb2-phy", &udev);
 	if (ret == -ENODEV) {
-		pr_err("%s: get u2phy node failed: %d\n", __func__, ret);
-		return ret;
+		ret = uclass_get_device_by_name(UCLASS_PHY, "usb2phy", &udev);
+		if (ret) {
+			pr_err("%s: get usb2 phy node failed: %d\n", __func__, ret);
+			return ret;
+		}
 	}
 
 	rphy = dev_get_priv(udev);
@@ -373,8 +376,11 @@ void otg_phy_init(struct dwc2_udc *dev)
 
 	ret = uclass_get_device_by_name(UCLASS_PHY, "usb2-phy", &udev);
 	if (ret == -ENODEV) {
-		pr_err("%s: get u2phy node failed: %d\n", __func__, ret);
-		return;
+		ret = uclass_get_device_by_name(UCLASS_PHY, "usb2phy", &udev);
+		if (ret) {
+			pr_err("%s: get usb2 phy node failed: %d\n", __func__, ret);
+			return;
+		}
 	}
 
 	rphy = dev_get_priv(udev);
@@ -533,6 +539,9 @@ static int rockchip_usb2phy_of_xlate(struct phy *phy,
 		phy->id = USB2PHY_PORT_OTG;
 		device_get_supply_regulator(phy->dev, "phy-supply",
 					    &rphy->vbus_supply[USB2PHY_PORT_OTG]);
+		if (!rphy->vbus_supply[USB2PHY_PORT_OTG])
+			device_get_supply_regulator(phy->dev, "vbus-supply",
+						    &rphy->vbus_supply[USB2PHY_PORT_OTG]);
 	} else {
 		pr_err("%s: invalid dev name\n", __func__);
 		return -EINVAL;
@@ -733,6 +742,75 @@ static int rk3308_usb2phy_tuning(struct rockchip_usb2phy *rphy)
 		tmp = orig & ~BIT(0);
 		tmp |= 0x1 & BIT(0);
 		ret = regmap_write(base, 0x408, tmp);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
+static int rk3328_usb2phy_tuning(struct rockchip_usb2phy *rphy)
+{
+	struct regmap *base = get_reg_base(rphy);
+	unsigned int tmp, orig;
+	int ret;
+
+	if (soc_is_px30s()) {
+		/* Enable otg/host port pre-emphasis during non-chirp phase */
+		ret = regmap_read(base, 0x8000, &orig);
+		if (ret)
+			return ret;
+		tmp = orig & ~GENMASK(2, 0);
+		tmp |= BIT(2) & GENMASK(2, 0);
+		ret = regmap_write(base, 0x8000, tmp);
+		if (ret)
+			return ret;
+
+		/* Set otg port squelch trigger point configure to 100mv */
+		ret = regmap_read(base, 0x8004, &orig);
+		if (ret)
+			return ret;
+		tmp = orig & ~GENMASK(7, 5);
+		tmp |= 0x40 & GENMASK(7, 5);
+		ret = regmap_write(base, 0x8004, tmp);
+		if (ret)
+			return ret;
+
+		ret = regmap_read(base, 0x8008, &orig);
+		if (ret)
+			return ret;
+		tmp = orig & ~BIT(0);
+		tmp |= 0x1 & BIT(0);
+		ret = regmap_write(base, 0x8008, tmp);
+		if (ret)
+			return ret;
+
+		/* Enable host port pre-emphasis during non-chirp phase */
+		ret = regmap_read(base, 0x8400, &orig);
+		if (ret)
+			return ret;
+		tmp = orig & ~GENMASK(2, 0);
+		tmp |= BIT(2) & GENMASK(2, 0);
+		ret = regmap_write(base, 0x8400, tmp);
+		if (ret)
+			return ret;
+
+		/* Set host port squelch trigger point configure to 100mv */
+		ret = regmap_read(base, 0x8404, &orig);
+		if (ret)
+			return ret;
+		tmp = orig & ~GENMASK(7, 5);
+		tmp |= 0x40 & GENMASK(7, 5);
+		ret = regmap_write(base, 0x8404, tmp);
+		if (ret)
+			return ret;
+
+		ret = regmap_read(base, 0x8408, &orig);
+		if (ret)
+			return ret;
+		tmp = orig & ~BIT(0);
+		tmp |= 0x1 & BIT(0);
+		ret = regmap_write(base, 0x8408, tmp);
 		if (ret)
 			return ret;
 	}
@@ -1006,6 +1084,7 @@ static const struct rockchip_usb2phy_cfg rk3328_phy_cfgs[] = {
 	{
 		.reg = 0x100,
 		.num_ports	= 2,
+		.phy_tuning = rk3328_usb2phy_tuning,
 		.clkout_ctl	= { 0x108, 4, 4, 1, 0 },
 		.port_cfgs	= {
 			[USB2PHY_PORT_OTG] = {
@@ -1322,6 +1401,7 @@ static const struct rockchip_usb2phy_cfg rk3588_phy_cfgs[] = {
 				.ls_det_en	= { 0x0080, 0, 0, 0, 1 },
 				.ls_det_st	= { 0x0084, 0, 0, 0, 1 },
 				.ls_det_clr	= { 0x0088, 0, 0, 0, 1 },
+				.utmi_iddig	= { 0x00c0, 5, 5, 0, 1 },
 				.utmi_ls	= { 0x00c0, 10, 9, 0, 1 },
 			}
 		},

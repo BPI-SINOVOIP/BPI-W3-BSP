@@ -76,7 +76,6 @@ struct rockchip_dp_device {
 	struct drm_device        *drm_dev;
 	struct device            *dev;
 	struct drm_encoder       encoder;
-	struct drm_bridge	 *bridge;
 	struct drm_display_mode  mode;
 
 	struct regmap            *grf;
@@ -244,20 +243,35 @@ static void rockchip_dp_loader_protect(struct drm_encoder *encoder, bool on)
 	analogix_dp_loader_protect(dp->adp);
 }
 
+static bool rockchip_dp_skip_connector(struct drm_bridge *bridge)
+{
+	if (!bridge)
+		return false;
+
+	if (of_device_is_compatible(bridge->of_node, "dp-connector"))
+		return false;
+
+	if (bridge->ops & DRM_BRIDGE_OP_MODES)
+		return false;
+
+	return true;
+}
+
 static int rockchip_dp_bridge_attach(struct analogix_dp_plat_data *plat_data,
 				     struct drm_bridge *bridge,
 				     struct drm_connector *connector)
 {
 	struct rockchip_dp_device *dp = to_dp(plat_data);
 	struct rockchip_drm_sub_dev *sdev = &dp->sub_dev;
-	int ret;
 
-	if (dp->bridge) {
-		ret = drm_bridge_attach(&dp->encoder, dp->bridge, bridge, 0);
-		if (ret) {
-			DRM_ERROR("Failed to attach bridge to drm: %d\n", ret);
-			return ret;
-		}
+	if (!connector) {
+		struct list_head *connector_list =
+			&bridge->dev->mode_config.connector_list;
+
+		list_for_each_entry(connector, connector_list, head)
+			if (drm_connector_has_possible_encoder(connector,
+							       bridge->encoder))
+				break;
 	}
 
 	if (connector) {
@@ -580,8 +594,8 @@ static int rockchip_dp_probe(struct platform_device *pdev)
 	dp->plat_data.detach = rockchip_dp_bridge_detach;
 	dp->plat_data.convert_to_split_mode = drm_mode_convert_to_split_mode;
 	dp->plat_data.convert_to_origin_mode = drm_mode_convert_to_origin_mode;
-	dp->plat_data.skip_connector = !!bridge;
-	dp->bridge = bridge;
+	dp->plat_data.skip_connector = rockchip_dp_skip_connector(bridge);
+	dp->plat_data.bridge = bridge;
 
 	ret = rockchip_dp_of_probe(dp);
 	if (ret < 0)
@@ -618,6 +632,26 @@ static int rockchip_dp_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static __maybe_unused int rockchip_dp_suspend(struct device *dev)
+{
+	struct rockchip_dp_device *dp = dev_get_drvdata(dev);
+
+	if (IS_ERR(dp->adp))
+		return 0;
+
+	return analogix_dp_suspend(dp->adp);
+}
+
+static __maybe_unused int rockchip_dp_resume(struct device *dev)
+{
+	struct rockchip_dp_device *dp = dev_get_drvdata(dev);
+
+	if (IS_ERR(dp->adp))
+		return 0;
+
+	return analogix_dp_resume(dp->adp);
+}
+
 static __maybe_unused int rockchip_dp_runtime_suspend(struct device *dev)
 {
 	struct rockchip_dp_device *dp = dev_get_drvdata(dev);
@@ -639,6 +673,7 @@ static __maybe_unused int rockchip_dp_runtime_resume(struct device *dev)
 }
 
 static const struct dev_pm_ops rockchip_dp_pm_ops = {
+	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(rockchip_dp_suspend, rockchip_dp_resume)
 	SET_RUNTIME_PM_OPS(rockchip_dp_runtime_suspend,
 			   rockchip_dp_runtime_resume, NULL)
 };

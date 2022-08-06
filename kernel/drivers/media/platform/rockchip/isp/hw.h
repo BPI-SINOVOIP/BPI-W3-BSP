@@ -35,6 +35,11 @@ struct rkisp_monitor {
 	bool is_en;
 };
 
+struct rkisp_sram {
+	dma_addr_t dma_addr;
+	u32 size;
+};
+
 struct rkisp_hw_dev {
 	const struct isp_match_data *match_data;
 	struct platform_device *pdev;
@@ -51,6 +56,7 @@ struct rkisp_hw_dev {
 	enum rkisp_isp_ver isp_ver;
 	struct rkisp_device *isp[DEV_MAX];
 	int dev_num;
+	int dev_link_num;
 	int cur_dev_id;
 	int mipi_dev_id;
 	struct max_input max_in;
@@ -58,6 +64,8 @@ struct rkisp_hw_dev {
 	struct mutex dev_lock;
 	spinlock_t rdbk_lock;
 	atomic_t refcnt;
+
+	struct rkisp_sram sram;
 
 	/* share buf for multi dev */
 	spinlock_t buf_lock;

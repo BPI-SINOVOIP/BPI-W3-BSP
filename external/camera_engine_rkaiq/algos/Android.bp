@@ -42,7 +42,7 @@ cc_defaults {
         "external/camera_engine_rkaiq/include/iq_parser_v2",
         "external/camera_engine_rkaiq/include/iq_parser_v2/j2s",
         "external/camera_engine_rkaiq/include/common",
-        "external/camera_engine_rkaiq/include/uAPI",
+        "external/camera_engine_rkaiq/uAPI/include",
         "external/camera_engine_rkaiq/include/uAPI2",
         "external/camera_engine_rkaiq/common",
         "external/camera_engine_rkaiq/xcore/base",
@@ -267,12 +267,16 @@ cc_library_static {
 }
 
 cc_library_static {
-    name: "librkaiq_ar2y",
+    name: "librkaiq_acsm",
     vendor: true,
     defaults: ["algo_defaults"],
 
+    include_dirs: [
+        "external/camera_engine_rkaiq/include/algos/acsm",
+    ],
     srcs: [
-        "ar2y/rk_aiq_algo_ar2y_itf.cpp",
+        "acsm/rk_aiq_algo_acsm_itf.cpp",
+        "acsm/rk_aiq_uapi_acsm.cpp",
     ],
 }
 

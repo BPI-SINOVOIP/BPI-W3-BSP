@@ -21,6 +21,7 @@
 #include "xcam_mutex.h"
 #include "Stream.h"
 #include <map>
+#include "CaptureRawData.h"
 
 using namespace XCam;
 
@@ -50,7 +51,7 @@ public:
     void send_sync_buf(SmartPtr<V4l2BufferProxy> &buf_s, SmartPtr<V4l2BufferProxy> &buf_m, SmartPtr<V4l2BufferProxy> &buf_l);
     bool raw_buffer_proc();
     void setMulCamConc(bool cc) {
-        _is_multi_cam_conc = cc;                                                                                                             
+        _is_multi_cam_conc = cc;
     }
     enum {
         ISP_MIPI_HDR_S = 0,
@@ -69,6 +70,17 @@ public:
     virtual XCamReturn poll_event_failed (int64_t timestamp, const char *msg) { return XCAM_RETURN_ERROR_FAILED; }
     void setCamPhyId(int phyId) {
         mCamPhyId = phyId;
+    }
+    XCamReturn capture_raw_ctl(capture_raw_t type, int count = 0, const char* capture_dir = nullptr, char* output_dir = nullptr) {
+        if (!_rawCap)
+            return XCAM_RETURN_ERROR_FAILED;
+        return _rawCap->capture_raw_ctl(type, count, capture_dir, output_dir);
+    }
+
+    XCamReturn notify_capture_raw() {
+        if (!_rawCap)
+            return XCAM_RETURN_ERROR_FAILED;
+        return _rawCap->notify_capture_raw();
     }
 protected:
     XCAM_DEAD_COPY (RawStreamProcUnit);
@@ -101,6 +113,7 @@ protected:
     Mutex _mipi_trigger_mutex;
     SafeList<EmptyClass> _msg_queue;
     PollCallback* _PollCallback;
+    CaptureRawData* _rawCap;
 };
 
 class RawProcThread

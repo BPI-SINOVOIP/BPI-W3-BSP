@@ -103,6 +103,49 @@ IM_API const char* imStrError_t(IM_STATUS status) {
     return error_str;
 }
 
+IM_API rga_buffer_handle_t importbuffer_fd(int fd, int size) {
+    return rga_import_buffer((uint64_t)fd, RGA_DMA_BUFFER, (uint32_t)size);
+}
+
+IM_API rga_buffer_handle_t importbuffer_fd(int fd, im_handle_param_t *param) {
+    return rga_import_buffer((uint64_t)fd, RGA_DMA_BUFFER, param);
+}
+
+IM_API rga_buffer_handle_t importbuffer_fd(int fd, int width, int height, int format) {
+    im_handle_param_t param = {(uint32_t)width, (uint32_t)height, (uint32_t)format};
+    return rga_import_buffer((uint64_t)fd, RGA_DMA_BUFFER, &param);
+}
+
+IM_API rga_buffer_handle_t importbuffer_virtualaddr(void *va, im_handle_param_t *param) {
+    return rga_import_buffer((uint64_t)va, RGA_VIRTUAL_ADDRESS, param);
+}
+
+IM_API rga_buffer_handle_t importbuffer_virtualaddr(void *va, int size) {
+    return rga_import_buffer((uint64_t)va, RGA_VIRTUAL_ADDRESS, (uint32_t)size);
+}
+
+IM_API rga_buffer_handle_t importbuffer_virtualaddr(void *va, int width, int height, int format) {
+    im_handle_param_t param = {(uint32_t)width, (uint32_t)height, (uint32_t)format};
+    return rga_import_buffer((uint64_t)va, RGA_VIRTUAL_ADDRESS, &param);
+}
+
+IM_API rga_buffer_handle_t importbuffer_physicaladdr(uint64_t pa, im_handle_param_t *param) {
+    return rga_import_buffer(pa, RGA_PHYSICAL_ADDRESS, param);
+}
+
+IM_API rga_buffer_handle_t importbuffer_physicaladdr(uint64_t pa, int size) {
+    return rga_import_buffer(pa, RGA_PHYSICAL_ADDRESS, (uint32_t)size);
+}
+
+IM_API rga_buffer_handle_t importbuffer_physicaladdr(uint64_t pa, int width, int height, int format) {
+    im_handle_param_t param = {(uint32_t)width, (uint32_t)height, (uint32_t)format};
+    return rga_import_buffer(pa, RGA_PHYSICAL_ADDRESS, &param);
+}
+
+IM_API IM_STATUS releasebuffer_handle(rga_buffer_handle_t handle) {
+    return rga_release_buffer(handle);
+}
+
 IM_API rga_buffer_t wrapbuffer_virtualaddr_t(void* vir_addr, int width, int height, int wstride, int hstride, int format) {
     rga_buffer_t buffer;
 
@@ -148,7 +191,79 @@ IM_API rga_buffer_t wrapbuffer_fd_t(int fd, int width, int height, int wstride, 
     return buffer;
 }
 
+IM_API rga_buffer_t wrapbuffer_handle(rga_buffer_handle_t  handle,
+                                      int width, int height, int format,
+                                      int wstride, int hstride) {
+    rga_buffer_t buffer;
+
+    memset(&buffer, 0, sizeof(rga_buffer_t));
+
+    buffer.handle  = handle;
+    buffer.width   = width;
+    buffer.height  = height;
+    buffer.wstride = wstride;
+    buffer.hstride = hstride;
+    buffer.format  = format;
+
+    return buffer;
+}
+
+IM_API rga_buffer_t wrapbuffer_handle(rga_buffer_handle_t  handle,
+                                      int width, int height,
+                                      int format) {
+    return wrapbuffer_handle(handle, width, height, format, width, height);
+}
+
+IM_API rga_buffer_t wrapbuffer_handle_t(rga_buffer_handle_t  handle,
+                                        int width, int height,
+                                        int wstride, int hstride,
+                                        int format) {
+    return wrapbuffer_handle(handle, width, height, format, wstride, hstride);
+}
+
 #ifdef ANDROID
+IM_API rga_buffer_handle_t importbuffer_GraphicBuffer_handle(buffer_handle_t hnd) {
+    int ret = 0;
+    int fd = -1;
+    void *virt_addr = NULL;
+    std::vector<int> dstAttrs;
+    im_handle_param_t param;
+
+    RockchipRga& rkRga(RockchipRga::get());
+
+    ret = RkRgaGetHandleAttributes(hnd, &dstAttrs);
+    if (ret) {
+        ALOGE("rga_im2d: handle get Attributes fail ret = %d,hnd=%p", ret, &hnd);
+        imSetErrorMsg("handle get Attributes fail, ret = %d,hnd = %p", ret, (void *)hnd);
+        return -1;
+    }
+
+    param.width = dstAttrs.at(ASTRIDE);
+    param.height = dstAttrs.at(AHEIGHT);
+    param.format = dstAttrs.at(AFORMAT);
+
+    ret = rkRga.RkRgaGetBufferFd(hnd, &fd);
+    if (ret)
+        ALOGE("rga_im2d: get buffer fd fail: %s, hnd=%p", strerror(errno), (void*)(hnd));
+
+    if (fd <= 0) {
+        ret = rkRga.RkRgaGetHandleMapCpuAddress(hnd, &virt_addr);
+        if(!virt_addr) {
+            ALOGE("rga_im2d: invaild GraphicBuffer, can not get fd and virtual address.");
+            imSetErrorMsg("invaild GraphicBuffer, can not get fd and virtual address, hnd = %p", (void *)hnd);
+            return -1;
+        } else {
+            return importbuffer_virtualaddr(virt_addr, &param);
+        }
+    } else {
+        return importbuffer_fd(fd, &param);
+    }
+}
+
+IM_API rga_buffer_handle_t importbuffer_GraphicBuffer(sp<GraphicBuffer> buf) {
+    return importbuffer_GraphicBuffer_handle(buf->handle);
+}
+
 /*When wrapbuffer_GraphicBuffer and wrapbuffer_AHardwareBuffer are used, */
 /*it is necessary to check whether fd and virtual address of the return rga_buffer_t are valid parameters*/
 IM_API rga_buffer_t wrapbuffer_handle(buffer_handle_t hnd) {
@@ -243,6 +358,12 @@ INVAILD:
 
 #if USE_AHARDWAREBUFFER
 #include <android/hardware_buffer.h>
+IM_API rga_buffer_handle_t importbuffer_AHardwareBuffer(AHardwareBuffer *buf) {
+    GraphicBuffer *gbuffer = reinterpret_cast<GraphicBuffer*>(buf);
+
+    return importbuffer_GraphicBuffer_handle(gbuffer->handle);
+}
+
 IM_API rga_buffer_t wrapbuffer_AHardwareBuffer(AHardwareBuffer *buf) {
     int ret = 0;
     rga_buffer_t buffer;
@@ -320,6 +441,7 @@ IM_API const char* querystring(int name) {
         "RGA version           : ",
         "Max input             : ",
         "Max output            : ",
+        "Byte stride           : ",
         "Scale limit           : ",
         "Input support format  : ",
         "output support format : ",
@@ -379,6 +501,9 @@ IM_API const char* querystring(int name) {
         "FBC_mode ",
         "blend_in_YUV ",
         "BT.2020 ",
+        "mosaic ",
+        "OSD ",
+        "early_interruption ",
     };
     const char *performance[] = {
         "unknown",
@@ -391,6 +516,7 @@ IM_API const char* querystring(int name) {
 
     rga_info_table_entry rga_info;
 
+    memset(&rga_info, 0x0, sizeof(rga_info));
     usage = rga_get_info(&rga_info);
     if (IM_STATUS_FAILED == usage) {
         ALOGE("rga im2d: rga2 get info failed!\n");
@@ -466,6 +592,14 @@ IM_API const char* querystring(int name) {
                         out << output_name[name] << output_resolution[IM_RGA_HW_VERSION_RGA_V_ERR_INDEX] << endl;
                         break;
                 }
+                break;
+
+            case RGA_BYTE_STRIDE :
+                if (rga_info.byte_stride > 0)
+                    out << output_name[name] << rga_info.byte_stride << " byte" << endl;
+                else
+                    out << output_name[name] << "unknown" << endl;
+
                 break;
 
             case RGA_SCALE_LIMIT :
@@ -572,6 +706,12 @@ IM_API const char* querystring(int name) {
                     out << feature[IM_RGA_SUPPORT_FEATURE_BLEND_YUV_INDEX];
                 if(rga_info.feature & IM_RGA_SUPPORT_FEATURE_BT2020)
                     out << feature[IM_RGA_SUPPORT_FEATURE_BT2020_INDEX];
+                if(rga_info.feature & IM_RGA_SUPPORT_FEATURE_MOSAIC)
+                    out << feature[IM_RGA_SUPPORT_FEATURE_MOSAIC_INDEX];
+                if(rga_info.feature & IM_RGA_SUPPORT_FEATURE_OSD)
+                    out << feature[IM_RGA_SUPPORT_FEATURE_OSD_INDEX];
+                if(rga_info.feature & IM_RGA_SUPPORT_FEATURE_PRE_INTR)
+                    out << feature[IM_RGA_SUPPORT_FEATURE_PRE_INTR_INDEX];
                 out << endl;
                 break;
 
@@ -624,6 +764,7 @@ IM_API IM_STATUS imcheck_t(const rga_buffer_t src, const rga_buffer_t dst, const
     IM_STATUS ret = IM_STATUS_NOERROR;
     rga_info_table_entry rga_info;
 
+    memset(&rga_info, 0x0, sizeof(rga_info));
     ret = rga_get_info(&rga_info);
     if (IM_STATUS_FAILED == ret) {
         ALOGE("rga im2d: rga2 get info failed!\n");
@@ -653,6 +794,9 @@ IM_API IM_STATUS imcheck_t(const rga_buffer_t src, const rga_buffer_t dst, const
         ret = rga_check_format("src", src, src_rect, rga_info.input_format, mode_usage);
         if (ret != IM_STATUS_NOERROR)
             return ret;
+        ret = rga_check_align("src", src, rga_info.byte_stride);
+        if (ret != IM_STATUS_NOERROR)
+            return ret;
     }
     if (pat_enable) {
         /* RGA1 cannot support src1. */
@@ -668,11 +812,17 @@ IM_API IM_STATUS imcheck_t(const rga_buffer_t src, const rga_buffer_t dst, const
         ret = rga_check_format("pat", pat, pat_rect, rga_info.input_format, mode_usage);
         if (ret != IM_STATUS_NOERROR)
             return ret;
+        ret = rga_check_align("pat", pat, rga_info.byte_stride);
+        if (ret != IM_STATUS_NOERROR)
+            return ret;
     }
     ret = rga_check_info("dst", dst, dst_rect, rga_info.output_resolution);
     if (ret != IM_STATUS_NOERROR)
         return ret;
     ret = rga_check_format("dst", dst, dst_rect, rga_info.output_format, mode_usage);
+    if (ret != IM_STATUS_NOERROR)
+        return ret;
+    ret = rga_check_align("dst", dst, rga_info.byte_stride);
     if (ret != IM_STATUS_NOERROR)
         return ret;
 
@@ -695,11 +845,10 @@ IM_API IM_STATUS imcheck_t(const rga_buffer_t src, const rga_buffer_t dst, const
     return IM_STATUS_NOERROR;
 }
 
-IM_API IM_STATUS imresize_t(const rga_buffer_t src, rga_buffer_t dst, double fx, double fy, int interpolation, int sync) {
+IM_API IM_STATUS imresize(const rga_buffer_t src, rga_buffer_t dst, double fx, double fy, int interpolation, int sync, int *release_fence_fd) {
     int usage = 0;
     int width = 0, height = 0;
     IM_STATUS ret = IM_STATUS_NOERROR;
-    int out_fence_fd;
 
     im_opt_t opt;
 
@@ -738,19 +887,16 @@ IM_API IM_STATUS imresize_t(const rga_buffer_t src, rga_buffer_t dst, double fx,
     else if (sync == 1)
         usage |= IM_SYNC;
 
-    ret = improcess_t(src, dst, pat, srect, drect, prect, -1, &out_fence_fd, &opt, usage);
+    ret = improcess(src, dst, pat, srect, drect, prect, -1, release_fence_fd, &opt, usage);
 
     return ret;
 }
 
-IM_API IM_STATUS imcrop_t(const rga_buffer_t src, rga_buffer_t dst, im_rect rect, int sync) {
+IM_API IM_STATUS imcrop(const rga_buffer_t src, rga_buffer_t dst, im_rect rect, int sync, int *release_fence_fd) {
     int usage = 0;
     IM_STATUS ret = IM_STATUS_NOERROR;
 
-    int out_fence_fd;
-
     im_opt_t opt;
-
 
     rga_buffer_t pat;
 
@@ -767,18 +913,16 @@ IM_API IM_STATUS imcrop_t(const rga_buffer_t src, rga_buffer_t dst, im_rect rect
     else if (sync == 1)
         usage |= IM_SYNC;
 
-    ret = improcess_t(src, dst, pat, rect, drect, prect, -1, &out_fence_fd, &opt, usage);
+    ret = improcess(src, dst, pat, rect, drect, prect, -1, release_fence_fd, &opt, usage);
 
     return ret;
 }
 
-IM_API IM_STATUS imrotate_t(const rga_buffer_t src, rga_buffer_t dst, int rotation, int sync) {
+IM_API IM_STATUS imrotate(const rga_buffer_t src, rga_buffer_t dst, int rotation, int sync, int *release_fence_fd) {
     int usage = 0;
     IM_STATUS ret = IM_STATUS_NOERROR;
-    int out_fence_fd;
 
     im_opt_t opt;
-
 
     rga_buffer_t pat;
 
@@ -795,15 +939,14 @@ IM_API IM_STATUS imrotate_t(const rga_buffer_t src, rga_buffer_t dst, int rotati
     else if (sync == 1)
         usage |= IM_SYNC;
 
-    ret = improcess_t(src, dst, pat, srect, drect, prect, -1, &out_fence_fd, &opt, usage);
+    ret = improcess(src, dst, pat, srect, drect, prect, -1, release_fence_fd, &opt, usage);
 
     return ret;
 }
 
-IM_API IM_STATUS imflip_t (const rga_buffer_t src, rga_buffer_t dst, int mode, int sync) {
+IM_API IM_STATUS imflip(const rga_buffer_t src, rga_buffer_t dst, int mode, int sync, int *release_fence_fd) {
     int usage = 0;
     IM_STATUS ret = IM_STATUS_NOERROR;
-    int out_fence_fd;
 
     im_opt_t opt;
 
@@ -822,15 +965,14 @@ IM_API IM_STATUS imflip_t (const rga_buffer_t src, rga_buffer_t dst, int mode, i
     else if (sync == 1)
         usage |= IM_SYNC;
 
-    ret = improcess_t(src, dst, pat, srect, drect, prect, -1, &out_fence_fd, &opt, usage);
+    ret = improcess(src, dst, pat, srect, drect, prect, -1, release_fence_fd, &opt, usage);
 
     return ret;
 }
 
-IM_API IM_STATUS imfill_t(rga_buffer_t dst, im_rect rect, int color, int sync) {
+IM_API IM_STATUS imfill(rga_buffer_t dst, im_rect rect, int color, int sync, int *release_fence_fd) {
     int usage = 0;
     IM_STATUS ret = IM_STATUS_NOERROR;
-    int out_fence_fd;
 
     im_opt_t opt;
 
@@ -853,27 +995,28 @@ IM_API IM_STATUS imfill_t(rga_buffer_t dst, im_rect rect, int color, int sync) {
     else if (sync == 1)
         usage |= IM_SYNC;
 
-    ret = improcess_t(src, dst, pat, srect, rect, prect, -1, &out_fence_fd, &opt, usage);
+    ret = improcess(src, dst, pat, srect, rect, prect, -1, release_fence_fd, &opt, usage);
 
     return ret;
 }
 
-IM_API IM_STATUS impalette_t(rga_buffer_t src, rga_buffer_t dst, rga_buffer_t lut, int sync) {
+IM_API IM_STATUS impalette(rga_buffer_t src, rga_buffer_t dst, rga_buffer_t lut, int sync, int *release_fence_fd) {
     int usage = 0;
     IM_STATUS ret = IM_STATUS_NOERROR;
     im_rect srect;
     im_rect drect;
     im_rect prect;
 
-    int out_fence_fd;
-
     im_opt_t opt;
 
     empty_structure(NULL, NULL, NULL, &srect, &drect, &prect, &opt);
 
     /*Don't know if it supports zooming.*/
-    if ((src.width != dst.width) || (src.height != dst.height))
+    if ((src.width != dst.width) || (src.height != dst.height)) {
+        imSetErrorMsg("The width and height of src and dst need to be equal, src[w,h] = [%d, %d], dst[w,h] = [%d, %d]",
+                      src.width, src.height, dst.width, dst.height);
         return IM_STATUS_INVALID_PARAM;
+    }
 
     usage |= IM_COLOR_PALETTE;
 
@@ -882,15 +1025,14 @@ IM_API IM_STATUS impalette_t(rga_buffer_t src, rga_buffer_t dst, rga_buffer_t lu
     else if (sync == 1)
         usage |= IM_SYNC;
 
-    ret = improcess_t(src, dst, lut, srect, drect, prect, -1, &out_fence_fd, &opt, usage);
+    ret = improcess(src, dst, lut, srect, drect, prect, -1, release_fence_fd, &opt, usage);
 
     return ret;
 }
 
-IM_API IM_STATUS imtranslate_t(const rga_buffer_t src, rga_buffer_t dst, int x, int y, int sync) {
+IM_API IM_STATUS imtranslate(const rga_buffer_t src, rga_buffer_t dst, int x, int y, int sync, int *release_fence_fd) {
     int usage = 0;
     IM_STATUS ret = IM_STATUS_NOERROR;
-    int out_fence_fd;
 
     im_opt_t opt;
 
@@ -902,8 +1044,11 @@ IM_API IM_STATUS imtranslate_t(const rga_buffer_t src, rga_buffer_t dst, int x, 
 
     empty_structure(NULL, NULL, &pat, &srect, &drect, &prect, &opt);
 
-    if ((src.width != dst.width) || (src.height != dst.height))
+    if ((src.width != dst.width) || (src.height != dst.height)) {
+        imSetErrorMsg("The width and height of src and dst need to be equal, src[w,h] = [%d, %d], dst[w,h] = [%d, %d]",
+                      src.width, src.height, dst.width, dst.height);
         return IM_STATUS_INVALID_PARAM;
+    }
 
     if (sync == 0)
         usage |= IM_ASYNC;
@@ -917,15 +1062,14 @@ IM_API IM_STATUS imtranslate_t(const rga_buffer_t src, rga_buffer_t dst, int x, 
     drect.width = src.width - x;
     drect.height = src.height - y;
 
-    ret = improcess_t(src, dst, pat, srect, drect, prect, -1, &out_fence_fd, &opt, usage);
+    ret = improcess(src, dst, pat, srect, drect, prect, -1, release_fence_fd, &opt, usage);
 
     return ret;
 }
 
-IM_API IM_STATUS imcopy_t(const rga_buffer_t src, rga_buffer_t dst, int sync) {
+IM_API IM_STATUS imcopy(const rga_buffer_t src, rga_buffer_t dst, int sync, int *release_fence_fd) {
     int usage = 0;
     IM_STATUS ret = IM_STATUS_NOERROR;
-    int out_fence_fd;
 
     im_opt_t opt;
 
@@ -948,15 +1092,14 @@ IM_API IM_STATUS imcopy_t(const rga_buffer_t src, rga_buffer_t dst, int sync) {
     else if (sync == 1)
         usage |= IM_SYNC;
 
-    ret = improcess_t(src, dst, pat, srect, drect, prect, -1, &out_fence_fd, &opt, usage);
+    ret = improcess(src, dst, pat, srect, drect, prect, -1, release_fence_fd, &opt, usage);
 
     return ret;
 }
 
-IM_API IM_STATUS imcolorkey_t(const rga_buffer_t src, rga_buffer_t dst, im_colorkey_range range, int mode, int sync) {
+IM_API IM_STATUS imcolorkey(const rga_buffer_t src, rga_buffer_t dst, im_colorkey_range range, int mode, int sync, int *release_fence_fd) {
     int usage = 0;
     IM_STATUS ret = IM_STATUS_NOERROR;
-    int out_fence_fd;
 
     im_opt_t opt;
 
@@ -977,15 +1120,14 @@ IM_API IM_STATUS imcolorkey_t(const rga_buffer_t src, rga_buffer_t dst, im_color
     else if (sync == 1)
         usage |= IM_SYNC;
 
-    ret = improcess_t(src, dst, pat, srect, drect, prect, -1, &out_fence_fd, &opt, usage);
+    ret = improcess(src, dst, pat, srect, drect, prect, -1, release_fence_fd, &opt, usage);
 
     return ret;
 }
 
-IM_API IM_STATUS imblend_t(const rga_buffer_t srcA, const rga_buffer_t srcB, rga_buffer_t dst, int mode, int sync) {
+IM_API IM_STATUS imcomposite(const rga_buffer_t srcA, const rga_buffer_t srcB, rga_buffer_t dst, int mode, int sync, int *release_fence_fd) {
     int usage = 0;
     IM_STATUS ret = IM_STATUS_NOERROR;
-    int out_fence_fd;
 
     im_opt_t opt;
 
@@ -1002,17 +1144,45 @@ IM_API IM_STATUS imblend_t(const rga_buffer_t srcA, const rga_buffer_t srcB, rga
     else if (sync == 1)
         usage |= IM_SYNC;
 
-    ret = improcess_t(srcA, dst, srcB, srect, drect, prect, -1, &out_fence_fd, &opt, usage);
+    ret = improcess(srcA, dst, srcB, srect, drect, prect, -1, release_fence_fd, &opt, usage);
 
     return ret;
 }
 
+IM_API IM_STATUS imblend(const rga_buffer_t src, rga_buffer_t dst, int mode, int sync, int *release_fence_fd) {
+    rga_buffer_t pat;
 
+    memset(&pat, 0x0, sizeof(pat));
 
-IM_API IM_STATUS imcvtcolor_t(rga_buffer_t src, rga_buffer_t dst, int sfmt, int dfmt, int mode, int sync) {
+    return imcomposite(src, pat, dst, mode, sync, release_fence_fd);
+}
+
+IM_API IM_STATUS imosd(const rga_buffer_t osd,const rga_buffer_t dst,
+                       const im_rect osd_rect, im_osd_t *osd_info,
+                       int sync, int *release_fence_fd) {
+    int usage = 0;
+    im_opt_t opt;
+    im_rect tmp_rect;
+
+    memset(&opt, 0x0, sizeof(opt));
+    memset(&tmp_rect, 0x0, sizeof(tmp_rect));
+
+    opt.version = RGA_SET_CURRENT_API_VERISON;
+    memcpy(&opt.osd_config, osd_info, sizeof(im_osd_t));
+
+    usage |= IM_ALPHA_BLEND_DST_OVER | IM_OSD;
+
+    if (sync == 0)
+        usage |= IM_ASYNC;
+    else if (sync == 1)
+        usage |= IM_SYNC;
+
+    return improcess(dst, dst, osd, osd_rect, osd_rect, tmp_rect, -1, release_fence_fd, &opt, usage);
+}
+
+IM_API IM_STATUS imcvtcolor(rga_buffer_t src, rga_buffer_t dst, int sfmt, int dfmt, int mode, int sync, int *release_fence_fd) {
     int usage = 0;
     IM_STATUS ret = IM_STATUS_NOERROR;
-    int out_fence_fd;
 
     im_opt_t opt;
 
@@ -1034,15 +1204,14 @@ IM_API IM_STATUS imcvtcolor_t(rga_buffer_t src, rga_buffer_t dst, int sfmt, int 
     else if (sync == 1)
         usage |= IM_SYNC;
 
-    ret = improcess_t(src, dst, pat, srect, drect, prect, -1, &out_fence_fd, &opt, usage);
+    ret = improcess(src, dst, pat, srect, drect, prect, -1, release_fence_fd, &opt, usage);
 
     return ret;
 }
 
-IM_API IM_STATUS imquantize_t(const rga_buffer_t src, rga_buffer_t dst, im_nn_t nn_info, int sync) {
+IM_API IM_STATUS imquantize(const rga_buffer_t src, rga_buffer_t dst, im_nn_t nn_info, int sync, int *release_fence_fd) {
     int usage = 0;
     IM_STATUS ret = IM_STATUS_NOERROR;
-    int out_fence_fd;
 
     im_opt_t opt;
 
@@ -1063,15 +1232,14 @@ IM_API IM_STATUS imquantize_t(const rga_buffer_t src, rga_buffer_t dst, im_nn_t 
     else if (sync == 1)
         usage |= IM_SYNC;
 
-    ret = improcess_t(src, dst, pat, srect, drect, prect, -1, &out_fence_fd, &opt, usage);
+    ret = improcess(src, dst, pat, srect, drect, prect, -1, release_fence_fd, &opt, usage);
 
     return ret;
 }
 
-IM_API IM_STATUS imrop_t(const rga_buffer_t src, rga_buffer_t dst, int rop_code, int sync) {
+IM_API IM_STATUS imrop(const rga_buffer_t src, rga_buffer_t dst, int rop_code, int sync, int *release_fence_fd) {
     int usage = 0;
     IM_STATUS ret = IM_STATUS_NOERROR;
-    int out_fence_fd;
 
     im_opt_t opt;
 
@@ -1092,31 +1260,67 @@ IM_API IM_STATUS imrop_t(const rga_buffer_t src, rga_buffer_t dst, int rop_code,
     else if (sync == 1)
         usage |= IM_SYNC;
 
-    ret = improcess_t(src, dst, pat, srect, drect, prect, -1, &out_fence_fd, &opt, usage);
+    ret = improcess(src, dst, pat, srect, drect, prect, -1, release_fence_fd, &opt, usage);
 
     return ret;
+}
+
+IM_API IM_STATUS immosaic(const rga_buffer_t image, im_rect rect, int mosaic_mode, int sync, int *release_fence_fd) {
+    IM_STATUS ret = IM_STATUS_NOERROR;
+    int usage = 0;
+    im_opt_t opt;
+    rga_buffer_t tmp_image;
+    im_rect tmp_rect;
+
+    memset(&opt, 0x0, sizeof(opt));
+    memset(&tmp_image, 0x0, sizeof(tmp_image));
+    memset(&tmp_rect, 0x0, sizeof(tmp_rect));
+
+    usage |= IM_MOSAIC;
+
+    opt.version = RGA_SET_CURRENT_API_VERISON;
+    opt.mosaic_mode = mosaic_mode;
+
+    if (sync == 0)
+        usage |= IM_ASYNC;
+    else if (sync == 1)
+        usage |= IM_SYNC;
+
+    return improcess(image, image, tmp_image, rect, rect, tmp_rect, -1, release_fence_fd, &opt, usage);
 }
 
 IM_API IM_STATUS improcess(rga_buffer_t src, rga_buffer_t dst, rga_buffer_t pat,
                         im_rect srect, im_rect drect, im_rect prect, int usage) {
     IM_STATUS ret = IM_STATUS_NOERROR;
-    int out_fence_fd;
+    int release_fence_fd;
     im_opt_t opt;
 
     memset(&opt, 0, sizeof(opt));
 
-    ret = improcess_t(src, dst, pat, srect, drect, prect, -1, &out_fence_fd, &opt, usage);
+    ret = improcess(src, dst, pat, srect, drect, prect, -1, &release_fence_fd, &opt, usage);
 
     return ret;
 }
 
-IM_API IM_STATUS improcess_t(rga_buffer_t src, rga_buffer_t dst, rga_buffer_t pat,
-                        im_rect srect, im_rect drect, im_rect prect,
-                        int in_fence_fd, int *out_fence_fd, im_opt_t *opt, int usage) {
+IM_API IM_STATUS improcess(rga_buffer_t src, rga_buffer_t dst, rga_buffer_t pat,
+                           im_rect srect, im_rect drect, im_rect prect,
+                           int acquire_fence_fd, int *release_fence_fd, im_opt_t *opt_ptr, int usage) {
+    return improcess(src, dst, pat, srect, drect, prect, acquire_fence_fd, release_fence_fd, opt_ptr, usage, 0);
+}
+
+IM_API IM_STATUS improcess(rga_buffer_t src, rga_buffer_t dst, rga_buffer_t pat,
+                           im_rect srect, im_rect drect, im_rect prect,
+                           int acquire_fence_fd, int *release_fence_fd,
+                           im_opt_t *opt_ptr, int usage, im_ctx_id_t ctx_id) {
+    int ret;
     rga_info_t srcinfo;
     rga_info_t dstinfo;
     rga_info_t patinfo;
-    int ret;
+
+    im_opt_t opt;
+
+    if (rga_get_opt(&opt, opt_ptr) == IM_STATUS_FAILED)
+        memset(&opt, 0x0, sizeof(opt));
 
     src.format = RkRgaCompatibleFormat(src.format);
     dst.format = RkRgaCompatibleFormat(dst.format);
@@ -1240,8 +1444,8 @@ IM_API IM_STATUS improcess_t(rga_buffer_t src, rga_buffer_t dst, rga_buffer_t pa
         srcinfo.blend = 0xff0105;
 
         srcinfo.colorkey_en = 1;
-        srcinfo.colorkey_min = opt->colorkey_range.min;
-        srcinfo.colorkey_max = opt->colorkey_range.max;
+        srcinfo.colorkey_min = opt.colorkey_range.min;
+        srcinfo.colorkey_max = opt.colorkey_range.max;
         switch (usage & IM_ALPHA_COLORKEY_MASK) {
             case IM_ALPHA_COLORKEY_NORMAL:
                 srcinfo.colorkey_mode = 0;
@@ -1252,20 +1456,107 @@ IM_API IM_STATUS improcess_t(rga_buffer_t src, rga_buffer_t dst, rga_buffer_t pa
         }
     }
 
+    /* OSD */
+    if (usage & IM_OSD) {
+        srcinfo.osd_info.enable = true;
+
+        srcinfo.osd_info.mode_ctrl.mode = opt.osd_config.osd_mode;
+
+        srcinfo.osd_info.mode_ctrl.width_mode = opt.osd_config.block_parm.width_mode;
+        if (opt.osd_config.block_parm.width_mode == IM_OSD_BLOCK_MODE_NORMAL)
+            srcinfo.osd_info.mode_ctrl.block_fix_width = opt.osd_config.block_parm.width;
+        else if (opt.osd_config.block_parm.width_mode == IM_OSD_BLOCK_MODE_DIFFERENT)
+            srcinfo.osd_info.mode_ctrl.unfix_index = opt.osd_config.block_parm.width_index;
+        srcinfo.osd_info.mode_ctrl.block_num = opt.osd_config.block_parm.block_count;
+        srcinfo.osd_info.mode_ctrl.default_color_sel = opt.osd_config.block_parm.background_config;
+        srcinfo.osd_info.mode_ctrl.direction_mode = opt.osd_config.block_parm.direction;
+        srcinfo.osd_info.mode_ctrl.color_mode = opt.osd_config.block_parm.color_mode;
+
+        if (pat.format == RK_FORMAT_RGBA2BPP) {
+            srcinfo.osd_info.bpp2_info.ac_swap = opt.osd_config.bpp2_info.ac_swap;
+            srcinfo.osd_info.bpp2_info.endian_swap = opt.osd_config.bpp2_info.endian_swap;
+            srcinfo.osd_info.bpp2_info.color0.value = opt.osd_config.bpp2_info.color0.value;
+            srcinfo.osd_info.bpp2_info.color1.value = opt.osd_config.bpp2_info.color1.value;
+        } else {
+            srcinfo.osd_info.bpp2_info.color0.value = opt.osd_config.block_parm.normal_color.value;
+            srcinfo.osd_info.bpp2_info.color1.value = opt.osd_config.block_parm.invert_color.value;
+        }
+
+        switch (opt.osd_config.invert_config.invert_channel) {
+            case IM_OSD_INVERT_CHANNEL_NONE:
+                srcinfo.osd_info.mode_ctrl.invert_enable = (0x1 << 1) | (0x1 << 2);
+                break;
+            case IM_OSD_INVERT_CHANNEL_Y_G:
+                srcinfo.osd_info.mode_ctrl.invert_enable = 0x1 << 2;
+                break;
+            case IM_OSD_INVERT_CHANNEL_C_RB:
+                srcinfo.osd_info.mode_ctrl.invert_enable = 0x1 << 1;
+                break;
+            case IM_OSD_INVERT_CHANNEL_ALPHA:
+                srcinfo.osd_info.mode_ctrl.invert_enable = (0x1 << 0) | (0x1 << 1) | (0x1 << 2);
+                break;
+            case IM_OSD_INVERT_CHANNEL_COLOR:
+                srcinfo.osd_info.mode_ctrl.invert_enable = 0;
+                break;
+            case IM_OSD_INVERT_CHANNEL_BOTH:
+                srcinfo.osd_info.mode_ctrl.invert_enable = 0x1 << 0;
+        }
+        srcinfo.osd_info.mode_ctrl.invert_flags_mode = opt.osd_config.invert_config.flags_mode;
+        srcinfo.osd_info.mode_ctrl.flags_index = opt.osd_config.invert_config.flags_index;
+
+        srcinfo.osd_info.last_flags = opt.osd_config.invert_config.invert_flags;
+        srcinfo.osd_info.cur_flags = opt.osd_config.invert_config.current_flags;
+
+        srcinfo.osd_info.mode_ctrl.invert_mode = opt.osd_config.invert_config.invert_mode;
+        if (opt.osd_config.invert_config.invert_mode == IM_OSD_INVERT_USE_FACTOR) {
+            srcinfo.osd_info.cal_factor.alpha_max = opt.osd_config.invert_config.factor.alpha_max;
+            srcinfo.osd_info.cal_factor.alpha_min = opt.osd_config.invert_config.factor.alpha_min;
+            srcinfo.osd_info.cal_factor.crb_max = opt.osd_config.invert_config.factor.crb_max;
+            srcinfo.osd_info.cal_factor.crb_min = opt.osd_config.invert_config.factor.crb_min;
+            srcinfo.osd_info.cal_factor.yg_max = opt.osd_config.invert_config.factor.yg_max;
+            srcinfo.osd_info.cal_factor.yg_min = opt.osd_config.invert_config.factor.yg_min;
+        }
+        srcinfo.osd_info.mode_ctrl.invert_thresh = opt.osd_config.invert_config.threash;
+    }
+
     /* set NN quantize */
     if (usage & IM_NN_QUANTIZE) {
         dstinfo.nn.nn_flag = 1;
-        dstinfo.nn.scale_r  = opt->nn.scale_r;
-        dstinfo.nn.scale_g  = opt->nn.scale_g;
-        dstinfo.nn.scale_b  = opt->nn.scale_b;
-        dstinfo.nn.offset_r = opt->nn.offset_r;
-        dstinfo.nn.offset_g = opt->nn.offset_g;
-        dstinfo.nn.offset_b = opt->nn.offset_b;
+        dstinfo.nn.scale_r  = opt.nn.scale_r;
+        dstinfo.nn.scale_g  = opt.nn.scale_g;
+        dstinfo.nn.scale_b  = opt.nn.scale_b;
+        dstinfo.nn.offset_r = opt.nn.offset_r;
+        dstinfo.nn.offset_g = opt.nn.offset_g;
+        dstinfo.nn.offset_b = opt.nn.offset_b;
     }
 
     /* set ROP */
     if (usage & IM_ROP) {
-        srcinfo.rop_code = opt->rop_code;
+        srcinfo.rop_code = opt.rop_code;
+    }
+
+    /* set mosaic */
+    if (usage & IM_MOSAIC) {
+        srcinfo.mosaic_info.enable = true;
+        srcinfo.mosaic_info.mode = opt.mosaic_mode;
+    }
+
+    /* set intr config */
+    if (usage & IM_PRE_INTR) {
+        srcinfo.pre_intr.enable = true;
+
+        srcinfo.pre_intr.read_intr_en = opt.intr_config.flags & IM_INTR_READ_INTR ? true : false;
+        if (srcinfo.pre_intr.read_intr_en) {
+            srcinfo.pre_intr.read_intr_en = true;
+            srcinfo.pre_intr.read_hold_en = opt.intr_config.flags & IM_INTR_READ_HOLD ? true : false;
+            srcinfo.pre_intr.read_threshold = opt.intr_config.read_threshold;
+        }
+
+        srcinfo.pre_intr.write_intr_en = opt.intr_config.flags & IM_INTR_WRITE_INTR ? true : false;
+        if (srcinfo.pre_intr.write_intr_en > 0) {
+                srcinfo.pre_intr.write_start = opt.intr_config.write_start;
+                srcinfo.pre_intr.write_step = opt.intr_config.write_step;
+        }
     }
 
     /* special config for color space convert */
@@ -1383,24 +1674,40 @@ IM_API IM_STATUS improcess_t(rga_buffer_t src, rga_buffer_t dst, rga_buffer_t pa
         dstinfo.dither.lut1_h = 0xfedc;
     }
 
-	srcinfo.rd_mode = src.rd_mode;
-	dstinfo.rd_mode = dst.rd_mode;
-	if (rga_is_buffer_valid(pat))
-		patinfo.rd_mode = pat.rd_mode;
+    srcinfo.rd_mode = src.rd_mode;
+    dstinfo.rd_mode = dst.rd_mode;
+    if (rga_is_buffer_valid(pat))
+        patinfo.rd_mode = pat.rd_mode;
 
     RockchipRga& rkRga(RockchipRga::get());
 
-    if (usage & IM_ASYNC)
-        dstinfo.sync_mode = RGA_BLIT_ASYNC;
-    else if (usage & IM_SYNC)
-        dstinfo.sync_mode = RGA_BLIT_SYNC;
+    if (usage & IM_ASYNC) {
+        if (release_fence_fd == NULL) {
+            imSetErrorMsg("Async mode release_fence_fd cannot be NULL!");
+            return IM_STATUS_ILLEGAL_PARAM;
+        }
 
-    dstinfo.in_fence_fd = in_fence_fd;
-    dstinfo.core = opt->core ? opt->core : g_im2d_context.core;
-    dstinfo.priority = opt->priority ? opt->priority : g_im2d_context.priority;
+        dstinfo.sync_mode = RGA_BLIT_ASYNC;
+
+    } else if (usage & IM_SYNC) {
+        dstinfo.sync_mode = RGA_BLIT_SYNC;
+    }
+
+    dstinfo.in_fence_fd = acquire_fence_fd;
+    dstinfo.core = opt.core ? opt.core : g_im2d_context.core;
+    dstinfo.priority = opt.priority ? opt.priority : g_im2d_context.priority;
+
+    if (ctx_id != 0) {
+        dstinfo.ctx_id = ctx_id;
+        if (dstinfo.ctx_id <= 0) {
+            imSetErrorMsg("ctx id is invalid");
+            return IM_STATUS_ILLEGAL_PARAM;
+        }
+        dstinfo.mpi_mode = 1;
+    }
 
     if (usage & IM_COLOR_FILL) {
-        dstinfo.color = opt->color;
+        dstinfo.color = opt.color;
         ret = rkRga.RkRgaCollorFill(&dstinfo);
     } else if (usage & IM_COLOR_PALETTE) {
         ret = rkRga.RkRgaCollorPalette(&srcinfo, &dstinfo, &patinfo);
@@ -1423,7 +1730,8 @@ IM_API IM_STATUS improcess_t(rga_buffer_t src, rga_buffer_t dst, rga_buffer_t pa
         return IM_STATUS_FAILED;
     }
 
-    *out_fence_fd = dstinfo.out_fence_fd;
+    if (usage & IM_ASYNC)
+        *release_fence_fd = dstinfo.out_fence_fd;
 
     return IM_STATUS_SUCCESS;
 }
@@ -1475,4 +1783,74 @@ IM_API IM_STATUS imconfig(IM_CONFIG_NAME name, uint64_t value) {
     }
 
     return IM_STATUS_SUCCESS;
+}
+
+IM_API im_ctx_id_t imbegin(uint32_t flags) {
+    return rga_begin_job(flags);
+}
+
+IM_API IM_STATUS imcancel(im_ctx_id_t id) {
+    return rga_cancel(id);
+}
+
+/* For the C interface */
+IM_API IM_STATUS imresize_t(const rga_buffer_t src, rga_buffer_t dst, double fx, double fy, int interpolation, int sync) {
+    return imresize(src, dst, fx, fy, interpolation, sync, NULL);
+}
+
+IM_API IM_STATUS imcrop_t(const rga_buffer_t src, rga_buffer_t dst, im_rect rect, int sync) {
+    return imcrop(src, dst, rect, sync, NULL);
+}
+
+IM_API IM_STATUS imrotate_t(const rga_buffer_t src, rga_buffer_t dst, int rotation, int sync) {
+    return imrotate(src, dst, rotation, sync, NULL);
+}
+
+IM_API IM_STATUS imflip_t (const rga_buffer_t src, rga_buffer_t dst, int mode, int sync) {
+    return imflip(src, dst, mode, sync, NULL);
+}
+
+IM_API IM_STATUS imfill_t(rga_buffer_t dst, im_rect rect, int color, int sync) {
+    return imfill(dst, rect, color, sync, NULL);
+}
+
+IM_API IM_STATUS impalette_t(rga_buffer_t src, rga_buffer_t dst, rga_buffer_t lut, int sync) {
+    return impalette(src, dst, lut, sync, NULL);
+}
+
+IM_API IM_STATUS imtranslate_t(const rga_buffer_t src, rga_buffer_t dst, int x, int y, int sync) {
+    return imtranslate(src, dst, x, y, sync, NULL);
+}
+
+IM_API IM_STATUS imcopy_t(const rga_buffer_t src, rga_buffer_t dst, int sync) {
+    return imcopy(src, dst, sync, NULL);
+}
+
+IM_API IM_STATUS imcolorkey_t(const rga_buffer_t src, rga_buffer_t dst, im_colorkey_range range, int mode, int sync) {
+    return imcolorkey(src, dst, range, mode, sync, NULL);
+}
+
+IM_API IM_STATUS imblend_t(const rga_buffer_t srcA, const rga_buffer_t srcB, rga_buffer_t dst, int mode, int sync) {
+    return imcomposite(srcA, srcB, dst, mode, sync, NULL);
+}
+
+IM_API IM_STATUS imcvtcolor_t(rga_buffer_t src, rga_buffer_t dst, int sfmt, int dfmt, int mode, int sync) {
+    return imcvtcolor(src, dst, sfmt, dfmt, mode, sync, NULL);
+}
+
+IM_API IM_STATUS imquantize_t(const rga_buffer_t src, rga_buffer_t dst, im_nn_t nn_info, int sync) {
+    return imquantize(src, dst, nn_info, sync, NULL);
+}
+
+IM_API IM_STATUS imrop_t(const rga_buffer_t src, rga_buffer_t dst, int rop_code, int sync) {
+    return imrop(src, dst, rop_code, sync, NULL);
+}
+
+IM_API IM_STATUS immosaic(const rga_buffer_t image, im_rect rect, int mosaic_mode, int sync) {
+    return immosaic(image, rect, mosaic_mode, sync, NULL);
+}
+
+IM_API IM_STATUS imosd(const rga_buffer_t osd,const rga_buffer_t dst, const im_rect osd_rect,
+                       im_osd_t *osd_info, int sync) {
+    return imosd(osd, dst, osd_rect, osd_info, sync, NULL);
 }

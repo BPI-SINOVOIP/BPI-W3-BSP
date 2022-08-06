@@ -10,9 +10,17 @@
 
 #include "mpp_rkvdec2.h"
 
+#define RKVDEC_REG_IMPORTANT_BASE	0x2c
+#define RKVDEC_REG_IMPORTANT_INDEX	11
+#define RKVDEC_SOFTREST_EN		BIT(20)
+
 #define RKVDEC_REG_SECOND_EN_BASE	0x30
 #define RKVDEC_REG_SECOND_EN_INDEX	12
 #define RKVDEC_WAIT_RESET_EN		BIT(7)
+
+#define RKVDEC_REG_DEBUG_INT_BASE	0x440
+#define RKVDEC_REG_DEBUG_INT_INDEX	272
+#define RKVDEC_BIT_BUS_IDLE		BIT(0)
 
 /* define for link hardware */
 #define RKVDEC_LINK_ADD_CFG_NUM		1
@@ -163,6 +171,9 @@ void rkvdec2_link_session_deinit(struct mpp_session *session);
 int rkvdec2_attach_ccu(struct device *dev, struct rkvdec2_dev *dec);
 int rkvdec2_ccu_link_init(struct platform_device *pdev, struct rkvdec2_dev *dec);
 void *rkvdec2_ccu_alloc_task(struct mpp_session *session, struct mpp_task_msgs *msgs);
+int rkvdec2_ccu_iommu_fault_handle(struct iommu_domain *iommu,
+				   struct device *iommu_dev,
+				   unsigned long iova, int status, void *arg);
 irqreturn_t rkvdec2_soft_ccu_irq(int irq, void *param);
 void rkvdec2_soft_ccu_worker(struct kthread_work *work_s);
 

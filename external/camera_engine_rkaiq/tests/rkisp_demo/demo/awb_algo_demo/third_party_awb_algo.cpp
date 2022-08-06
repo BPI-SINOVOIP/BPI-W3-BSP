@@ -53,17 +53,44 @@ int32_t custom_awb_run(void* ctx, const rk_aiq_customAwb_stats_t* pstAwbInfo,
         pstAwbResult->awb_gain_algo={1.9,1.0,1.0,1.6};
         //2) initialize  pstAwbResult->awbHwConfig , must be initialized
         //  pstAwbResult->awbHwConfig has been initialized by RK
-       //   the demo is in function   initCustomAwbHwConfigWp(rk_aiq_customAwb_hw_cfg_t  *awbHwConfig)} in rk_aiq_user_api_custom_awb.cpp
-        pstAwbResult->awbHwConfig.blkWeightEnable = true;
+       //   the demo is in function   initCustomAwbHwConfigGw(rk_aiq_customAwb_hw_cfg_t  *awbHwConfig)} in rk_aiq_user_api_custom_awb.cpp
+        pstAwbResult->awbHwConfig.xyDetectionEnable          =    0;
+        pstAwbResult->awbHwConfig.uvDetectionEnable          =    0;
+        pstAwbResult->awbHwConfig.threeDyuvEnable          =    0;
+        pstAwbResult->awbHwConfig.blkWeightEnable    =    0;
+        pstAwbResult->awbHwConfig.blkMeasureMode     =    RK_AIQ_AWB_BLK_STAT_MODE_REALWP_V201;
+        pstAwbResult->awbHwConfig.maxR          =    230;
+        pstAwbResult->awbHwConfig.maxG          =    230;
+        pstAwbResult->awbHwConfig.maxB          =    230;
+        pstAwbResult->awbHwConfig.maxY          =    230;
+        pstAwbResult->awbHwConfig.minR          =    3;
+        pstAwbResult->awbHwConfig.minG          =    3;
+        pstAwbResult->awbHwConfig.minB          =    3;
+        pstAwbResult->awbHwConfig.minY          =    3;
        //to do more paras
      }else if( pstAwbInfo != nullptr){
-        //0) run your algo  to calc para in pstAwbResult based on  pstAwbInfo
+        //0) run your algo  to calc para in pstAwbResult based on  pstAwbInfo, for example
+        float R=0,G=0,B=0;
+        for(int i=0;i<RK_AIQ_AWB_GRID_NUM_TOTAL;i++){
+            R+=pstAwbInfo->blockResult[i].Rvalue;
+            G+=pstAwbInfo->blockResult[i].Gvalue;
+            B+=pstAwbInfo->blockResult[i].Bvalue;
+        }
+        if(R>0.001&&B>0.001){
+            pstAwbResult->awb_gain_algo.bgain = G/B;
+            pstAwbResult->awb_gain_algo.gbgain = 1.0;
+            pstAwbResult->awb_gain_algo.grgain = 1.0;
+            pstAwbResult->awb_gain_algo.rgain = G/R;
+        }
+        printf("wbggain :(%f,%f,%f,%f)\n",pstAwbResult->awb_gain_algo.rgain,
+            pstAwbResult->awb_gain_algo.grgain,pstAwbResult->awb_gain_algo.gbgain,
+            pstAwbResult->awb_gain_algo.bgain);
         //1)update awb gain, pstAwbResult->awb_gain_algo, must be updated
-        pstAwbResult->awb_gain_algo={2.0,1.0,1.0,1.6};
+        //pstAwbResult->awb_gain_algo={2.0,1.0,1.0,1.6};
         //2)update awb converged state,pstAwbResult->IsConverged, must be updated
         pstAwbResult->IsConverged = true;
         //3)update pstAwbResult->awbHwConfig},  no updating is also ok
-        pstAwbResult->awbHwConfig.blkWeightEnable = true;
+        //pstAwbResult->awbHwConfig.maxG= 230;
     }
 
     if (cam_type == RK_AIQ_CAM_TYPE_GROUP){

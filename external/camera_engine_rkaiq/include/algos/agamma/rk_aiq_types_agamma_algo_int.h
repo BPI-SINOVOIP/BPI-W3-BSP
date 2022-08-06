@@ -19,15 +19,10 @@
 
 #ifndef _RK_AIQ_TYPE_AGAMMA_ALGO_INT_H_
 #define _RK_AIQ_TYPE_AGAMMA_ALGO_INT_H_
-#include "agamma/rk_aiq_types_agamma_algo.h"
 #include "RkAiqCalibDbTypes.h"
+#include "agamma/rk_aiq_types_agamma_algo.h"
 #include "agamma_head.h"
-
-
-enum {
-    GAMMA_OUT_LOG_SEGMENT = 0,
-    GAMMA_OUT_EQ_SEGMENT = 1
-};
+#include "agamma_uapi_head.h"
 
 typedef enum rk_aiq_gamma_op_mode_s {
     RK_AIQ_GAMMA_MODE_OFF                     = 0,        /**< run iq gamma */
@@ -35,30 +30,11 @@ typedef enum rk_aiq_gamma_op_mode_s {
     RK_AIQ_GAMMA_MODE_FAST                    = 2,        /**< for tool*/
 } rk_aiq_gamma_op_mode_t;
 
-typedef struct Agamma_api_Fast_s {
-    bool en;
-    float GammaCoef;
-    float SlopeAtZero;
-}  Agamma_api_Fast_t;
-
-typedef struct Agamma_api_manualV21_s {
-    bool Gamma_en;
-    GammaType_t Gamma_out_segnum;
-    uint16_t Gamma_out_offset;
-    uint16_t Gamma_curve[CALIBDB_AGAMMA_KNOTS_NUM];
-}  Agamma_api_manualV21_t;
-
 typedef struct rk_aiq_gamma_attrV21_s {
     rk_aiq_gamma_op_mode_t mode;
     Agamma_api_manualV21_t stManual;
     Agamma_api_Fast_t stFast;
 }  rk_aiq_gamma_attrV21_t;
-
-typedef struct Agamma_api_manualV30_s {
-    bool Gamma_en;
-    uint16_t Gamma_out_offset;
-    uint16_t Gamma_curve[CALIBDB_AGAMMA_KNOTS_NUM_V30];;
-}  Agamma_api_manualV30_t;
 
 typedef struct rk_aiq_gamma_attrV30_s {
     rk_aiq_gamma_op_mode_t mode;

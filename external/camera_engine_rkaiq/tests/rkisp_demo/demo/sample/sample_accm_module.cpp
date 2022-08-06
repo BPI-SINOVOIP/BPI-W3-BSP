@@ -427,7 +427,7 @@ XCamReturn sample_accm_module(const void *arg)
                 sample_ccm_getMode(ctx);
                 break;
             case 'f':
-                sample_ccm_setModeAuto(ctx, RK_AIQ_UAPI_MODE_DEFAULT);
+                sample_ccm_setModeAuto(ctx, RK_AIQ_UAPI_MODE_ASYNC);
                 sample_ccm_getMode(ctx);
                 usleep(40*1000);
                 sample_ccm_getMode(ctx);

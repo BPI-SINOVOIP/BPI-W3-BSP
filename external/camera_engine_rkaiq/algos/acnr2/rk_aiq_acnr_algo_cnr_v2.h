@@ -14,7 +14,7 @@ RKAIQ_BEGIN_DECLARE
 
 AcnrV2_result_t cnr_select_params_by_ISO_V2(RK_CNR_Params_V2_t *pParams, RK_CNR_Params_V2_Select_t *pSelect, AcnrV2_ExpInfo_t *pExpInfo);
 
-AcnrV2_result_t cnr_fix_transfer_V2(RK_CNR_Params_V2_Select_t *pSelect, RK_CNR_Fix_V2_t *pFix, AcnrV2_ExpInfo_t *pExpInfo, float fStrength);
+AcnrV2_result_t cnr_fix_transfer_V2(RK_CNR_Params_V2_Select_t *pSelect, RK_CNR_Fix_V2_t *pFix, AcnrV2_ExpInfo_t *pExpInfo, rk_aiq_cnr_strength_v2_t *pStrength);
 
 AcnrV2_result_t cnr_fix_printf_V2(RK_CNR_Fix_V2_t  * pFix);
 

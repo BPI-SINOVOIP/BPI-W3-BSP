@@ -99,8 +99,12 @@ int SPStreamProcUnit::get_lowpass_fv(uint32_t sequence, SmartPtr<V4l2BufferProxy
     _afmeas_param_mutex.unlock();
 
     if (meas_param.sp_meas.enable) {
-        get_lpfv(sequence, image_buf, _ds_width, _ds_height,
-            _ds_width_align, _ds_height_align, pAfTmp, sub_shp4_4,
+        meas_param.wina_h_offs /= img_ds_size_x;
+        meas_param.wina_v_offs /= img_ds_size_y;
+        meas_param.wina_h_size /= img_ds_size_x;
+        meas_param.wina_v_size /= img_ds_size_y;
+        get_lpfv(sequence, image_buf, af_img_width, af_img_height,
+            af_img_width_align, af_img_height_align, pAfTmp, sub_shp4_4,
             sub_shp8_8, high_light, high_light2, &meas_param);
 
         lensHw->setLowPassFv(sub_shp4_4, sub_shp8_8, high_light, high_light2, sequence);
@@ -132,6 +136,8 @@ XCamReturn SPStreamProcUnit::prepare(CalibDbV2_Af_LdgParam_t *ldg_param, CalibDb
 {
     XCamReturn ret = XCAM_RETURN_NO_ERROR;
     uint32_t pixelformat, plane_cnt;
+    uint32_t ds_size_w = 4;
+    uint32_t ds_size_h = 4;
 
     if (_isp_ver == 0) {
         pixelformat = V4L2_PIX_FMT_FBCG;
@@ -152,18 +158,25 @@ XCamReturn SPStreamProcUnit::prepare(CalibDbV2_Af_LdgParam_t *ldg_param, CalibDb
         }
         _src_width           = isp_src_fmt.format.width;
         _src_height          = isp_src_fmt.format.height;
-        _ds_width            = (_src_width + 3) / 4;
-        _ds_height           = (_src_height + 7) / 8;
-        _ds_width_align      = XCAM_ALIGN_UP(_ds_width, 2);    
-        _ds_height_align     = XCAM_ALIGN_UP(_ds_height, 2);
-        int _stride           = XCAM_ALIGN_UP(_ds_width_align, 32);
-        LOGD( "set sp format: width %d %d height %d %d, stride %d\n",
-               _ds_width, _ds_width_align, _ds_height, _ds_height_align, _stride);
-        ret = _dev->set_format(_ds_width_align, _ds_height_align, pixelformat, V4L2_FIELD_NONE, _stride);
+        _ds_width            = (_src_width + ds_size_w - 1) / ds_size_w;
+        _ds_height           = (_src_height + ds_size_h - 1) / ds_size_h;
+        _ds_width_align      = (_ds_width  + 1) & (~1);
+        _ds_height_align     = (_ds_height + 1) & (~1);
+        int _stride          = XCAM_ALIGN_UP(_ds_width_align, 32);
+        img_ds_size_x        = ds_size_w;
+        img_ds_size_y        = ds_size_h;
+        LOGD( "set sp format: _src_width %d, _src_height %d, width %d %d height %d %d, stride %d\n",
+               _src_width, _src_height, _ds_width, _ds_width_align, _ds_height, _ds_height_align, _stride);
+        ret = _dev->set_format(_ds_width_align, _ds_height_align, pixelformat, V4L2_FIELD_NONE, 0);
         if (ret) {
             LOGE("set isp_sp_dev src fmt failed !\n");
             ret = XCAM_RETURN_ERROR_FAILED;
         }
+
+        struct v4l2_format format;
+        _dev->get_format (format);
+        set_af_img_size(format.fmt.pix_mp.width, format.fmt.pix_mp.height,
+                        format.fmt.pix_mp.plane_fmt[0].bytesperline, format.fmt.pix_mp.height);
     } else {
         LOGD( "set sp format: width %d height %d\n", width, height);
         ret = _dev->set_format(width, height, pixelformat, V4L2_FIELD_NONE, stride);
@@ -263,6 +276,16 @@ void SPStreamProcUnit::update_af_meas_params(rk_aiq_af_algo_meas_t *af_meas)
     if (af_meas && (0 != memcmp(af_meas, &_af_meas_params, sizeof(rk_aiq_af_algo_meas_t)))) {
         _af_meas_params = *af_meas;
     }
+}
+
+void SPStreamProcUnit::set_af_img_size(int w, int h, int w_align, int h_align)
+{
+    af_img_width         = w;
+    af_img_height        = h;
+    af_img_width_align   = w_align;
+    af_img_height_align  = h_align;
+    LOGI("af_img_width %d af_img_height %d af_img_width_align: %d af_img_height_align: %d\n",
+        w, h, w_align, h_align);
 }
 
 }

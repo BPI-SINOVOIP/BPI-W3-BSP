@@ -137,12 +137,14 @@ struct rk_iommu {
 	bool skip_read; /* rk3126/rk3128 can't read vop iommu registers */
 	bool dlr_disable; /* avoid access iommu when runtime ops called */
 	bool cmd_retry;
+	bool master_handle_irq;
 	struct iommu_device iommu;
 	struct list_head node; /* entry in rk_iommu_domain.iommus */
 	struct iommu_domain *domain; /* domain to which iommu is attached */
 	struct iommu_group *group;
 	u32 version;
 	bool shootdown_entire;
+	bool iommu_enabled;
 };
 
 struct rk_iommudata {
@@ -152,6 +154,7 @@ struct rk_iommudata {
 };
 
 static struct device *dma_dev;
+static struct rk_iommu *rk_iommu_from_dev(struct device *dev);
 
 static inline void rk_table_flush(struct rk_iommu_domain *dom, dma_addr_t dma,
 				  unsigned int count)
@@ -584,6 +587,11 @@ read_wa:
 	return ret;
 }
 
+static u32 rk_iommu_read_dte_addr(void __iomem *base)
+{
+	return rk_iommu_read(base, RK_MMU_DTE_ADDR);
+}
+
 static int rk_iommu_force_reset(struct rk_iommu *iommu)
 {
 	int ret, i;
@@ -612,8 +620,10 @@ static int rk_iommu_force_reset(struct rk_iommu *iommu)
 			address_mask = RK_DTE_PT_ADDRESS_MASK_V2;
 		else
 			address_mask = RK_DTE_PT_ADDRESS_MASK;
-		dte_addr = rk_iommu_read(iommu->bases[i], RK_MMU_DTE_ADDR);
-		if (dte_addr != (DTE_ADDR_DUMMY & address_mask)) {
+		ret = readx_poll_timeout(rk_iommu_read_dte_addr, iommu->bases[i], dte_addr,
+					 dte_addr == (DTE_ADDR_DUMMY & address_mask),
+					 RK_MMU_POLL_PERIOD_US, RK_MMU_POLL_TIMEOUT_US);
+		if (ret) {
 			dev_err(iommu->dev, "Error during raw reset. MMU_DTE_ADDR is not functioning\n");
 			return -EFAULT;
 		}
@@ -625,8 +635,8 @@ read_wa:
 		return 0;
 
 	ret = readx_poll_timeout(rk_iommu_is_reset_done, iommu, val,
-				 val, RK_MMU_FORCE_RESET_TIMEOUT_US,
-				 RK_MMU_POLL_TIMEOUT_US);
+				 val, RK_MMU_POLL_TIMEOUT_US,
+				 RK_MMU_FORCE_RESET_TIMEOUT_US);
 	if (ret) {
 		dev_err(iommu->dev, "FORCE_RESET command timed out\n");
 		return ret;
@@ -692,22 +702,14 @@ print_it:
 		rk_pte_is_page_valid(pte), &page_addr_phys, page_flags);
 }
 
-static irqreturn_t rk_iommu_irq(int irq, void *dev_id)
+static int rk_pagefault_done(struct rk_iommu *iommu)
 {
-	struct rk_iommu *iommu = dev_id;
 	u32 status;
 	u32 int_status;
-	u32 int_mask;
 	dma_addr_t iova;
+	int i;
+	u32 int_mask;
 	irqreturn_t ret = IRQ_NONE;
-	int i, err;
-
-	err = pm_runtime_get_if_in_use(iommu->dev);
-	if (!err || WARN_ON_ONCE(err < 0))
-		return ret;
-
-	if (WARN_ON(clk_bulk_enable(iommu->num_clocks, iommu->clocks)))
-		goto out;
 
 	for (i = 0; i < iommu->num_mmu; i++) {
 		int_status = rk_iommu_read(iommu->bases[i], RK_MMU_INT_STATUS);
@@ -730,16 +732,18 @@ static irqreturn_t rk_iommu_irq(int irq, void *dev_id)
 
 			log_iova(iommu, i, iova);
 
-			/*
-			 * Report page fault to any installed handlers.
-			 * Ignore the return code, though, since we always zap cache
-			 * and clear the page fault anyway.
-			 */
-			if (iommu->domain)
-				report_iommu_fault(iommu->domain, iommu->dev, iova,
+			if (!iommu->master_handle_irq) {
+				/*
+				 * Report page fault to any installed handlers.
+				 * Ignore the return code, though, since we always zap cache
+				 * and clear the page fault anyway.
+				 */
+				if (iommu->domain)
+					report_iommu_fault(iommu->domain, iommu->dev, iova,
 						   status);
-			else
-				dev_err(iommu->dev, "Page fault while iommu not attached to domain?\n");
+				else
+					dev_err(iommu->dev, "Page fault while iommu not attached to domain?\n");
+			}
 
 			rk_iommu_base_command(iommu->bases[i], RK_MMU_CMD_ZAP_CACHE);
 
@@ -761,6 +765,46 @@ static irqreturn_t rk_iommu_irq(int irq, void *dev_id)
 				int_status);
 
 		rk_iommu_write(iommu->bases[i], RK_MMU_INT_CLEAR, int_status);
+	}
+
+	return ret;
+}
+
+int rockchip_pagefault_done(struct device *master_dev)
+{
+	struct rk_iommu *iommu = rk_iommu_from_dev(master_dev);
+
+	return rk_pagefault_done(iommu);
+}
+EXPORT_SYMBOL_GPL(rockchip_pagefault_done);
+
+void __iomem *rockchip_get_iommu_base(struct device *master_dev, int idx)
+{
+	struct rk_iommu *iommu = rk_iommu_from_dev(master_dev);
+
+	return iommu->bases[idx];
+}
+EXPORT_SYMBOL_GPL(rockchip_get_iommu_base);
+
+static irqreturn_t rk_iommu_irq(int irq, void *dev_id)
+{
+	struct rk_iommu *iommu = dev_id;
+	irqreturn_t ret = IRQ_NONE;
+	int err;
+
+	err = pm_runtime_get_if_in_use(iommu->dev);
+	if (WARN_ON_ONCE(err <= 0))
+		return ret;
+
+	if (WARN_ON(clk_bulk_enable(iommu->num_clocks, iommu->clocks)))
+		goto out;
+
+	/* Master must call rockchip_pagefault_done to handle pagefault */
+	if (iommu->master_handle_irq) {
+		if (iommu->domain)
+			ret = report_iommu_fault(iommu->domain, iommu->dev, -1, 0x0);
+	} else {
+		ret = rk_pagefault_done(iommu);
 	}
 
 	clk_bulk_disable(iommu->num_clocks, iommu->clocks);
@@ -1263,6 +1307,8 @@ static void rk_iommu_disable(struct rk_iommu *iommu)
 	}
 	rk_iommu_disable_stall(iommu);
 	clk_bulk_disable(iommu->num_clocks, iommu->clocks);
+
+	iommu->iommu_enabled = false;
 }
 
 int rockchip_iommu_disable(struct device *dev)
@@ -1324,6 +1370,10 @@ out_disable_stall:
 	rk_iommu_disable_stall(iommu);
 out_disable_clocks:
 	clk_bulk_disable(iommu->num_clocks, iommu->clocks);
+
+	if (!ret)
+		iommu->iommu_enabled = true;
+
 	return ret;
 }
 
@@ -1338,6 +1388,18 @@ int rockchip_iommu_enable(struct device *dev)
 	return rk_iommu_enable(iommu);
 }
 EXPORT_SYMBOL(rockchip_iommu_enable);
+
+bool rockchip_iommu_is_enabled(struct device *dev)
+{
+	struct rk_iommu *iommu;
+
+	iommu = rk_iommu_from_dev(dev);
+	if (!iommu)
+		return false;
+
+	return iommu->iommu_enabled;
+}
+EXPORT_SYMBOL(rockchip_iommu_is_enabled);
 
 static void rk_iommu_detach_device(struct iommu_domain *domain,
 				   struct device *dev)
@@ -1743,7 +1805,8 @@ static int rk_iommu_probe(struct platform_device *pdev)
 					"rockchip,disable-device-link-resume");
 	iommu->shootdown_entire = device_property_read_bool(dev,
 					"rockchip,shootdown-entire");
-
+	iommu->master_handle_irq = device_property_read_bool(dev,
+					"rockchip,master-handle-irq");
 	if (of_machine_is_compatible("rockchip,rv1126") ||
 	    of_machine_is_compatible("rockchip,rv1109"))
 		iommu->cmd_retry = device_property_read_bool(dev,

@@ -78,21 +78,13 @@ static GstStaticPadTemplate gst_mpp_video_dec_sink_template =
         "systemstream = (boolean) false"
         ";" "video/x-vp8" ";" "video/x-vp9" ";"));
 
-#define MPP_DEC_CAPS_ARM_AFBC(caps) \
-    caps ", " MPP_DEC_FEATURE_ARM_AFBC " = (int) 1"
-
-#define MPP_DEC_CAPS_NV12_10LE40(caps) \
-    caps ", " MPP_DEC_FEATURE_NV12_10LE40 " = (int) 1"
-
 static GstStaticPadTemplate gst_mpp_video_dec_src_template =
     GST_STATIC_PAD_TEMPLATE ("src",
     GST_PAD_SRC,
     GST_PAD_ALWAYS,
     GST_STATIC_CAPS (GST_VIDEO_CAPS_MAKE ("{" MPP_DEC_FORMATS "}") ";"
-        MPP_DEC_CAPS_ARM_AFBC (GST_VIDEO_CAPS_MAKE ("{NV12, " MPP_FMT_NV12_10
-                "}")) ";"
-        MPP_DEC_CAPS_ARM_AFBC (MPP_DEC_CAPS_NV12_10LE40 (GST_VIDEO_CAPS_MAKE
-                ("{" MPP_FMT_NV12_10 "}"))) ";"));
+        GST_VIDEO_CAPS_MAKE ("{NV12, NV16, NV12_10LE40}") ", "
+        MPP_DEC_FEATURE_ARM_AFBC " = (int) 1" ";"));
 
 static MppCodingType
 gst_mpp_video_dec_get_mpp_type (GstStructure * s)
@@ -140,29 +132,17 @@ gst_mpp_video_dec_set_property (GObject * object,
 
   switch (prop_id) {
     case PROP_FORMAT:{
-      GstVideoFormat format = g_value_get_enum (value);
-      if (mppdec->format == format)
-        return;
-
-      if (mppdec->input_state) {
+      if (mppdec->input_state)
         GST_WARNING_OBJECT (decoder, "unable to change output format");
-        return;
-      }
-
-      mppdec->format = format;
+      else
+        mppdec->format = g_value_get_enum (value);
       break;
     }
     case PROP_ARM_AFBC:{
-      gboolean arm_afbc = g_value_get_boolean (value);
-      if (mppdec->arm_afbc == arm_afbc)
-        return;
-
-      if (mppdec->input_state) {
+      if (mppdec->input_state)
         GST_WARNING_OBJECT (decoder, "unable to change ARM AFBC");
-        return;
-      }
-
-      mppdec->arm_afbc = arm_afbc;
+      else
+        mppdec->arm_afbc = g_value_get_boolean (value);
       break;
     }
     default:
@@ -239,11 +219,12 @@ gst_mpp_video_dec_startup (GstVideoDecoder * decoder)
     gst_buffer_unref (codec_data);
   }
 
-  /* Legacy way to inform MPP codec of video info, needed by RKVDEC */
+  /* Some MPP codecs(RKV) need this to apply an odd-256 align to the hor
+     stride to speed up decoding. */
   mpp_frame_init (&mframe);
   mpp_frame_set_width (mframe, GST_VIDEO_INFO_WIDTH (&state->info));
   mpp_frame_set_height (mframe, GST_VIDEO_INFO_HEIGHT (&state->info));
-  mpp_frame_set_fmt (mframe, (MppFrameFormat) mppdec->mpp_type);
+  mpp_frame_set_fmt (mframe, MPP_FMT_YUV420SP);
   mppdec->mpi->control (mppdec->mpp_ctx, MPP_DEC_SET_FRAME_INFO,
       (MppParam) mframe);
   mpp_frame_deinit (&mframe);
@@ -444,4 +425,11 @@ gst_mpp_video_dec_class_init (GstMppVideoDecClass * klass)
       "Multicodec (HEVC / AVC / VP8 / VP9) hardware decoder",
       "Randy Li <randy.li@rock-chips.com>, "
       "Jeffy Chen <jeffy.chen@rock-chips.com>");
+}
+
+gboolean
+gst_mpp_video_dec_register (GstPlugin * plugin, guint rank)
+{
+  return gst_element_register (plugin, "mppvideodec", rank,
+      gst_mpp_video_dec_get_type ());
 }

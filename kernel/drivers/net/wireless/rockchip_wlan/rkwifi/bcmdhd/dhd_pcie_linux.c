@@ -47,6 +47,7 @@
 #include <pcicfg.h>
 #include <dhd_pcie.h>
 #include <dhd_linux.h>
+#include <rk_dhd_pcie_linux.h>
 #ifdef OEM_ANDROID
 #ifdef CONFIG_ARCH_MSM
 #if defined(CONFIG_PCI_MSM) || defined(CONFIG_ARCH_MSM8996)
@@ -617,6 +618,8 @@ dhd_bus_is_rc_ep_l1ss_capable(dhd_bus_t *bus)
 	uint32 rc_l1ss_cap;
 	uint32 ep_l1ss_cap;
 
+	if (IS_ENABLED(CONFIG_PCIEASPM_ROCKCHIP_WIFI_EXTENSION))
+		return rk_dhd_bus_is_rc_ep_l1ss_capable(bus);
 	/* RC Extendend Capacility */
 	rc_l1ss_cap = dhdpcie_access_cap(bus->rc_dev, PCIE_EXTCAP_ID_L1SS,
 		PCIE_EXTCAP_L1SS_CONTROL_OFFSET, TRUE, FALSE, 0);
@@ -1526,6 +1529,9 @@ dhdpcie_bus_register(void)
 		bus_for_each_dev(dhdpcie_driver.driver.bus, NULL, &error, dhdpcie_device_scan);
 		if (!error) {
 			DHD_ERROR(("No Broadcom PCI device enumerated!\n"));
+#ifdef DHD_PRELOAD
+			return 0;
+#endif
 		} else if (!dhdpcie_init_succeeded) {
 			DHD_ERROR(("%s: dhdpcie initialize failed.\n", __FUNCTION__));
 		} else {

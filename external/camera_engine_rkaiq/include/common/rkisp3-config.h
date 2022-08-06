@@ -46,6 +46,8 @@
 #define ISP3X_MODULE_SHARP		ISP2X_MODULE_SHARP
 #define ISP3X_MODULE_DRC		ISP2X_MODULE_DRC
 #define ISP3X_MODULE_CAC		BIT_ULL(42)
+#define ISP3X_MODULE_CSM		ISP2X_MODULE_CSM
+#define ISP3X_MODULE_CGC		ISP2X_MODULE_CGC
 
 /* Measurement types */
 #define ISP3X_STAT_RAWAWB		ISP2X_STAT_RAWAWB
@@ -436,7 +438,7 @@ struct isp3x_dhaz_cfg {
 
 struct isp3x_dhaz_stat {
 	u32 dhaz_pic_sumh;
-	
+
 	u16 dhaz_adp_air_base;
 	u16 dhaz_adp_wt;
 
@@ -1012,7 +1014,8 @@ struct isp3x_isp_other_cfg {
 	struct isp3x_sharp_cfg sharp_cfg;
 	struct isp3x_cac_cfg cac_cfg;
 	struct isp3x_gain_cfg gain_cfg;
-    struct isp21_csm_cfg csm_cfg;
+	struct isp21_csm_cfg csm_cfg;
+	struct isp21_cgc_cfg cgc_cfg;
 } __attribute__ ((packed));
 
 struct isp3x_isp_meas_cfg {

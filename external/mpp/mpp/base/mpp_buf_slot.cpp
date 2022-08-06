@@ -18,10 +18,10 @@
 
 #include <string.h>
 
-#include "mpp_log.h"
 #include "mpp_mem.h"
 #include "mpp_env.h"
 #include "mpp_list.h"
+#include "mpp_debug.h"
 #include "mpp_common.h"
 
 #include "mpp_frame_impl.h"
@@ -159,7 +159,7 @@ typedef union SlotStatus_u {
         RK_U32  on_used     : 1;
         RK_U32  not_ready   : 1;        // buffer slot is filled or not
         RK_U32  codec_use   : 1;        // buffer slot is used by codec ( dpb reference )
-        RK_U32  hal_output  : 1;        // buffer slot is set to hw output will ready when hw done
+        RK_U32  hal_output  : 2;        // buffer slot is set to hw output will ready when hw done
         RK_U32  hal_use     : 8;        // buffer slot is used by hardware
         RK_U32  queue_use   : 5;        // buffer slot is used in different queue
 
@@ -259,7 +259,7 @@ static RK_S32 get_afbc_min_size(RK_S32 width, RK_S32 height, RK_S32 bpp)
     /* AFBC_FORMAT_MOD_BLOCK_SIZE_16x16 and !AFBC_FORMAT_MOD_TILED */
     width = MPP_ALIGN(width, 16);
     /* NOTE: Add extra 16 line for deblock output */
-    height = MPP_ALIGN(height, 16) + 16;
+    height = MPP_ALIGN(height, 16);
     hdr_alignment = AFBC_HDR_ALIGN;
 
     n_blocks = (width * height) / AFBC_SUPERBLOCK_PIXELS;
@@ -315,13 +315,13 @@ static void generate_info_set(MppBufSlotsImpl *impl, MppFrame frame, RK_U32 forc
     if (MPP_FRAME_FMT_IS_FBC(fmt)) {
         switch ((fmt & MPP_FRAME_FMT_MASK)) {
         case MPP_FMT_YUV420SP_10BIT : {
-            size = get_afbc_min_size(hal_hor_stride, hal_ver_stride, 15);
+            size = get_afbc_min_size(hor_stride_pixel, hal_ver_stride, 15);
         } break;
         case MPP_FMT_YUV420SP : {
-            size = get_afbc_min_size(hal_hor_stride, hal_ver_stride, 12);
+            size = get_afbc_min_size(hor_stride_pixel, hal_ver_stride, 12);
         } break;
         case MPP_FMT_YUV422SP : {
-            size = get_afbc_min_size(hal_hor_stride, hal_ver_stride, 16);
+            size = get_afbc_min_size(hor_stride_pixel, hal_ver_stride, 16);
         } break;
         default : {
             size = hal_hor_stride * hal_ver_stride * 3 / 2;
@@ -501,13 +501,14 @@ static void slot_ops_with_log(MppBufSlotsImpl *impl, MppBufSlotEntry *slot, MppB
         }
     } break;
     case SLOT_SET_HAL_OUTPUT : {
-        status.hal_output = 1;
+        status.hal_output++;
         status.not_ready  = 1;
     } break;
     case SLOT_CLR_HAL_OUTPUT : {
-        status.hal_output = 0;
+        status.hal_output--;
         // NOTE: set output index ready here
-        status.not_ready  = 0;
+        if (!status.hal_output)
+            status.not_ready  = 0;
     } break;
     case SLOT_SET_QUEUE_USE :
     case SLOT_ENQUEUE_OUTPUT :

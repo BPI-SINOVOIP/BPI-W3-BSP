@@ -24,7 +24,7 @@
 #include "rk_aiq_comm.h"
 #include "rk_aiq_mems_sensor.h"
 #include "common/rk-camera-module.h"
-#include "adebayer/rk_aiq_types_algo_adebayer.h"
+#include "adebayer/rk_aiq_types_algo_adebayer_int.h"
 #include "ae/rk_aiq_types_ae_algo.h"
 #include "awb/rk_aiq_types_awb_algo.h"
 #include "alsc/rk_aiq_types_alsc_algo.h"
@@ -106,7 +106,9 @@ typedef enum rk_aiq_af_sec_stat_e
 {
     RK_AIQ_AF_SEARCH_INVAL   = 0,
     RK_AIQ_AF_SEARCH_RUNNING = 1,
-    RK_AIQ_AF_SEARCH_END     = 2
+    RK_AIQ_AF_SEARCH_END     = 2,
+    RK_AIQ_AF_ZOOM_MOVING    = 3,
+    RK_AIQ_AF_ZOOM_MOVE_END  = 4
 } rk_aiq_af_sec_stat_t;
 
 typedef enum {
@@ -809,6 +811,6 @@ typedef enum rk_isp_stream_mode_e {
     RK_ISP_STREAM_MODE_OFFLNIE,
 } rk_isp_stream_mode_t;
 
-#define RK_AIQ_CAM_GROUP_MAX_CAMS (6)
+#define RK_AIQ_CAM_GROUP_MAX_CAMS (8)
 
 #endif

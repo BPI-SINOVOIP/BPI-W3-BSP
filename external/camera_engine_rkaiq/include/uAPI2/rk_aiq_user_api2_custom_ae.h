@@ -42,7 +42,15 @@ typedef struct rk_aiq_customAe_stats_s
     struct rk_aiq_customAe_stats_s* next; // for surround view(multiple cams)
 } rk_aiq_customAe_stats_t;
 
-
+typedef struct rk_aiq_i2c_data_s {
+    bool            bValid;
+    unsigned int    nNumRegs;
+    unsigned int*   pRegAddr;
+    unsigned int*   pAddrByteNum;
+    unsigned int*   pRegValue;
+    unsigned int*   pValueByteNum;
+    unsigned int*   pDelayFrames;
+} rk_aiq_i2c_data_t;
 
 /* ae results */
 typedef struct rk_aiq_customeAe_results_singel_s
@@ -50,6 +58,7 @@ typedef struct rk_aiq_customeAe_results_singel_s
     //exposure result (including:reg value & real value)
     RkAiqExpParamComb_t linear_exp;
     RkAiqExpParamComb_t hdr_exp[RK_AIQ_MAX_HDR_FRAME];
+    rk_aiq_i2c_data_t   exp_i2c_params;
 
     //hw result
     struct window meas_win;
@@ -64,13 +73,15 @@ typedef struct rk_aiq_customeAe_results_s
     //exposure result (including:reg value & real value)
     RkAiqExpParamComb_t linear_exp;
     RkAiqExpParamComb_t hdr_exp[RK_AIQ_MAX_HDR_FRAME];
-
-    uint32_t frame_length_lines; //vts
-    RkAiqIrisParamComb_t Iris;
+    rk_aiq_i2c_data_t   exp_i2c_params;
 
     //hw result
     struct window meas_win;
     unsigned char meas_weight[15 * 15];
+
+    RkAiqIrisParamComb_t Iris;
+    uint32_t frame_length_lines;
+    bool     is_longfrm_mode;
 
     struct rk_aiq_customeAe_results_singel_s* next; // for surround view(multiple cams)
 } rk_aiq_customeAe_results_t;

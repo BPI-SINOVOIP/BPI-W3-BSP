@@ -720,6 +720,8 @@ static void initCustomAeRes(rk_aiq_customeAe_results_t* customAe, rk_aiq_rkAe_co
                            &customAe->hdr_exp[i].exp_sensor_params.coarse_integration_time,
                            &customAe->hdr_exp[i].exp_sensor_params.analog_gain_code_global,
                            &customAe->hdr_exp[i].exp_real_params.dcg_mode);
+
+            customAe->exp_i2c_params.bValid = false;
         }
     } else {
         //linear_exp
@@ -736,9 +738,12 @@ static void initCustomAeRes(rk_aiq_customeAe_results_t* customAe, rk_aiq_rkAe_co
                        &customAe->linear_exp.exp_sensor_params.coarse_integration_time,
                        &customAe->linear_exp.exp_sensor_params.analog_gain_code_global,
                        &customAe->linear_exp.exp_real_params.dcg_mode);
+
+        customAe->exp_i2c_params.bValid = false;
     }
 
     customAe->frame_length_lines = pConfig->PixelPeriodsPerLine;
+    customAe->is_longfrm_mode = false;
 
     //1.) hw params
     customAe->meas_win = pConfig->aeHwConfig.ae_meas.rawae0.win;
@@ -909,6 +914,7 @@ static void _customGrpAeStatsRelease(rk_aiq_customAe_stats_t *customAe)
     rk_aiq_customAe_stats_t* next_customAeStats = nullptr;
 
     while(customAeStats != nullptr) {
+
         next_customAeStats = customAeStats->next;
         free(customAeStats);
         customAeStats = next_customAeStats;
@@ -924,35 +930,52 @@ void _customAeRes2rkAeRes(rk_aiq_rkAe_config_t* pConfig, RkAiqAlgoProcResAe* rkA
 
     //AE new sensor exposure
     if(pConfig->IsHdr) {
-        bool rktype = !(customAeProcRes->hdr_exp[0].exp_i2c_params.valid);
-
-        if(rktype)
+        //Hdr
+        if(!(customAeProcRes->exp_i2c_params.bValid))
             AeHdrDcgConv(pConfig, customAeProcRes->hdr_exp);
 
         for(int i = 0; i < pConfig->HdrFrmNum; i++) {
-            if(rktype) {
+
+            if(!(customAeProcRes->exp_i2c_params.bValid)) {
                 AeReal2RegConv(pConfig, customAeProcRes->hdr_exp[i].exp_real_params.integration_time,
                                customAeProcRes->hdr_exp[i].exp_real_params.analog_gain,
                                &customAeProcRes->hdr_exp[i].exp_sensor_params.coarse_integration_time,
                                &customAeProcRes->hdr_exp[i].exp_sensor_params.analog_gain_code_global,
                                &customAeProcRes->hdr_exp[i].exp_real_params.dcg_mode);
             }
-
             rkAeProcRes->new_ae_exp.HdrExp[i] = customAeProcRes->hdr_exp[i];
         }
 
-
     } else {
-
-        if(!customAeProcRes->linear_exp.exp_i2c_params.valid) {
+        //Linear
+        if(!customAeProcRes->exp_i2c_params.bValid) {
             AeDcgConv(pConfig, customAeProcRes->linear_exp.exp_real_params.analog_gain, &customAeProcRes->linear_exp.exp_real_params.dcg_mode);
             AeReal2RegConv(pConfig, customAeProcRes->linear_exp.exp_real_params.integration_time,
                            customAeProcRes->linear_exp.exp_real_params.analog_gain,
                            &customAeProcRes->linear_exp.exp_sensor_params.coarse_integration_time,
                            &customAeProcRes->linear_exp.exp_sensor_params.analog_gain_code_global,
                            &customAeProcRes->linear_exp.exp_real_params.dcg_mode);
+
         }
+
         rkAeProcRes->new_ae_exp.LinearExp = customAeProcRes->linear_exp;
+    }
+
+    rkAeProcRes->new_ae_exp.exp_i2c_params.bValid = customAeProcRes->exp_i2c_params.bValid;
+    rkAeProcRes->new_ae_exp.exp_i2c_params.nNumRegs = customAeProcRes->exp_i2c_params.nNumRegs;
+
+    if(customAeProcRes->exp_i2c_params.bValid) {
+        if(customAeProcRes->exp_i2c_params.nNumRegs <= MAX_I2CDATA_LEN) {
+            for(uint32_t i = 0; i < customAeProcRes->exp_i2c_params.nNumRegs; i++) {
+                rkAeProcRes->new_ae_exp.exp_i2c_params.DelayFrames[i] = customAeProcRes->exp_i2c_params.pDelayFrames[i];
+                rkAeProcRes->new_ae_exp.exp_i2c_params.RegAddr[i] = customAeProcRes->exp_i2c_params.pRegAddr[i];
+                rkAeProcRes->new_ae_exp.exp_i2c_params.AddrByteNum[i] = customAeProcRes->exp_i2c_params.pAddrByteNum[i];
+                rkAeProcRes->new_ae_exp.exp_i2c_params.RegValue[i] = customAeProcRes->exp_i2c_params.pRegValue[i];
+                rkAeProcRes->new_ae_exp.exp_i2c_params.ValueByteNum[i] = customAeProcRes->exp_i2c_params.pValueByteNum[i];
+            }
+        } else {
+            LOGE("too many i2c data to set!!");
+        }
     }
 
     rkAeProcRes->new_ae_exp.frame_length_lines = customAeProcRes->frame_length_lines;
@@ -960,6 +983,7 @@ void _customAeRes2rkAeRes(rk_aiq_rkAe_config_t* pConfig, RkAiqAlgoProcResAe* rkA
 
     rkAeProcRes->ae_proc_res_rk.exp_set_cnt = 1;
     rkAeProcRes->ae_proc_res_rk.exp_set_tbl[0] = rkAeProcRes->new_ae_exp;
+    rkAeProcRes->ae_proc_res_rk.LongFrmMode = customAeProcRes->is_longfrm_mode;
 
     //RK: CIS feature for NR
     AeCISFeature(pConfig, &rkAeProcRes->ae_proc_res_rk.exp_set_tbl[0]);
@@ -992,28 +1016,28 @@ void _customGrpAeSingleResSet(rk_aiq_rkAe_config_t* pConfig, rk_aiq_singlecam_3a
     *rk_aiq_singlecam_3a_result->aec.exp_tbl_size = 1;
 
     if(pConfig->IsHdr) {
+        //Hdr
 
-        bool rktype = !(customAeRes.hdr_exp[0].exp_i2c_params.valid);
-
-        if(rktype)
+        if(!customAeRes.exp_i2c_params.bValid)
             AeHdrDcgConv(pConfig, customAeRes.hdr_exp);
 
-        for(int j = 0; j < pConfig->HdrFrmNum; j++) {
+        for(int i = 0; i < pConfig->HdrFrmNum; i++) {
 
-            if(rktype) {
-                AeReal2RegConv(pConfig, customAeRes.hdr_exp[j].exp_real_params.integration_time,
-                               customAeRes.hdr_exp[j].exp_real_params.analog_gain,
-                               &customAeRes.hdr_exp[j].exp_sensor_params.coarse_integration_time,
-                               &customAeRes.hdr_exp[j].exp_sensor_params.analog_gain_code_global,
-                               &customAeRes.hdr_exp[j].exp_real_params.dcg_mode);
+            if(!customAeRes.exp_i2c_params.bValid) {
+                AeReal2RegConv(pConfig, customAeRes.hdr_exp[i].exp_real_params.integration_time,
+                               customAeRes.hdr_exp[i].exp_real_params.analog_gain,
+                               &customAeRes.hdr_exp[i].exp_sensor_params.coarse_integration_time,
+                               &customAeRes.hdr_exp[i].exp_sensor_params.analog_gain_code_global,
+                               &customAeRes.hdr_exp[i].exp_real_params.dcg_mode);
             }
-            rk_aiq_singlecam_3a_result->aec.exp_tbl[0].HdrExp[j] = customAeRes.hdr_exp[j];
+
+            rk_aiq_singlecam_3a_result->aec.exp_tbl[0].HdrExp[i] = customAeRes.hdr_exp[i];
         }
 
-
     } else {
+        //Linear
 
-        if(!customAeRes.linear_exp.exp_i2c_params.valid) {
+        if(!customAeRes.exp_i2c_params.bValid) {
             AeDcgConv(pConfig, customAeRes.linear_exp.exp_real_params.analog_gain, &customAeRes.linear_exp.exp_real_params.dcg_mode);
             AeReal2RegConv(pConfig, customAeRes.linear_exp.exp_real_params.integration_time,
                            customAeRes.linear_exp.exp_real_params.analog_gain,
@@ -1021,7 +1045,26 @@ void _customGrpAeSingleResSet(rk_aiq_rkAe_config_t* pConfig, rk_aiq_singlecam_3a
                            &customAeRes.linear_exp.exp_sensor_params.analog_gain_code_global,
                            &customAeRes.linear_exp.exp_real_params.dcg_mode);
         }
+
         rk_aiq_singlecam_3a_result->aec.exp_tbl[0].LinearExp = customAeRes.linear_exp;
+    }
+
+    rk_aiq_singlecam_3a_result->aec.exp_tbl[0].exp_i2c_params.bValid = customAeRes.exp_i2c_params.bValid;
+    rk_aiq_singlecam_3a_result->aec.exp_tbl[0].exp_i2c_params.nNumRegs = customAeRes.exp_i2c_params.nNumRegs;
+
+    if(customAeRes.exp_i2c_params.bValid) {
+        if(customAeRes.exp_i2c_params.nNumRegs <= MAX_I2CDATA_LEN) {
+
+            for(uint32_t i = 0; i < customAeRes.exp_i2c_params.nNumRegs; i++) {
+                rk_aiq_singlecam_3a_result->aec.exp_tbl[0].exp_i2c_params.DelayFrames[i] = customAeRes.exp_i2c_params.pDelayFrames[i];
+                rk_aiq_singlecam_3a_result->aec.exp_tbl[0].exp_i2c_params.RegAddr[i] = customAeRes.exp_i2c_params.pRegAddr[i];
+                rk_aiq_singlecam_3a_result->aec.exp_tbl[0].exp_i2c_params.AddrByteNum[i] = customAeRes.exp_i2c_params.pAddrByteNum[i];
+                rk_aiq_singlecam_3a_result->aec.exp_tbl[0].exp_i2c_params.RegValue[i] = customAeRes.exp_i2c_params.pRegValue[i];
+                rk_aiq_singlecam_3a_result->aec.exp_tbl[0].exp_i2c_params.ValueByteNum[i] = customAeRes.exp_i2c_params.pValueByteNum[i];
+            }
+        } else {
+            LOGE("too many i2c data to set!!");
+        }
     }
 
     // 1.) copy hw params
@@ -1058,11 +1101,13 @@ void _customGrpAeRes2rkGrpAeRes(rk_aiq_rkAe_config_t* pConfig, rk_aiq_singlecam_
 
     for(int i = 0; i < camnum; i++) {
 
+        //copy exposure & hw params
         if(i > 0 && customAeRes != nullptr) {
             tmp_customAeRes.hdr_exp[0] = customAeRes->hdr_exp[0];
             tmp_customAeRes.hdr_exp[1] = customAeRes->hdr_exp[1];
             tmp_customAeRes.hdr_exp[2] = customAeRes->hdr_exp[2];
             tmp_customAeRes.linear_exp = customAeRes->linear_exp;
+            tmp_customAeRes.exp_i2c_params = customAeRes->exp_i2c_params;
             tmp_customAeRes.meas_win = customAeRes->meas_win;
             memcpy(tmp_customAeRes.meas_weight, customAeRes->meas_weight, 15 * 15 * sizeof(unsigned char));
 
@@ -1072,14 +1117,29 @@ void _customGrpAeRes2rkGrpAeRes(rk_aiq_rkAe_config_t* pConfig, rk_aiq_singlecam_
             tmp_customAeRes.hdr_exp[1] = customAeProcRes->hdr_exp[1];
             tmp_customAeRes.hdr_exp[2] = customAeProcRes->hdr_exp[2];
             tmp_customAeRes.linear_exp = customAeProcRes->linear_exp;
+            tmp_customAeRes.exp_i2c_params = customAeProcRes->exp_i2c_params;
             tmp_customAeRes.meas_win = customAeProcRes->meas_win;
             memcpy(tmp_customAeRes.meas_weight, customAeProcRes->meas_weight, 15 * 15 * sizeof(unsigned char));
         }
 
         _customGrpAeSingleResSet(pConfig, rk_aiq_singlecam_3a_result[i], tmp_customAeRes);
 
+        //copy common result
         rk_aiq_singlecam_3a_result[i]->aec.exp_tbl[0].frame_length_lines =  customAeProcRes->frame_length_lines;
         rk_aiq_singlecam_3a_result[i]->aec.exp_tbl[0].Iris =  customAeProcRes->Iris;
+
+        //copy common RK result
+        XCamVideoBuffer* XaeProcRes = rk_aiq_singlecam_3a_result[i]->aec._aeProcRes;
+        RkAiqAlgoProcResAe* aeProcRes = nullptr;
+        if(XaeProcRes) {
+            aeProcRes = (RkAiqAlgoProcResAe*)XaeProcRes->map(XaeProcRes);
+            if(aeProcRes)
+                aeProcRes->ae_proc_res_rk.LongFrmMode = customAeProcRes->is_longfrm_mode;
+            else
+                LOGW_GAEC("aeProcRes[%d] = nullptr", i);
+        } else {
+            LOGW_GAEC("XCamVideoBuffer of aeProcRes[%d] = nullptr", i);
+        }
     }
 
 }
@@ -1181,15 +1241,11 @@ static XCamReturn AeDemoProcessing(const RkAiqAlgoCom* inparams, RkAiqAlgoResCom
             return ret;
         }
 
-        // TODO: customer calc init value
-#if 1
-        rk_aiq_customAe_stats_t customStats; //null now
         if (algo_ctx->cbs.pfn_ae_run)
             algo_ctx->cbs.pfn_ae_run(algo_ctx->aiq_ctx,
                                      NULL,
                                      &algo_ctx->customRes
                                     );
-#endif
     }
 
     // gen patrt of hw results from initAecHwConfig
@@ -1223,6 +1279,7 @@ static XCamReturn AeDemoGroupProcessing(const RkAiqAlgoCom* inparams, RkAiqAlgoR
 
     if(!inparams->u.proc.init) { // init=ture, stats=null
         rk_aiq_customAe_stats_t customStats;
+        memset(&customStats, 0, sizeof(customStats));
         _rkGrpAeStats2CustomGrpAeStats(&algo_ctx->rkCfg, algo_ctx->camIdArrayLen, &customStats, AeProcParams->camgroupParmasArray);
 
         if (algo_ctx->cbs.pfn_ae_run)
@@ -1231,21 +1288,18 @@ static XCamReturn AeDemoGroupProcessing(const RkAiqAlgoCom* inparams, RkAiqAlgoR
                                      &algo_ctx->customRes
                                     );
         _customGrpAeStatsRelease(&customStats);
+
     } else {
         if (algo_ctx->updateCalib) {
             LOGD_AEC_SUBM(0xff, "updateCalib, no need re-init");
             return ret;
         }
 
-        // TODO: customer calc init value
-#if 1
-        rk_aiq_customAe_stats_t customStats; //null now
         if (algo_ctx->cbs.pfn_ae_run)
             algo_ctx->cbs.pfn_ae_run(algo_ctx->group_ctx,
                                      NULL,
                                      &algo_ctx->customRes
                                     );
-#endif
     }
 
     // gen patrt of hw results from initAecHwConfig

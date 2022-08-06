@@ -34,7 +34,7 @@
 #include <linux/uaccess.h>
 #include <crypto/scatterwalk.h>
 #include <linux/scatterlist.h>
-#include "cryptodev_int.h"
+#include "cryptodev.h"
 #include "zc.h"
 #include "version.h"
 
@@ -117,7 +117,7 @@ int cryptodev_adjust_sg_array(struct csession *ses, int pagecount)
 	for (array_size = ses->array_size; array_size < pagecount;
 	     array_size *= 2)
 		;
-	ddebug(0, "reallocating from %d to %d pages",
+	ddebug(1, "reallocating from %d to %d pages",
 			ses->array_size, array_size);
 	pages = krealloc(ses->pages, array_size * sizeof(struct page *),
 			 GFP_KERNEL);

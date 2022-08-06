@@ -126,6 +126,7 @@ typedef struct _modesettingRec {
     Bool tried_queue_sequence;
 
     Bool kms_has_modifiers;
+    Bool async_pageflip;
 
     XF86VideoAdaptorPtr adaptor;
 } modesettingRec, *modesettingPtr;
@@ -195,6 +196,9 @@ Bool ms_do_pageflip(ScreenPtr screen,
                     ms_pageflip_abort_proc pageflip_abort);
 
 int ms_flush_drm_events(ScreenPtr screen);
+
+Bool ms_copy_area(PixmapPtr pSrc, PixmapPtr pDst,
+                  pixman_f_transform_t *transform, RegionPtr clip);
 
 Bool ms_init_exa(ScrnInfoPtr scrn);
 void ms_deinit_exa(ScrnInfoPtr scrn);

@@ -1,6 +1,0 @@
-config BR2_PACKAGE_GENCPP
-	bool "gencpp for ROS"
-	depends on BR2_PACKAGE_HOST_CATKIN
-	select BR2_PACKAGE_GENMSG
-	help
-		ROS C++ message definition and serialization generators

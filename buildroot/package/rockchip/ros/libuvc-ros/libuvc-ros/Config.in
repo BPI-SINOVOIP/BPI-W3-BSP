@@ -1,4 +1,0 @@
-config BR2_PACKAGE_LIBUVC_ROS
-	bool "libuvc-ros"
-	help
-		libuvc-ros

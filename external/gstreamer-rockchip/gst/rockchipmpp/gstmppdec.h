@@ -50,6 +50,7 @@ struct _GstMppDec
   /* specified output format */
   GstVideoFormat format;
 
+  gboolean convert;
   gint rotation;
   gint width;
   gint height;
@@ -57,6 +58,10 @@ struct _GstMppDec
   guint crop_x, crop_y, crop_w, crop_h;
 
   gboolean arm_afbc;
+
+  gboolean ignore_error;
+
+  gboolean fast_mode;
 
   /* stop handling new frame when flushing */
   gboolean flushing;
@@ -75,6 +80,8 @@ struct _GstMppDec
   /* for using MPP generated PTS */
   gboolean use_mpp_pts;
   GstClockTime mpp_delta_pts;
+
+  guint32 decoded_frames;
 
   MppCodingType mpp_type;
   MppCtx mpp_ctx;
@@ -99,7 +106,7 @@ GType gst_mpp_dec_get_type (void);
 
 #define GST_FLOW_TIMEOUT GST_FLOW_CUSTOM_ERROR_1
 
-#define MPP_DEC_OUT_FORMATS "NV12, NV16, " MPP_FMT_NV12_10
+#define MPP_DEC_OUT_FORMATS "NV12, NV16, NV12_10LE40"
 
 #ifdef HAVE_RGA
 #define MPP_DEC_FORMATS MPP_DEC_OUT_FORMATS "," GST_RGA_FORMATS
@@ -108,7 +115,6 @@ GType gst_mpp_dec_get_type (void);
 #endif
 
 #define MPP_DEC_FEATURE_ARM_AFBC "arm-afbc"
-#define MPP_DEC_FEATURE_NV12_10LE40 "nv12-10le40"
 
 void gst_mpp_dec_fixup_video_info (GstVideoDecoder * decoder,
     GstVideoFormat format, gint width, gint height);

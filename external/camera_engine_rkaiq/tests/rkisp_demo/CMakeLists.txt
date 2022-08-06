@@ -125,3 +125,17 @@ add_definitions(-D_CRT_SECURE_NO_WARNINGS)
 link_directories("${LIBRARY_OUTPUT_PATH}" "${RK_AIQ_LIB_DIR}" "${RK_DRM_LIB_DIR}" "${IIO_LIB_DIR}")
 add_executable(rkisp_demo ${DIR_SRCS})
 target_link_libraries(rkisp_demo ${RK_AIQ_LIB} ${RK_DRM_LIB} ${RK_RGA_LIB} ${IIO_LIBS} pthread dl)
+
+#FIXME: buildroot and ipc sdk shall use the same setting
+if(BUILDROOT_BUILD_PROJECT)
+	install(TARGETS rkisp_demo
+	RUNTIME DESTINATION /usr/bin
+	LIBRARY DESTINATION /usr/lib
+	)
+
+else()
+	install(TARGETS rkisp_demo
+	RUNTIME DESTINATION "usr/bin"
+	LIBRARY DESTINATION "usr/lib"
+)
+endif()

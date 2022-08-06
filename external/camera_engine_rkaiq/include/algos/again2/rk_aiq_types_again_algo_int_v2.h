@@ -26,8 +26,12 @@
 #include "rk_aiq_comm.h"
 #include "RkAiqCalibDbTypes.h"
 #include "again2/rk_aiq_types_again_algo_v2.h"
+#include "gain_head_v2.h"
+#include "gain_uapi_head_v2.h"
 
 //RKAIQ_BEGIN_DECLARE
+#define RK_GAIN_V2_MAX_ISO_NUM  CALIBDB_MAX_ISO_LEVEL
+
 
 #define AGAINV2_RECALCULATE_DELTA_ISO       (10)
 
@@ -85,7 +89,6 @@ typedef struct Again_ExpInfo_V2_s {
     float arDGain[3];
     int   arIso[3];
     int   arDcgMode[3];
-    int   cur_snr_mode;
     int   snr_mode;
 
     float preTime[3];
@@ -98,39 +101,44 @@ typedef struct Again_ExpInfo_V2_s {
     int mfnr_mode_3to1;
 } Again_ExpInfo_V2_t;
 
+
+#if 0
+typedef struct RK_GAIN_Select_V2_s
+{
+    bool hdrgain_ctrl_enable;
+    float hdr_gain_scale_s;
+    float hdr_gain_scale_m;
+
+} RK_GAIN_Select_V2_t;
+#endif
+
 typedef struct RK_GAIN_Params_V2_s
-{
-
+{   bool hdrgain_ctrl_enable;
+    int iso[RK_GAIN_V2_MAX_ISO_NUM];
+    RK_GAIN_Select_V2_t iso_params[RK_GAIN_V2_MAX_ISO_NUM];
 } RK_GAIN_Params_V2_t;
-
-typedef struct RK_GAIN_Params_V2_Select_s
-{
-
-} RK_GAIN_Params_V2_Select_t;
 
 
 typedef struct Again_Manual_Attr_V2_s
 {
-    int gainEn;
-    RK_GAIN_Params_V2_Select_t stSelect;
-
+    RK_GAIN_Select_V2_t stSelect;
+    RK_GAIN_Fix_V2_t stFix;
 } Again_Manual_Attr_V2_t;
 
 typedef struct AgainV2_Auto_Attr_V2_s
 {
     //all ISO params and select param
-    int gainEn;
 
     RK_GAIN_Params_V2_t stParams;
-    RK_GAIN_Params_V2_Select_t stSelect;
+    RK_GAIN_Select_V2_t stSelect;
 
 } Again_Auto_Attr_V2_t;
 
 typedef struct AgainV2_ProcResult_V2_s {
-    int gainEn;
+    bool isNeedUpdate;
 
     //for sw simultaion
-    RK_GAIN_Params_V2_Select_t stSelect;
+    RK_GAIN_Select_V2_t stSelect;
 
     //for hw register
     RK_GAIN_Fix_V2_t stFix;
@@ -145,6 +153,7 @@ typedef struct Again_Config_V2_s {
 
 
 typedef struct rk_aiq_gain_attrib_v2_s {
+    rk_aiq_uapi_sync_t sync;
     Again_OPMode_V2_t eMode;
     Again_Auto_Attr_V2_t stAuto;
     Again_Manual_Attr_V2_t stManual;

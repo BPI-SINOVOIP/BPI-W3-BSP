@@ -16,6 +16,15 @@
  */
 
 #include "sample_comm.h"
+
+typedef enum {
+    AWB_CHANNEL_R = 0,
+    AWB_CHANNEL_GR,
+    AWB_CHANNEL_GB,
+    AWB_CHANNEL_B,
+    AWB_CHANNEL_MAX
+} awb_channel_t;
+
 #define safe_free(x) if(NULL!=(x))\
                            free(x); x=NULL;
 static void sample_awb_usage()
@@ -500,7 +509,7 @@ static int sample_awb_setMwb1(const rk_aiq_sys_ctx_t* ctx, rk_aiq_uapi_mode_sync
     rk_aiq_user_api2_awb_GetMwbAttrib(ctx, &attr);
     //modify
     attr.sync.sync_mode = sync;
-    attr.mode = RK_AIQ_MWB_MODE_WBGAIN;
+    attr.mode = RK_AIQ_MWB_MODE_SCENE;
 
     //set
     rk_aiq_user_api2_awb_SetMwbAttrib(ctx, attr);
@@ -517,6 +526,7 @@ static int sample_awb_setMwb2(const rk_aiq_sys_ctx_t* ctx, rk_aiq_uapi_mode_sync
     rk_aiq_user_api2_awb_GetMwbAttrib(ctx, &attr);
     //modify
     attr.sync.sync_mode = sync;
+    attr.mode = RK_AIQ_MWB_MODE_WBGAIN;
     if (attr.para.gain.rgain == 1.0) {
         attr.para.gain.rgain = 0.5f;
         attr.para.gain.grgain = 0.5f;
@@ -669,6 +679,157 @@ static int sample_awb_getWbAwbMultiWindow(const rk_aiq_sys_ctx_t* ctx)
     printf("\t enable = %s\n\n", (attr.multiWindw.enable ? "true" : "false"));
     return 0;
 }
+#if 0
+static int sample_awb_printflog(const rk_aiq_sys_ctx_t* ctx)
+{
+    rk_tool_awb_stat_res_full_t awb_measure_result;
+    rk_tool_awb_strategy_result_t strategy_result;
+
+    //for(int i=0;i<100;i++)
+    {
+        memset(&awb_measure_result,0,sizeof(awb_measure_result));
+        rk_aiq_user_api2_awbV30_getAlgoSta(ctx, &awb_measure_result);
+        memset(&strategy_result,0,sizeof(strategy_result));
+        rk_aiq_user_api2_awbV30_getStrategyResult(ctx, &strategy_result);
+        printf("------------%d---------------\n",strategy_result.count);
+        printf("Global CCT:%f,CCRI:%f,valid:%d\n",strategy_result.cctGloabl.CCT,strategy_result.cctGloabl.CCRI,
+            strategy_result.cctGloabl.valid);
+        printf("wbgain_s6(after damping)(rggb):(%f,%f,%f,%f), awbConverged(%d)  ,LVValue(%d), WPType(%d),df(%1.2f)\n",strategy_result.stat3aAwbGainOut[AWB_CHANNEL_R],
+                strategy_result.stat3aAwbGainOut[AWB_CHANNEL_GR], strategy_result.stat3aAwbGainOut[AWB_CHANNEL_GB],
+                strategy_result.stat3aAwbGainOut[AWB_CHANNEL_B], strategy_result.awbConverged, strategy_result.LVValue,strategy_result.WPType,
+                strategy_result.wbGainDampFactor);
+        printf("WPNo(normal,big):(%d,%d),vaild wp number in standard light(%d), vaild wp number in extra light(%d),xy_area_type %d \n",
+            awb_measure_result.WpNo[0], awb_measure_result.WpNo[1],
+            strategy_result.WPTotalNUM, awb_measure_result.extraLightResult.WpNo,strategy_result.xy_area_type);
+        printf("select white point range type (0-normal xy range,1-big xy range, 3-extra light) : %d, runInterval(%d),tolerance(%f) \n",strategy_result.xy_area_type,
+            strategy_result.runInterval, strategy_result.tolerance);
+        //printf("the effective light source slecetion to 3dyuv is :[%d,%d,%d,%d]\n", para->awb_cfg_effect_v201->threeDyuvIllu[0], para->awb_cfg_effect_v201->threeDyuvIllu[1],
+        //         para->awb_cfg_effect_v201->threeDyuvIllu[2], para->awb_cfg_effect_v201->threeDyuvIllu[3]);
+        printf("LVLevel(%d),LVType(%d)\n", strategy_result.LVLevel, strategy_result.LVType);
+        printf("wbGainSgc for WPType1(rggb):(%f,%f,%f,%f) ,wbWeightSgc(%f),sgcGainEqu2Tem(%d)\n", strategy_result.wbGainSgc[0], strategy_result.wbGainSgc[1],
+                 strategy_result.wbGainSgc[2], strategy_result.wbGainSgc[3], strategy_result.wbWeightSgc, strategy_result.sgcGainEqu2Tem);
+        printf("wbGainSpa  for WPType1 (rggb):(%f,%f,%f,%f) ,wbWeightSpa(%f), spaGainEqu2Tem(%d) \n", strategy_result.wbGainSpa[AWB_CHANNEL_R], strategy_result.wbGainSpa[AWB_CHANNEL_GR],
+                 strategy_result.wbGainSpa[AWB_CHANNEL_GB], strategy_result.wbGainSpa[AWB_CHANNEL_B], strategy_result.wbWeightSpa, strategy_result.spaGainEqu2Tem);
+        printf("wbGainTep for WPType1 (rggb):(%f,%f,%f,%f)\n", strategy_result.wbGainTep[AWB_CHANNEL_R], strategy_result.wbGainTep[AWB_CHANNEL_GR],
+                 strategy_result.wbGainTep[AWB_CHANNEL_GB], strategy_result.wbGainTep[AWB_CHANNEL_B]);
+        printf("wbGainType1 (rggb):(%f,%f,%f,%f)\n", strategy_result.wbGainType1[AWB_CHANNEL_R], strategy_result.wbGainType1[AWB_CHANNEL_GR],
+                 strategy_result.wbGainType1[AWB_CHANNEL_GB], strategy_result.wbGainType1[AWB_CHANNEL_B]);
+        printf("wbGainType3(rggb):(%f,%f,%f,%f)\n", strategy_result.wbGainType3[AWB_CHANNEL_R], strategy_result.wbGainType3[AWB_CHANNEL_GR],
+                 strategy_result.wbGainType3[AWB_CHANNEL_GB], strategy_result.wbGainType3[AWB_CHANNEL_B]);
+        printf("wbgain_s1 (mix wbGainType1 and wbGainType3 ) :(%f,%f,%f,%f) is updated (%d), weight of wbGainType3 %f\n", strategy_result.wbGainIntpStrategy[AWB_CHANNEL_R],
+            strategy_result.wbGainIntpStrategy[AWB_CHANNEL_GR], strategy_result.wbGainIntpStrategy[AWB_CHANNEL_GB],
+            strategy_result.wbGainIntpStrategy[AWB_CHANNEL_B], strategy_result.updateFlag, strategy_result.wbWeightType3);
+        printf("wbgain_s2 (caga) :(%f,%f,%f,%f) \n", strategy_result.wbGainCaga[AWB_CHANNEL_R],
+            strategy_result.wbGainCaga[AWB_CHANNEL_GR], strategy_result.wbGainCaga[AWB_CHANNEL_GB],
+            strategy_result.wbGainCaga[AWB_CHANNEL_B]);
+        printf("wbgain_s3 (wbgainclip) :(%f,%f,%f,%f) \n", strategy_result.wbGainClip[AWB_CHANNEL_R],
+            strategy_result.wbGainClip[AWB_CHANNEL_GR], strategy_result.wbGainClip[AWB_CHANNEL_GB],
+            strategy_result.wbGainClip[AWB_CHANNEL_B]);
+        printf("wbgain_s4 (wbgainAdjust) :(%f,%f,%f,%f) \n", strategy_result.wbGainAdjust[AWB_CHANNEL_R],
+            strategy_result.wbGainAdjust[AWB_CHANNEL_GR], strategy_result.wbGainAdjust[AWB_CHANNEL_GB],
+            strategy_result.wbGainAdjust[AWB_CHANNEL_B]);
+        printf("wbgain_s5 (wbgainOffest) :(%f,%f,%f,%f) \n", strategy_result.wbGainOffset[AWB_CHANNEL_R],
+            strategy_result.wbGainOffset[AWB_CHANNEL_GR], strategy_result.wbGainOffset[AWB_CHANNEL_GB],
+            strategy_result.wbGainOffset[AWB_CHANNEL_B]);
+        printf("hdrFrameChoose %d\n",awb_measure_result.effectHwPara.hdrFrameChoose);
+        printf("select algorithm method based on stat_mode 0 (0-wp,1-gw) %d\n",strategy_result.algMethod);
+        char str1[500];
+        sprintf(str1, "%s", "WpNoHist:       ");
+        for (int p = 0; p < RK_AIQ_AWBWP_WEIGHT_CURVE_DOT_NUM - 1; p++) {
+            char str2[100];
+            sprintf(str2, "%6d,",  awb_measure_result.WpNoHist[p]);
+            strcat(str1,str2);
+        }
+        printf("%s\n",str1);
+        if (fabs(strategy_result.wbWeightSgc - 1) < 0.001 && strategy_result.wbWeightType3 < 0.02)
+        {
+            //printf("current light source : %d  (%d,%d,%d)\n", para->sinColorResult.illEst,
+            //         para->sinColorResult.voteResult[0], para->sinColorResult.voteResult[1], para->sinColorResult.voteResult[2]);
+           // printf("current color : %d\n", para->sinColorResult.colorEst);
+            for (int i = 0; i < strategy_result.lightNum; i++)
+            {
+                printf(" %s:\n", strategy_result.illInf[i].illName);
+                //printf(" %s:\n", strategy_result.illConf[i].illName);
+                //type0
+                for (int m = 0; m < 2; m++) {
+                    printf("     type%d: gain (rg,bg):(%f,%f) WPNo(%d)\n", m, awb_measure_result.light[i].xYType[m].gain[0],
+                             awb_measure_result.light[i].xYType[m].gain[3], awb_measure_result.light[i].xYType[m].WpNo);
+                }
+            }
+
+            printf("blockresult[15][15]:");
+            for (int i = 0; i < RK_AIQ_AWB_GRID_NUM_VERHOR * RK_AIQ_AWB_GRID_NUM_VERHOR; i++)
+            {
+                if (i % 15 == 0)
+                {
+                    printf("     ");
+                }
+                printf("%d (%.7f,%.7f,%.7f), \n", i, awb_measure_result.blkSgcResult[i].R, awb_measure_result.blkSgcResult[i].G,
+                         awb_measure_result.blkSgcResult[i].B);
+            }
+            printf("\n");
+        }
+        else
+        {
+            if (strategy_result.wbWeightSgc > 0.001) {
+                //printf("current light source : %s  (%d,%d,%d)\n", strategy_result.illConf[para->sinColorResult.illEst].illName,
+                //         para->sinColorResult.voteResult[0], para->sinColorResult.voteResult[1], para->sinColorResult.voteResult[2]);
+                //printf("current color : %d\n", para->sinColorResult.colorEst);
+            }
+
+            for (int i = 0; i < strategy_result.lightNum; i++)
+            {
+                //printf("%s:\n", strategy_result.illConf[i].illName);
+                printf(" %s:\n", strategy_result.illInf[i].illName);
+                printf("     strategy_result.gain (rggb):(%f,%f,%f,%f) \n",
+                         strategy_result.illInf[i].gainValue[0], strategy_result.illInf[i].gainValue[1],
+                         strategy_result.illInf[i].gainValue[2], strategy_result.illInf[i].gainValue[3]
+                        );
+                printf("     prob_total(%f),prob_dis(%f),prob_LV(%f),prob_WPNO(%f)\n", strategy_result.illInf[i].prob_total, strategy_result.illInf[i].prob_dis,
+                         strategy_result.illInf[i].prob_LV, strategy_result.illInf[i].prob_WPNO);
+                printf("     spatial gain(rggb):(%f,%f,%f,%f),statistics gain weight(%f)\n", strategy_result.illInf[i].spatialGainValue[0], strategy_result.illInf[i].spatialGainValue[1],
+                         strategy_result.illInf[i].spatialGainValue[2], strategy_result.illInf[i].spatialGainValue[3], strategy_result.illInf[i].staWeight);
+
+                for (int m = 0; m < 2; m++) {
+
+                    if (m == 2) {
+                        printf("     type%d: gain (rg,bg):(%f,%f) WPNo(%d)  Weight(%f)\n", m,
+                                 awb_measure_result.light[i].xYType[m].gain[0],
+                                 awb_measure_result.light[i].xYType[m].gain[3],
+                                 awb_measure_result.light[i].xYType[m].WpNo,
+                                 strategy_result.illInf[i].xyType2Weight);
+
+                    }
+                    else {
+                        printf("     type%d: gain (rg,bg):(%f,%f) WPNo(%d)\n", m,
+                                 awb_measure_result.light[i].xYType[m].gain[0],
+                                 awb_measure_result.light[i].xYType[m].gain[3],
+                                 awb_measure_result.light[i].xYType[m].WpNo);
+
+                    }
+                }
+
+            }
+
+        }
+
+        printf("\n");
+    }
+
+
+
+    return 0;
+}
+#endif
+
+static int sample_awb_getStrategyResult(const rk_aiq_sys_ctx_t* ctx)
+{
+    rk_tool_awb_strategy_result_t attr;
+    memset(&attr,0,sizeof(attr));
+    rk_aiq_user_api2_awbV30_getStrategyResult(ctx, &attr);
+    return 0;
+}
+
 
 XCamReturn sample_awb_module(const void *arg)
 {
@@ -679,7 +840,12 @@ XCamReturn sample_awb_module(const void *arg)
     rk_aiq_wb_cct_t ct;
     opMode_t mode;
     const demo_context_t *demo_ctx = (demo_context_t *)arg;
-    const rk_aiq_sys_ctx_t* ctx = (const rk_aiq_sys_ctx_t*)(demo_ctx->aiq_ctx);
+    const rk_aiq_sys_ctx_t* ctx;
+    if (demo_ctx->camGroup){
+        ctx = (rk_aiq_sys_ctx_t*)(demo_ctx->camgroup_ctx);
+    } else {
+        ctx = (rk_aiq_sys_ctx_t*)(demo_ctx->aiq_ctx);
+    }
     if (ctx == nullptr) {
         ERR ("%s, ctx is nullptr\n", __FUNCTION__);
         return XCAM_RETURN_ERROR_PARAM;
@@ -830,11 +996,11 @@ XCamReturn sample_awb_module(const void *arg)
             case 'S':
                 sample_awb_setWbGainOffset(ctx, RK_AIQ_UAPI_MODE_DEFAULT);
                 sample_awb_getWbGainOffset(ctx);
-                usleep(40 * 1000);
-                sample_awb_getWbGainOffset(ctx);
                 break;
             case 'T':
                 sample_awb_setWbGainOffset(ctx, RK_AIQ_UAPI_MODE_ASYNC);
+                sample_awb_getWbGainOffset(ctx);
+                usleep(40 * 1000);
                 sample_awb_getWbGainOffset(ctx);
                 break;
             // NOT Support MultiWindow
@@ -857,6 +1023,11 @@ XCamReturn sample_awb_module(const void *arg)
                 usleep(40 * 1000);
                 sample_awb_getMwbAttr(ctx);
                 break;
+#if 0
+            case 'Y':
+                sample_awb_printflog(ctx);
+                break;
+#endif
             default:
                 break;
         }

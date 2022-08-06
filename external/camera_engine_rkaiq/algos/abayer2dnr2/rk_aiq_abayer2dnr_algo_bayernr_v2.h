@@ -24,7 +24,7 @@ Abayer2dnr_result_V2_t bayer2dnr_init_params_V2(RK_Bayer2dnr_Params_V2_t *pParam
 
 Abayer2dnr_result_V2_t bayer2dnr_select_params_by_ISO_V2(RK_Bayer2dnr_Params_V2_t *pParams, RK_Bayer2dnr_Params_V2_Select_t *pSelect, Abayer2dnr_ExpInfo_V2_t *pExpInfo);
 
-Abayer2dnr_result_V2_t bayer2dnr_fix_transfer_V2(RK_Bayer2dnr_Params_V2_Select_t* pSelect, RK_Bayer2dnr_Fix_V2_t *pFix, float fStrength, Abayer2dnr_ExpInfo_V2_t *pExpInfo);
+Abayer2dnr_result_V2_t bayer2dnr_fix_transfer_V2(RK_Bayer2dnr_Params_V2_Select_t* pSelect, RK_Bayer2dnr_Fix_V2_t *pFix, rk_aiq_bayer2dnr_strength_v2_t *pStrength, Abayer2dnr_ExpInfo_V2_t *pExpInfo);
 
 Abayer2dnr_result_V2_t bayer2dnr_fix_printf_V2(RK_Bayer2dnr_Fix_V2_t * pFix);
 

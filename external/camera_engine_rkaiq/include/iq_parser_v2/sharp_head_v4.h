@@ -47,6 +47,18 @@ typedef struct CalibDbV2_SharpV4_TuningPara_Setting_ISO_kernel_s {
     float hfBilateralFilter_coeff[3];
 } CalibDbV2_SharpV4_TuningPara_Setting_ISO_kernel_t;
 
+typedef struct CalibDbV2_SharpV4_TuningPara_Setting_ISO_kernel_sigma_s {
+
+    // M4_ARRAY_DESC("prefilter_sigma", "f32", M4_SIZE(1,1), M4_RANGE(0,100), "[1.0]", M4_DIGIT(2), M4_DYNAMIC(0))
+    float prefilter_sigma;
+    // M4_ARRAY_DESC("hfBilateralFilter_sigma", "f32", M4_SIZE(1,1), M4_RANGE(0,100), "[1.0]", M4_DIGIT(2), M4_DYNAMIC(0))
+    float hfBilateralFilter_sigma;
+    // M4_ARRAY_DESC("GaussianFilter_sigma", "f32", M4_SIZE(1,1), M4_RANGE(0,100), "[1.0]", M4_DIGIT(2), M4_DYNAMIC(0))
+    float GaussianFilter_sigma;
+    // M4_ARRAY_DESC("GaussianFilter_radius", "f32", M4_SIZE(1,1), M4_RANGE(1,2), "[2.0]", M4_DIGIT(0), M4_DYNAMIC(0))
+    float GaussianFilter_radius;
+
+} CalibDbV2_SharpV4_TuningPara_Setting_ISO_kernel_sigma_t;
 
 typedef struct CalibDbV2_SharpV4_TuningPara_Setting_ISO_s {
     // M4_NUMBER_MARK_DESC("iso", "f32", M4_RANGE(50, 204800), "50", M4_DIGIT(1), "index2")
@@ -62,7 +74,7 @@ typedef struct CalibDbV2_SharpV4_TuningPara_Setting_ISO_s {
     // M4_NUMBER_DESC("gaus_ratio", "f32", M4_RANGE(0.0, 1.0), "0.0", M4_DIGIT(2))
     float gaus_ratio;
 
-    // M4_NUMBER_DESC("sharp_ratio", "f32", M4_RANGE(0.0, 16.0), "0.5", M4_DIGIT(2))
+    // M4_NUMBER_DESC("sharp_ratio", "f32", M4_RANGE(0.0, 32.0), "0.5", M4_DIGIT(2))
     float sharp_ratio;
 
 
@@ -78,6 +90,9 @@ typedef struct CalibDbV2_SharpV4_TuningPara_Setting_ISO_s {
 
     // M4_ARRAY_TABLE_DESC("kernel_para", "array_table_ui", "none")
     CalibDbV2_SharpV4_TuningPara_Setting_ISO_kernel_t kernel_para;
+
+    // M4_ARRAY_TABLE_DESC("kernel_sigma", "array_table_ui", "none")
+    CalibDbV2_SharpV4_TuningPara_Setting_ISO_kernel_sigma_t kernel_sigma;
 } CalibDbV2_SharpV4_TuningPara_Setting_ISO_t;
 
 typedef struct CalibDbV2_SharpV4_TuningPara_Setting_s {
@@ -93,6 +108,10 @@ typedef struct CalibDbV2_SharpV4_TuningPara_Setting_s {
 typedef struct CalibDbV2_SharpV4_TuningPara_s {
     // M4_BOOL_DESC("enable", "1")
     bool enable;
+
+    // M4_BOOL_DESC("kernel_sigma_enable", "1")
+    bool kernel_sigma_enable;
+
     // M4_STRUCT_LIST_DESC("Setting", M4_SIZE_DYNAMIC, "double_index_list")
     CalibDbV2_SharpV4_TuningPara_Setting_t *Setting;
     int Setting_len;

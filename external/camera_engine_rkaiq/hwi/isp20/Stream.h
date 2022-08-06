@@ -36,6 +36,9 @@ public:
     virtual bool setPollCallback (PollCallback *callback);
     virtual XCamReturn start();
     virtual XCamReturn stop ();
+    void setCamPhyId(int phyId) {
+        mCamPhyId = phyId;
+    }
 protected:
     XCAM_DEAD_COPY (RkPollThread);
     XCamReturn poll_buffer_loop ();
@@ -48,6 +51,7 @@ protected:
     }
     XCamReturn create_stop_fds ();
     void destroy_stop_fds ();
+    int mCamPhyId;
 protected:
     static const int default_poll_timeout;
     SmartPtr<V4l2Device> _dev;
@@ -122,15 +126,20 @@ public:
     void set_device_prepared(bool prepare);
     XCamReturn virtual getFormat(struct v4l2_format &format);
     XCamReturn virtual getFormat(struct v4l2_subdev_format &format);
+    void setCamPhyId(int phyId) {
+        mCamPhyId = phyId;
+    }
+
+    static const char* poll_type_to_str[ISP_POLL_POST_MAX];
 protected:
     XCAM_DEAD_COPY (RKStream);
 protected:
-    static const char* poll_type_to_str[ISP_POLL_POST_MAX];
     SmartPtr<V4l2Device>  _dev;
     SmartPtr<V4l2SubDevice>  _subdev;
     int _dev_type;
     SmartPtr<RkPollThread> _poll_thread;
     bool _dev_prepared;
+    int mCamPhyId;
 };
 
 class BaseSensorHw;

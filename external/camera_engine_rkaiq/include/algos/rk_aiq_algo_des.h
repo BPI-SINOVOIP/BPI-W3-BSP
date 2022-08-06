@@ -53,8 +53,14 @@
 RKAIQ_BEGIN_DECLARE
 
 typedef struct _RkAiqAlgoContext RkAiqAlgoContext;
+#ifndef RKAIQAECEXPINFO_T
+#define RKAIQAECEXPINFO_T
 typedef struct RKAiqAecExpInfo_s RKAiqAecExpInfo_t;
+#endif
+#ifndef CAMCALIBDBCONTEXT_T
+#define CAMCALIBDBCONTEXT_T
 typedef void CamCalibDbContext_t;
+#endif
 typedef struct CamCalibDbV2Context_s CamCalibDbV2Context_t;
 typedef struct _RkAiqResComb RkAiqResComb;
 

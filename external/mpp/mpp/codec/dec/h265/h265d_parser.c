@@ -1274,14 +1274,14 @@ static RK_S32 parser_nal_unit(HEVCContext *s, const RK_U8 *nal, int length)
     switch (s->nal_unit_type) {
     case NAL_VPS:
         ret = mpp_hevc_decode_nal_vps(s);
-        if (ret < 0) {
+        if (ret < 0 && !s->is_decoded) {
             mpp_err("mpp_hevc_decode_nal_vps error ret = %d", ret);
             goto fail;
         }
         break;
     case NAL_SPS:
         ret = mpp_hevc_decode_nal_sps(s);
-        if (ret < 0) {
+        if (ret < 0 && !s->is_decoded) {
             mpp_err("mpp_hevc_decode_nal_sps error ret = %d", ret);
             goto fail;
         }
@@ -1309,7 +1309,7 @@ static RK_S32 parser_nal_unit(HEVCContext *s, const RK_U8 *nal, int length)
             s->ps_need_upate = 1;
         }
         ret = mpp_hevc_decode_nal_pps(s);
-        if (ret < 0) {
+        if (ret < 0 && !s->is_decoded) {
             mpp_err("mpp_hevc_decode_nal_pps error ret = %d", ret);
             goto fail;
         }
@@ -1348,6 +1348,10 @@ static RK_S32 parser_nal_unit(HEVCContext *s, const RK_U8 *nal, int length)
 
         if (ret < 0) {
             mpp_err("hls_slice_header error ret = %d", ret);
+
+            if (s->first_nal_type != s->nal_unit_type)
+                return 0;
+
             return ret;
         }
 
@@ -1651,7 +1655,7 @@ static RK_S32 parser_nal_units(HEVCContext *s)
             case NAL_RADL_R:
             case NAL_RASL_N:
             case NAL_RASL_R:
-                if (s->pps->slice_header_extension_present_flag) {
+                if (s->pps && s->pps->slice_header_extension_present_flag) {
                     h265d_dxva2_picture_context_t *temp = (h265d_dxva2_picture_context_t *)s->hal_pic_private;
                     temp->slice_cut_param[slice_cnt].start_bit = s->start_bit;
                     temp->slice_cut_param[slice_cnt].end_bit = s->end_bit;
@@ -1872,7 +1876,7 @@ MPP_RET h265d_parse(void *ctx, HalDecTask *task)
     h265d_dbg(H265D_DBG_GLOBAL, "decode poc = %d", s->poc);
     if (s->ref) {
         h265d_parser2_syntax(h265dctx);
-        s->ps_need_upate     = 0;
+
         s->task->syntax.data = s->hal_pic_private;
         s->task->syntax.number = 1;
         s->task->valid = 1;
@@ -2095,9 +2099,9 @@ MPP_RET h265d_callback(void *ctx, void *err_info)
 {
     H265dContext_t *h265dctx = (H265dContext_t *)ctx;
     HalDecTask *task_dec = (HalDecTask *)err_info;
+    HEVCContext *s = (HEVCContext *)h265dctx->priv_data;
 
     if (!h265dctx->cfg->base.disable_error) {
-        HEVCContext *s = (HEVCContext *)h265dctx->priv_data;
         MppFrame frame = NULL;
         RK_U32 i = 0;
 
@@ -2114,6 +2118,10 @@ MPP_RET h265d_callback(void *ctx, void *err_info)
             }
         }
     }
+
+    if (!task_dec->flags.parse_err)
+        s->ps_need_upate = 0;
+
     (void) err_info;
 
     return MPP_OK;

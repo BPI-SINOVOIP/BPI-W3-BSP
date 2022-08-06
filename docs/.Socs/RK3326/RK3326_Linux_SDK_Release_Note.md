@@ -8,10 +8,120 @@
 
 ---
 
+## rk3326_linux_release_v1.8.0_20220620.xml Release Note
+
+**Buildroot(2018.02-rc3)**
+
+```
+- Fix sd upgrade and boot issue with SDDiskTool
+- Support Vulkan and vkmark
+- Switch weston to dispaly as launcher
+- Update weston to fix some issues
+- Upgrade wayland to buildroot upstream's 1.20.0
+- Upgrade gstreamer1 to buildroot upstream's 1.20.0
+- Upgrade glibc to buildroot upstream's 2.35
+- Upgrade chromium-wayland to 101.0.4951.54
+```
+
+**Debian**
+
+```
+- Update the font to chinese by default
+- Update mirrors.ustc.edu.cn for source.list
+- Update mpp/gst-rkmpp/xserver
+- Update rockchip-test
+- Update gstreamer to fix the format issues
+- Add rktoolkit and partition init for recovery
+- Reduce the rootfs size
+```
+
+**Yocto**
+
+```
+- Update Yocto to 3.4.1
+	- Support Chromium to 101.0.4951
+	- Bump xserver/v4l-utils/v4l-mpp/gst-mpp/mpp
+	- Update rkwifibt-firmware and rockchip-libmali
+```
+
+**Kernel**
+
+```
+- Add support for RK3358
+- Add Mali quick reset support for PX30-S/RK3326-S
+```
+
+**rkbin**
+
+```
+- Update px30/rk3326 ddr bin to V2.07 20220531
+- Update px30 bl31 version to v1.31
+- Update rk3326 bl31 version to v1.31
+- Update px30 bl32 version to v2.12
+- Update rk3326 bl32 version to v2.12
+- Update rk3358 bl32 version to v2.03
+```
+
+**external**
+
+```
+- Add slt_gpu_light
+	- Add slt_gpu_light lib for PX30-S/RK3326-S
+```
+
+## rk3326_linux_release_v1.7.0_20220317.xml Release Note
+
+**kernel(4.4)**:
+
+```
+- add support for RK3326-S
+- add support for RK3326-S otp
+- add support for RK3326-S thermal
+- add dts for RK3326/RK3326-S EVB LP3 V12
+- add arm_scmi support,RK3326-S support PVTPLL
+```
+
+**rkbin**:
+
+```
+- tools/trust_merger use p_paddr property to filter none flat VA/PA mapping segments
+- ddr.bin upgrade to v2.05
+- bl31 upgrade to v1.27
+- bl32 upgrade to v2.11
+- usbplug upgrade to v1.36
+- miniloader upgrade to v1.35
+```
+
+**u-boot**:
+
+```
+- add support for RK3326-S
+- add support for RK3326-S otp
+- add support for RK3326-S thermal
+```
+
+**external/rkscript**:
+
+```
+- list-iodomain.sh support RK3326/RK3326-S
+```
+
+**external/rkwifibt**:
+
+```
+- add support for AP6212A1
+```
+
+## rk3326_linux_release_v1.6.0_20210930.xml Release Note
+
+```
+- Update new SDK
+```
+
 ## rk3326_linux_release_v1.5.0_20210520.xml Release Note
 
 ```
-- UUpdate new SDK
+- Update new SDK
 ```
 
 ## rk3326_linux_release_v1.4.0_20201203.xml Release Note

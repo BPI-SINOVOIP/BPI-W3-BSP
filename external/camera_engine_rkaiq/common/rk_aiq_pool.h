@@ -54,6 +54,11 @@ typedef struct RkAiqSofInfoWrapper_s : public XCam::BufferData {
     SmartPtr<RkAiqExpParamsProxy> curExp;
     SmartPtr<RkAiqExpParamsProxy> nxtExp;
     int64_t sof;
+    void reset() {
+        preExp.release();
+        curExp.release();
+        nxtExp.release();
+    }
 } RkAiqSofInfoWrapper_t;
 
 typedef struct RKAiqAfInfoWrapper_s : public XCam::BufferData {
@@ -204,26 +209,26 @@ typedef struct RkAiqThumbnailSrcWrapper_s : public XCam::BufferData {
     SmartPtr<rkaiq_image_source_t> thumbnail;
 } RkAiqThumbnailSrcWrapper_t;
 
-typedef SharedItemPool<class RkAiqIspStats> RkAiqIspStatsIntPool;
-typedef SharedItemProxy<class RkAiqIspStats> RkAiqIspStatsIntProxy;
+typedef SharedItemPool<RkAiqIspStats> RkAiqIspStatsIntPool;
+typedef SharedItemProxy<RkAiqIspStats> RkAiqIspStatsIntProxy;
 
-typedef SharedItemPool<class RkAiqAecStats> RkAiqAecStatsPool;
-typedef SharedItemProxy<class RkAiqAecStats> RkAiqAecStatsProxy;
+typedef SharedItemPool<RkAiqAecStats> RkAiqAecStatsPool;
+typedef SharedItemProxy<RkAiqAecStats> RkAiqAecStatsProxy;
 
-typedef SharedItemPool<class RkAiqAwbStats> RkAiqAwbStatsPool;
-typedef SharedItemProxy<class RkAiqAwbStats> RkAiqAwbStatsProxy;
+typedef SharedItemPool<RkAiqAwbStats> RkAiqAwbStatsPool;
+typedef SharedItemProxy<RkAiqAwbStats> RkAiqAwbStatsProxy;
 
-typedef SharedItemPool<class RkAiqAtmoStats> RkAiqAtmoStatsPool;
-typedef SharedItemProxy<class RkAiqAtmoStats> RkAiqAtmoStatsProxy;
+typedef SharedItemPool<RkAiqAtmoStats> RkAiqAtmoStatsPool;
+typedef SharedItemProxy<RkAiqAtmoStats> RkAiqAtmoStatsProxy;
 
-typedef SharedItemPool<class RkAiqAdehazeStats> RkAiqAdehazeStatsPool;
-typedef SharedItemProxy<class RkAiqAdehazeStats> RkAiqAdehazeStatsProxy;
+typedef SharedItemPool<RkAiqAdehazeStats> RkAiqAdehazeStatsPool;
+typedef SharedItemProxy<RkAiqAdehazeStats> RkAiqAdehazeStatsProxy;
 
-typedef SharedItemPool<class RkAiqAfStats> RkAiqAfStatsPool;
-typedef SharedItemProxy<class RkAiqAfStats> RkAiqAfStatsProxy;
+typedef SharedItemPool<RkAiqAfStats> RkAiqAfStatsPool;
+typedef SharedItemProxy<RkAiqAfStats> RkAiqAfStatsProxy;
 
-typedef SharedItemPool<class RkAiqPdafStats> RkAiqPdafStatsPool;
-typedef SharedItemProxy<class RkAiqPdafStats> RkAiqPdafStatsProxy;
+typedef SharedItemPool<RkAiqPdafStats> RkAiqPdafStatsPool;
+typedef SharedItemProxy<RkAiqPdafStats> RkAiqPdafStatsProxy;
 
 typedef SharedItemPool<RkAiqSofInfoWrapper_t> RkAiqSofInfoWrapperPool;
 typedef SharedItemProxy<RkAiqSofInfoWrapper_t> RkAiqSofInfoWrapperProxy;
@@ -243,17 +248,26 @@ class RkAiqIspStats : public XCam::BufferData {
         af_stats_valid       = false;
         frame_id             = -1;
     };
-    ~RkAiqIspStats(){};
-    SmartPtr<RkAiqAecStatsProxy> AecStatsProxy;
+    virtual ~RkAiqIspStats() {
+        reset();
+    };
+    void reset() {
+        AecStatsProxy.release();
+        AwbStatsProxy.release();
+        AfStatsProxy.release();
+        AtmoStatsProxy.release();
+        AdehazeStatsProxy.release();
+    }
+    SmartPtr<RkAiqAecStatsProxy> AecStatsProxy = nullptr;
     bool aec_stats_valid;
-    SmartPtr<RkAiqAwbStatsProxy> AwbStatsProxy;
+    SmartPtr<RkAiqAwbStatsProxy> AwbStatsProxy = nullptr;
     bool awb_stats_valid;
     bool awb_cfg_effect_valid;
-    SmartPtr<RkAiqAfStatsProxy> AfStatsProxy;
+    SmartPtr<RkAiqAfStatsProxy> AfStatsProxy = nullptr;
     bool af_stats_valid;
-    SmartPtr<RkAiqAtmoStatsProxy> AtmoStatsProxy;
+    SmartPtr<RkAiqAtmoStatsProxy> AtmoStatsProxy = nullptr;
     bool atmo_stats_valid;
-    SmartPtr<RkAiqAdehazeStatsProxy> AdehazeStatsProxy;
+    SmartPtr<RkAiqAdehazeStatsProxy> AdehazeStatsProxy = nullptr;
     bool adehaze_stats_valid;
     uint32_t frame_id;
 
@@ -452,7 +466,7 @@ public:
         , mGainV3xParams(NULL)
         , mTnrV3xParams(NULL) {
     };
-    ~RkAiqFullParams() {};
+    ~RkAiqFullParams() { reset(); };
 
     void reset() {
         mExposureParams.release();

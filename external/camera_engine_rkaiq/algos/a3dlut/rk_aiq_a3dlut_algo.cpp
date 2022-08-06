@@ -386,8 +386,8 @@ static XCamReturn UpdateLut3dCalibV2Para(alut3d_handle_t  hAlut3d)
     hAlut3d->mCurAtt.byPass = !(hAlut3d->calibV2_lut3d->common.enable);
     // config manual ccm
     memcpy(hAlut3d->mCurAtt.stManual.look_up_table_r, hAlut3d->calibV2_lut3d->MLut3D.Table.look_up_table_r, sizeof(hAlut3d->mCurAtt.stManual.look_up_table_r));
-    memcpy(hAlut3d->mCurAtt.stManual.look_up_table_g, hAlut3d->calibV2_lut3d->MLut3D.Table.look_up_table_r, sizeof(hAlut3d->mCurAtt.stManual.look_up_table_g));
-    memcpy(hAlut3d->mCurAtt.stManual.look_up_table_b, hAlut3d->calibV2_lut3d->MLut3D.Table.look_up_table_r, sizeof(hAlut3d->mCurAtt.stManual.look_up_table_b));
+    memcpy(hAlut3d->mCurAtt.stManual.look_up_table_g, hAlut3d->calibV2_lut3d->MLut3D.Table.look_up_table_g, sizeof(hAlut3d->mCurAtt.stManual.look_up_table_g));
+    memcpy(hAlut3d->mCurAtt.stManual.look_up_table_b, hAlut3d->calibV2_lut3d->MLut3D.Table.look_up_table_b, sizeof(hAlut3d->mCurAtt.stManual.look_up_table_b));
     hAlut3d->swinfo.lut3dConverged = false;
     hAlut3d->calib_update = true;
 

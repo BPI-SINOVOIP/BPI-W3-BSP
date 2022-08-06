@@ -11,9 +11,17 @@ find_path(LIBDRM_INCLUDE_DIR
     PATH_SUFFIXES
     drm
 )
+
+find_path(LIBDRM_XF86DRM_INCLUDE_DIR
+    NAMES
+    xf86drm.h
+    PATH
+    include
+)
 find_library(LIBDRM_LIBRARY
     drm
 )
+
 find_package_handle_standard_args(LIBDRM
     DEFAULT_MSGS
     LIBDRM_INCLUDE_DIR
@@ -34,7 +42,7 @@ find_path(LIBDRM_ROCKCHIP_INCLUDE_DIR
     libdrm
 )
 find_library(LIBDRM_ROCKCHIP_LIBRARY
-    libdrm_rockchip
+    drm_rockchip
 )
 find_package_handle_standard_args(LIBDRM_ROCKCHIP
     DEFAULT_MSGS
@@ -47,10 +55,10 @@ mark_as_advanced(
 )
 endif()
 
-if(LIBDRM_FOUND)
+if(LIBDRM_FOUND OR LIBDRM_ROCKCHIP_FOUND)
     if(LIBDRM_ROCKCHIP_FOUND)
         set(LIBDRM_LIBRARIES    ${LIBDRM_LIBRARY};${LIBDRM_ROCKCHIP_LIBRARY})
-        set(LIBDRM_INCLUDE_DIRS ${LIBDRM_INCLUDE_DIR};${LIBDRM_ROCKCHIP_INCLUDE_DIR})
+        set(LIBDRM_INCLUDE_DIRS ${LIBDRM_ROCKCHIP_INCLUDE_DIR};${LIBDRM_XF86DRM_INCLUDE_DIR};${LIBDRM_INCLUDE_DIR})
         set(LIBDRM_CFLAGS "-DHAS_LIBDRM -DHAS_LIBDRM_ROCKCHIP")
     else()
         set(LIBDRM_LIBRARIES    ${LIBDRM_LIBRARY})

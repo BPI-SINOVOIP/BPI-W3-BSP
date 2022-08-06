@@ -13,6 +13,7 @@
 #include "isp_params_v2x.h"
 #include "isp_params_v21.h"
 #include "isp_params_v3x.h"
+#include "isp_params_v32.h"
 
 #define PARAMS_NAME DRIVER_NAME "-input-params"
 #define RKISP_ISP_PARAMS_REQ_BUFS_MIN	2
@@ -60,7 +61,7 @@ static int rkisp_params_querycap(struct file *file,
 		 params_vdev->dev->isp_ver >> 4);
 	strlcpy(cap->card, vdev->name, sizeof(cap->card));
 	strlcpy(cap->bus_info, "platform: " DRIVER_NAME, sizeof(cap->bus_info));
-
+	cap->version = RKISP_DRIVER_VERSION;
 	return 0;
 }
 
@@ -146,6 +147,7 @@ static void rkisp_params_vb2_buf_queue(struct vb2_buffer *vb)
 	if (params_vdev->first_params) {
 		first_param = vb2_plane_vaddr(vb, 0);
 		params_vdev->ops->save_first_param(params_vdev, first_param);
+		params_vdev->is_first_cfg = true;
 		vbuf->sequence = cur_frame_id;
 		vb2_buffer_done(&params_buf->vb.vb2_buf, VB2_BUF_STATE_DONE);
 		params_vdev->first_params = false;
@@ -211,7 +213,6 @@ rkisp_params_vb2_start_streaming(struct vb2_queue *queue, unsigned int count)
 	struct rkisp_isp_params_vdev *params_vdev = queue->drv_priv;
 	unsigned long flags;
 
-	params_vdev->is_first_cfg = true;
 	params_vdev->hdrtmo_en = false;
 	params_vdev->afaemode_en = false;
 	params_vdev->cur_buf = NULL;
@@ -297,8 +298,10 @@ static int rkisp_init_params_vdev(struct rkisp_isp_params_vdev *params_vdev)
 		ret = rkisp_init_params_vdev_v21(params_vdev);
 	else if (params_vdev->dev->isp_ver == ISP_V20)
 		ret = rkisp_init_params_vdev_v2x(params_vdev);
-	else
+	else if (params_vdev->dev->isp_ver == ISP_V30)
 		ret = rkisp_init_params_vdev_v3x(params_vdev);
+	else
+		ret = rkisp_init_params_vdev_v32(params_vdev);
 
 	params_vdev->vdev_fmt.fmt.meta.dataformat =
 		V4L2_META_FMT_RK_ISP1_PARAMS;
@@ -316,8 +319,10 @@ static void rkisp_uninit_params_vdev(struct rkisp_isp_params_vdev *params_vdev)
 		rkisp_uninit_params_vdev_v21(params_vdev);
 	else if (params_vdev->dev->isp_ver == ISP_V20)
 		rkisp_uninit_params_vdev_v2x(params_vdev);
-	else
+	else if (params_vdev->dev->isp_ver == ISP_V30)
 		rkisp_uninit_params_vdev_v3x(params_vdev);
+	else
+		rkisp_uninit_params_vdev_v32(params_vdev);
 }
 
 void rkisp_params_cfg(struct rkisp_isp_params_vdev *params_vdev, u32 frame_id)
@@ -377,10 +382,35 @@ void rkisp_params_set_meshbuf_size(struct rkisp_isp_params_vdev *params_vdev,
 		params_vdev->ops->set_meshbuf_size(params_vdev, meshsize);
 }
 
+void rkisp_params_meshbuf_free(struct rkisp_isp_params_vdev *params_vdev, u64 id)
+{
+	if (params_vdev->ops->free_meshbuf)
+		params_vdev->ops->free_meshbuf(params_vdev, id);
+}
+
 void rkisp_params_stream_stop(struct rkisp_isp_params_vdev *params_vdev)
 {
 	if (params_vdev->ops->stream_stop)
 		params_vdev->ops->stream_stop(params_vdev);
+}
+
+bool rkisp_params_check_bigmode(struct rkisp_isp_params_vdev *params_vdev)
+{
+	if (params_vdev->ops->check_bigmode)
+		return params_vdev->ops->check_bigmode(params_vdev);
+
+	return 0;
+}
+
+int rkisp_params_info2ddr_cfg(struct rkisp_isp_params_vdev *params_vdev,
+			       void *arg)
+{
+	int ret = -EINVAL;
+
+	if (params_vdev->ops->info2ddr_cfg)
+		ret = params_vdev->ops->info2ddr_cfg(params_vdev, arg);
+
+	return ret;
 }
 
 int rkisp_register_params_vdev(struct rkisp_isp_params_vdev *params_vdev,

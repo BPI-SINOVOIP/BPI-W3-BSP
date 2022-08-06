@@ -1,11 +1,3 @@
-/*
- * @Author: your name
- * @Date: 2021-03-24 09:55:28
- * @LastEditTime: 2021-03-24 17:24:13
- * @LastEditors: Please set LastEditors
- * @Description: In User Settings Edit
- * @FilePath: \rk_pcba_test\ddr_test.h
- */
 #ifndef __DDR_TEST_H_
 #define __DDR_TEST_H_
 #include "rk_pcba_test_led.h"
@@ -68,7 +60,7 @@
 
 #ifdef PCBA_3588
 //TODO: According to real DDR Capacity to setting
-#define   DDR_CAPACITY 4096
+#define   DDR_CAPACITY 8192
 #endif
 
 void *ddr_test(void *argv);

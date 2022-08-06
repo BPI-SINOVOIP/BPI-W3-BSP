@@ -1,3 +1,9 @@
+################################################################################
+#
+# gstreamer1-rockchip
+#
+################################################################################
+
 GSTREAMER1_ROCKCHIP_SITE = $(TOPDIR)/../external/gstreamer-rockchip
 GSTREAMER1_ROCKCHIP_VERSION = master
 GSTREAMER1_ROCKCHIP_SITE_METHOD = local
@@ -6,14 +12,14 @@ GSTREAMER1_ROCKCHIP_LICENSE_FILES = COPYING
 GSTREAMER1_ROCKCHIP_LICENSE = LGPL-2.1
 GSTREAMER1_ROCKCHIP_DEPENDENCIES = gst1-plugins-base
 
-ifeq ($(BR2_PACKAGE_MPP),y)
-GSTREAMER1_ROCKCHIP_DEPENDENCIES += mpp
+GSTREAMER1_ROCKCHIP_DEPENDENCIES += rockchip-mpp
 GSTREAMER1_ROCKCHIP_CONF_OPTS += -Drockchipmpp=enabled
-endif
 
-ifeq ($(BR2_PACKAGE_LINUX_RGA),y)
-GSTREAMER1_ROCKCHIP_DEPENDENCIES += linux-rga
+ifeq ($(BR2_PREFER_ROCKCHIP_RGA),y)
+GSTREAMER1_ROCKCHIP_DEPENDENCIES += rockchip-rga
 GSTREAMER1_ROCKCHIP_CONF_OPTS += -Drga=enabled
+else
+GSTREAMER1_ROCKCHIP_CONF_OPTS += -Drga=disabled
 endif
 
 ifeq ($(BR2_PACKAGE_XORG7),y)

@@ -1,6 +1,0 @@
-config BR2_PACKAGE_PYTHON_CASTTUBE
-	bool "python-zeroconf"
-	help
-	  YouTube Chromecast API.
-
-	  https://github.com/ur1katz/casttube

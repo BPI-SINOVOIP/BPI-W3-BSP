@@ -1219,6 +1219,15 @@ bool AmergeByPassProcessing
     bool bypass = false;
     float diff = 0.0;
 
+    // get envlv from AecPreRes
+    AmergeGetEnvLv(pAmergeCtx, AecHdrPreResult);
+    pAmergeCtx->CurrData.CtrlData.EnvLv =
+        LIMIT_VALUE(pAmergeCtx->CurrData.CtrlData.EnvLv, ENVLVMAX, ENVLVMIN);
+
+    pAmergeCtx->CurrData.CtrlData.MoveCoef = MOVE_COEF_DEFAULT;
+    pAmergeCtx->CurrData.CtrlData.MoveCoef =
+        LIMIT_VALUE(pAmergeCtx->CurrData.CtrlData.MoveCoef, MOVECOEFMAX, MOVECOEFMIN);
+
     merge_OpModeV21_t ApiMode = MERGE_OPMODE_API_OFF;
     if(CHECK_ISP_HW_V21())
         ApiMode = pAmergeCtx->mergeAttr.attrV21.opMode;
@@ -1243,15 +1252,7 @@ bool AmergeByPassProcessing
             pAmergeCtx->CurrData.HandleData.Merge_v30.MergeMode = pAmergeCtx->FrameNumber - 1;
             LOG1_AMERGE("%s:  Current MergeMode: %d \n", __FUNCTION__, pAmergeCtx->CurrData.HandleData.Merge_v30.MergeMode);
             ByPassThr = pAmergeCtx->Config.Merge_v30.ByPassThr;
-
         }
-
-        //get envlv from AecPreRes
-        AmergeGetEnvLv(pAmergeCtx, AecHdrPreResult);
-        pAmergeCtx->CurrData.CtrlData.EnvLv = LIMIT_VALUE(pAmergeCtx->CurrData.CtrlData.EnvLv, ENVLVMAX, ENVLVMIN);
-
-        pAmergeCtx->CurrData.CtrlData.MoveCoef = MOVE_COEF_DEFAULT;
-        pAmergeCtx->CurrData.CtrlData.MoveCoef = LIMIT_VALUE(pAmergeCtx->CurrData.CtrlData.MoveCoef, MOVECOEFMAX, MOVECOEFMIN);
 
         //use Envlv for now
         diff = pAmergeCtx->PrevData.CtrlData.EnvLv - pAmergeCtx->CurrData.CtrlData.EnvLv;
@@ -1341,9 +1342,9 @@ XCamReturn AmergeInit
         pAmergeCtx->mergeAttr.attrV21.stManual.OECurve.Smooth = 0.4;
         pAmergeCtx->mergeAttr.attrV21.stManual.OECurve.Offset = 210;
         pAmergeCtx->mergeAttr.attrV21.stManual.MDCurve.LM_smooth = 0.4;
-        pAmergeCtx->mergeAttr.attrV21.stManual.MDCurve.LM_offset = 38;
+        pAmergeCtx->mergeAttr.attrV21.stManual.MDCurve.LM_offset = 0.38;
         pAmergeCtx->mergeAttr.attrV21.stManual.MDCurve.MS_smooth = 0.4;
-        pAmergeCtx->mergeAttr.attrV21.stManual.MDCurve.MS_offset = 38;
+        pAmergeCtx->mergeAttr.attrV21.stManual.MDCurve.MS_offset = 0.38;
     }
     else if(CHECK_ISP_HW_V30()) {
         CalibDbV2_merge_V2_t* calibv2_amerge_calib =
@@ -1399,9 +1400,9 @@ XCamReturn AmergeInit
         pAmergeCtx->mergeAttr.attrV30.stManual.LongFrmModeData.OECurve.Smooth = 0.4;
         pAmergeCtx->mergeAttr.attrV30.stManual.LongFrmModeData.OECurve.Offset = 210;
         pAmergeCtx->mergeAttr.attrV30.stManual.LongFrmModeData.MDCurve.LM_smooth = 0.4;
-        pAmergeCtx->mergeAttr.attrV30.stManual.LongFrmModeData.MDCurve.LM_offset = 38;
+        pAmergeCtx->mergeAttr.attrV30.stManual.LongFrmModeData.MDCurve.LM_offset = 0.38;
         pAmergeCtx->mergeAttr.attrV30.stManual.LongFrmModeData.MDCurve.MS_smooth = 0.4;
-        pAmergeCtx->mergeAttr.attrV30.stManual.LongFrmModeData.MDCurve.MS_offset = 38;
+        pAmergeCtx->mergeAttr.attrV30.stManual.LongFrmModeData.MDCurve.MS_offset = 0.38;
 
         pAmergeCtx->mergeAttr.attrV30.stManual.ShortFrmModeData.OECurve.Smooth = 0.4;
         pAmergeCtx->mergeAttr.attrV30.stManual.ShortFrmModeData.OECurve.Offset = 210;
