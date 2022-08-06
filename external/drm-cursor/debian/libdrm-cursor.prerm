@@ -1,0 +1,3 @@
+#!/bin/sh
+
+sed -i "/libdrm-cursor.so/d" /etc/ld.so.preload || true
