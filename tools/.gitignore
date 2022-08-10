@@ -14,8 +14,8 @@
 *.rej
 *~
 *.pyc
-linux/Linux_Pack_Firmware/rockdev/mkupdate.sh
-linux/Linux_Pack_Firmware/rockdev/package-file
+#linux/Linux_Pack_Firmware/rockdev/mkupdate.sh
+#linux/Linux_Pack_Firmware/rockdev/package-file
 windows/RKDevTool/RKDevTool_Release/config.cfg
 windows/RKDevTool/rockdev/mkupdate.bat
 windows/RKDevTool/rockdev/package-file
