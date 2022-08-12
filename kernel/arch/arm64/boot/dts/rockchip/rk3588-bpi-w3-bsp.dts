@@ -10,6 +10,20 @@
 #include "rk3588-linux.dtsi"
 
 / {
-	model = "Rockchip RK3588 EVB4 LP4 V10 Board";
+	model = "Banana Pi BPI-W3 (RK3588) 20220812";
 	compatible = "rockchip,rk3588-bpi-w3-bsp", "rockchip,rk3588";
+};
+
+&sdmmc {
+        max-frequency = <150000000>;
+        /*no-sdio;*/
+        /*no-mmc;*/
+        bus-width = <4>;
+        cap-mmc-highspeed;
+        cap-sd-highspeed;
+        disable-wp;
+        /*sd-uhs-sdr104;*/
+        supports-sd;
+        vqmmc-supply = <&vccio_sd_s0>;
+        status = "okay";
 };
