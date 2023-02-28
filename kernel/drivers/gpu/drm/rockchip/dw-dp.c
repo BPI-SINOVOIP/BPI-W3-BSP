@@ -682,6 +682,15 @@ static int dw_dp_connector_get_modes(struct drm_connector *connector)
 	struct edid *edid;
 	int num_modes = 0;
 
+	if (dp->right && dp->right->next_bridge) {
+		struct drm_bridge *bridge = dp->right->next_bridge;
+
+		if (bridge->ops & DRM_BRIDGE_OP_MODES) {
+			if (!drm_bridge_get_modes(bridge, connector))
+				return 0;
+		}
+	}
+
 	if (dp->next_bridge)
 		num_modes = drm_bridge_get_modes(dp->next_bridge, connector);
 
@@ -1845,6 +1854,26 @@ static void dw_dp_encoder_disable(struct drm_encoder *encoder)
 		s->output_if &= ~(dp->id ? VOP_OUTPUT_IF_DP1 : VOP_OUTPUT_IF_DP0);
 }
 
+static void dw_dp_mode_fixup(struct dw_dp *dp, struct drm_display_mode *adjusted_mode)
+{
+	int min_hbp = 16;
+	int min_hsync = 9;
+
+	if (dp->split_mode) {
+		min_hbp *= 2;
+		min_hsync *= 2;
+	}
+
+	if (adjusted_mode->hsync_end - adjusted_mode->hsync_start < min_hsync) {
+		adjusted_mode->hsync_end = adjusted_mode->hsync_start + min_hsync;
+		dev_warn(dp->dev, "hsync is too narrow, fixup to min hsync:%d\n", min_hsync);
+	}
+	if (adjusted_mode->htotal - adjusted_mode->hsync_end < min_hbp) {
+		adjusted_mode->htotal = adjusted_mode->hsync_end + min_hbp;
+		dev_warn(dp->dev, "hbp is too narrow, fixup to min hbp:%d\n", min_hbp);
+	}
+}
+
 static int dw_dp_encoder_atomic_check(struct drm_encoder *encoder,
 				      struct drm_crtc_state *crtc_state,
 				      struct drm_connector_state *conn_state)
@@ -1882,6 +1911,8 @@ static int dw_dp_encoder_atomic_check(struct drm_encoder *encoder,
 	s->tv_state = &conn_state->tv;
 	s->eotf = HDMI_EOTF_TRADITIONAL_GAMMA_SDR;
 	s->color_space = V4L2_COLORSPACE_DEFAULT;
+
+	dw_dp_mode_fixup(dp, &crtc_state->adjusted_mode);
 
 	return 0;
 }
@@ -2038,18 +2069,14 @@ static int dw_dp_bridge_mode_valid(struct drm_bridge *bridge,
 	    drm_mode_is_420_only(info, &m))
 		return MODE_NO_420;
 
-	if (m.hsync_end - m.hsync_start < 32)
-		return MODE_HSYNC_NARROW;
-
 	if (!dw_dp_bandwidth_ok(dp, &m, min_bpp, link->lanes, link->rate))
 		return MODE_CLOCK_HIGH;
 
 	return MODE_OK;
 }
 
-static void dw_dp_loader_protect(struct drm_encoder *encoder, bool on)
+static void _dw_dp_loader_protect(struct dw_dp *dp, bool on)
 {
-	struct dw_dp *dp = encoder_to_dp(encoder);
 	struct dw_dp_link *link = &dp->link;
 	struct drm_connector *conn = &dp->connector;
 	struct drm_display_info *di = &conn->display_info;
@@ -2098,6 +2125,17 @@ static void dw_dp_loader_protect(struct drm_encoder *encoder, bool on)
 	}
 }
 
+static int dw_dp_loader_protect(struct drm_encoder *encoder, bool on)
+{
+	struct dw_dp *dp = encoder_to_dp(encoder);
+
+	_dw_dp_loader_protect(dp, on);
+	if (dp->right)
+		_dw_dp_loader_protect(dp->right, on);
+
+	return 0;
+}
+
 static int dw_dp_connector_init(struct dw_dp *dp)
 {
 	struct drm_connector *connector = &dp->connector;
@@ -2106,6 +2144,9 @@ static int dw_dp_connector_init(struct dw_dp *dp)
 	int ret;
 
 	connector->polled = DRM_CONNECTOR_POLL_HPD;
+	if (dp->next_bridge && dp->next_bridge->ops & DRM_BRIDGE_OP_DETECT)
+		connector->polled = DRM_CONNECTOR_POLL_CONNECT |
+				    DRM_CONNECTOR_POLL_DISCONNECT;
 	connector->ycbcr_420_allowed = true;
 
 	ret = drm_connector_init(bridge->dev, connector,
@@ -2159,11 +2200,6 @@ static int dw_dp_connector_init(struct dw_dp *dp)
 	dp->color_format_capacity = prop;
 	drm_object_attach_property(&connector->base, prop, 0);
 
-	dp->sub_dev.connector = connector;
-	dp->sub_dev.of_node = dp->dev->of_node;
-	dp->sub_dev.loader_protect = dw_dp_loader_protect;
-	rockchip_drm_register_sub_dev(&dp->sub_dev);
-
 	return 0;
 }
 
@@ -2171,6 +2207,8 @@ static int dw_dp_bridge_attach(struct drm_bridge *bridge,
 			       enum drm_bridge_attach_flags flags)
 {
 	struct dw_dp *dp = bridge_to_dp(bridge);
+	struct drm_connector *connector;
+	bool skip_connector = false;
 	int ret;
 
 	if (!bridge->encoder) {
@@ -2194,14 +2232,36 @@ static int dw_dp_bridge_attach(struct drm_bridge *bridge,
 			return ret;
 		}
 
-		if (!(next_bridge->ops & DRM_BRIDGE_OP_MODES))
-			return 0;
+		skip_connector = !(next_bridge->ops & DRM_BRIDGE_OP_MODES);
 	}
 
 	if (flags & DRM_BRIDGE_ATTACH_NO_CONNECTOR)
 		return 0;
 
-	return dw_dp_connector_init(dp);
+	if (!skip_connector) {
+		ret = dw_dp_connector_init(dp);
+		if (ret) {
+			DRM_DEV_ERROR(dp->dev, "failed to create connector\n");
+			return ret;
+		}
+
+		connector = &dp->connector;
+	} else {
+		struct list_head *connector_list =
+			&bridge->dev->mode_config.connector_list;
+
+		list_for_each_entry(connector, connector_list, head)
+			if (drm_connector_has_possible_encoder(connector,
+							       bridge->encoder))
+				break;
+	}
+
+	dp->sub_dev.connector = connector;
+	dp->sub_dev.of_node = dp->dev->of_node;
+	dp->sub_dev.loader_protect = dw_dp_loader_protect;
+	rockchip_drm_register_sub_dev(&dp->sub_dev);
+
+	return 0;
 }
 
 static void dw_dp_bridge_detach(struct drm_bridge *bridge)

@@ -6,6 +6,7 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/aspm_ext.h>
 #include <linux/errno.h>
@@ -95,7 +96,7 @@ static bool rockchip_pcie_bus_aspm_enable_dev(char *device, struct pci_dev *dev,
 	return true;
 }
 
-bool rockchip_pcie_bus_aspm_enable_rc_ep(struct pci_dev *child, struct pci_dev *parent, bool enable)
+static bool rockchip_pcie_bus_aspm_enable_rc_ep(struct pci_dev *child, struct pci_dev *parent, bool enable)
 {
 	bool ret;
 
@@ -322,6 +323,10 @@ void pcie_aspm_ext_l1ss_enable(struct pci_dev *child, struct pci_dev *parent, bo
 	ret = rockchip_pcie_bus_aspm_enable_rc_ep(child, parent, false);
 
 	if (enable) {
+		/* LRT enable bits loss after wifi off, enable it after power on */
+		if (parent->ltr_path)
+			pcie_capability_set_word(parent, PCI_EXP_DEVCTL2, PCI_EXP_DEVCTL2_LTR_EN);
+
 		/* Enable RC then EP */
 		aspm_calc_l1ss_info(child, parent);
 		rockchip_pcie_bus_l1ss_enable_dev("RC", parent, enable);
@@ -337,3 +342,5 @@ void pcie_aspm_ext_l1ss_enable(struct pci_dev *child, struct pci_dev *parent, bo
 		rockchip_pcie_bus_aspm_enable_rc_ep(child, parent, true);
 }
 EXPORT_SYMBOL(pcie_aspm_ext_l1ss_enable);
+
+MODULE_LICENSE("GPL");

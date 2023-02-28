@@ -97,8 +97,8 @@ static void rk630_phy_t22_get_tx_level_from_efuse(struct phy_device *phydev)
 		nvmem_cell_put(cell);
 		if (!IS_ERR(efuse_buf)) {
 			if (len == 2 && efuse_buf[0] > 0 && efuse_buf[1] > 0) {
-				tx_level_100M = efuse_buf[0];
-				tx_level_10M = efuse_buf[1];
+				tx_level_100M = efuse_buf[1];
+				tx_level_10M = efuse_buf[0];
 			}
 			kfree(efuse_buf);
 		} else {
@@ -207,6 +207,8 @@ static void rk630_phy_t22_config_init(struct phy_device *phydev)
 
 	/* Switch to page 1 */
 	phy_write(phydev, REG_PAGE_SEL, 0x0100);
+	/* Enable offset clock */
+	phy_write(phydev, 0x10, 0xfbfe);
 	/* Disable APS */
 	phy_write(phydev, REG_PAGE1_APS_CTRL, 0x4824);
 	/* Switch to page 2 */
@@ -241,6 +243,8 @@ static void rk630_phy_t22_config_init(struct phy_device *phydev)
 	phy_write(phydev, REG_PAGE_SEL, 0x0800);
 	/* Disable auto-cal */
 	phy_write(phydev, REG_PAGE8_AUTO_CAL, 0x0844);
+	/* Reatart offset calibration */
+	phy_write(phydev, 0x13, 0xc096);
 
 	/* Switch to page 0 */
 	phy_write(phydev, REG_PAGE_SEL, 0x0000);
