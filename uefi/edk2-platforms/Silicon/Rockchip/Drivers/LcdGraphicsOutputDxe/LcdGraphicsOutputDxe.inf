@@ -35,6 +35,7 @@
   ArmLib
   BaseLib
   BaseMemoryLib
+  CacheMaintenanceLib
   DebugLib
   UefiBootServicesTableLib
   UefiDriverEntryPoint

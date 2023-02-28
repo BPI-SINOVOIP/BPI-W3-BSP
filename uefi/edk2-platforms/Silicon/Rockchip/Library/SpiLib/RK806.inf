@@ -30,7 +30,7 @@
   DebugLib
   IoLib
   SpiLib
-  RockchipPlatfromLib
+  RockchipPlatformLib
 
 [Packages]
   MdePkg/MdePkg.dec

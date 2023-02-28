@@ -31,7 +31,7 @@
 [LibraryClasses]
   DebugLib
   IoLib
-  RockchipPlatfromLib
+  RockchipPlatformLib
 
 [BuildOptions]
 

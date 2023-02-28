@@ -2030,8 +2030,8 @@ static BROTLI_NOINLINE BrotliDecoderErrorCode SafeProcessCommands(
 }
 
 BrotliDecoderResult BrotliDecoderDecompress(
-    size_t encoded_size, const uint8_t* encoded_buffer, size_t* decoded_size,
-    uint8_t* decoded_buffer) {
+    size_t encoded_size, const uint8_t encoded_buffer[encoded_size], size_t * decoded_size,
+    uint8_t decoded_buffer[*decoded_size]) {
   BrotliDecoderState s;
   BrotliDecoderResult result;
   size_t total_out = 0;

@@ -40,7 +40,7 @@
   TimerLib
   UefiDriverEntryPoint
   UefiLib
-  RockchipPlatfromLib
+  RockchipPlatformLib
   CruLib
 
 [Protocols]

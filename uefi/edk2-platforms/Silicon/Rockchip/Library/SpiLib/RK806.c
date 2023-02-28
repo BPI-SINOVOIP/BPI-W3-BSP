@@ -1,5 +1,5 @@
 
-#include <Library/RockchipPlatfromLib.h>
+#include <Library/RockchipPlatformLib.h>
 #include "Soc.h"
 #include <Library/DebugLib.h>
 #include <Library/IoLib.h>

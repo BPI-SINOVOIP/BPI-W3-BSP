@@ -84,10 +84,10 @@ DisplaySetFramebuffer (
   )
 {
   // Set the VRAM size.
-  *VramSize = (UINTN)FixedPcdGet64(PcdLcdDdrFrameBufferSize);
+  *VramSize = SIZE_128MB;
 
   // Check if base address is already reserved for the framebuffer.
-  *VramBaseAddress = (EFI_PHYSICAL_ADDRESS)FixedPcdGet64(PcdLcdDdrFrameBufferBase);
+  *VramBaseAddress = (EFI_PHYSICAL_ADDRESS)AllocatePool(SIZE_128MB);
 
   return EFI_SUCCESS;
 }

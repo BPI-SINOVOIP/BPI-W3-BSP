@@ -171,8 +171,9 @@ typedef struct {
 
 typedef struct {
   UINT32                      BaseAddress;
-  VOP2_DATA                   *Data;
   UINT32                      Version;
+  BOOLEAN                     GlobalInit;
+  VOP2_DATA                   *Data;
   VOP2_VP_PLANE_MASK          VpPlaneMask[VOP2_VP_MAX];
 } VOP2;
 

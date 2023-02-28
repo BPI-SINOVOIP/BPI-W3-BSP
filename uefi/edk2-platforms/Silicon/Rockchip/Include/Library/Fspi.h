@@ -71,6 +71,7 @@ struct HAL_FSPI_XMMC_DEV {
 /** XIP may be not accessble, so place it in sram or psram */
 struct HAL_FSPI_HOST {
     struct FSPI_REG *instance;
+    UINT32 *CruBase;
     UINT8 cs; /**< Should be defined by user in each operation */
     UINT8 mode; /**< Should be defined by user, referring to hal_spi_mem.h */
     UINT8 cell; /**< Record DLL cell for PM resume, Set depend on corresponding device */

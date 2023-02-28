@@ -41,5 +41,4 @@
   gArmTokenSpaceGuid.PcdArmPrimaryCoreMask
   gArmTokenSpaceGuid.PcdSystemMemoryBase
   gArmTokenSpaceGuid.PcdSystemMemorySize
-  gRockchipTokenSpaceGuid.PcdLcdDdrFrameBufferSize
-  gRockchipTokenSpaceGuid.PcdLcdDdrFrameBufferBase
+  gRK3588TokenSpaceGuid.PcdTotalMemorySize

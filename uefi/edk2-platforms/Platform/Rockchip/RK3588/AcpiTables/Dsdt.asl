@@ -65,6 +65,14 @@ DefinitionBlock ("Dsdt.aml", "DSDT", 2, "RPIFDN", "RPI", 2)
       }
     }
 
+    include ("Pcie.aslc")
+    include ("Sata.asl")
+    include ("Emmc.asl")
+    include ("Gmac.asl")
+    include ("Gpio.asl")
+    include ("I2c.asl")
     include ("Uart.asl")
+    include ("Spi.asl")
+    include ("Usb2.asl")
   }
 }

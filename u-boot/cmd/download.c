@@ -8,22 +8,21 @@
 #include <command.h>
 #include <console.h>
 
+__weak void do_board_download(void)
+{
+}
+
 static int do_download(cmd_tbl_t *cmdtp, int flag,
 		       int argc, char * const argv[])
 {
 	disable_ctrlc(1);
-#ifdef CONFIG_CMD_ROCKUSB
-	const char *devtype = env_get("devtype");
 
-	/*
-	 * pass partnum ":0" to active 'allow_whole_dev' partition
-	 * search mechanism on multi storage, where there maybe not
-	 * valid partition table.
-	 */
-	if (!strcmp("nvme", devtype))
-		run_command("rockusb 0 ${devtype} ${devnum}:0", 0);
-	else
-		run_command("rockusb 0 ${devtype} ${devnum}", 0);
+	/* Allow board specific download, maybe noreturn */
+	do_board_download();
+
+	/* Generic download */
+#ifdef CONFIG_CMD_ROCKUSB
+	run_command("rockusb 0 $devtype $devnum", 0);
 #endif
 	printf("Enter rockusb failed, fallback to bootrom...\n");
 	flushc();

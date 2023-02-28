@@ -197,6 +197,7 @@ typedef struct {
   CONNECTOR_STATE             ConnectorState;
 
   UINT32                      ModeNumber;
+  INT32                       VpsConfigModeID;
 
   VOID                        *MemoryBase;
   UINT32                      MemorySize;

@@ -113,6 +113,9 @@ int rockchip_get_boot_mode(void)
 		} else if (!strcmp(env_reboot_mode, "fastboot")) {
 			printf("boot mode: fastboot\n");
 			return BOOT_MODE_BOOTLOADER;
+		} else if (!strcmp(env_reboot_mode, "normal")) {
+			printf("boot mode: normal(env)\n");
+			return BOOT_MODE_NORMAL;
 		}
 	}
 
@@ -249,8 +252,8 @@ int setup_boot_mode(void)
 #endif
 	case BOOT_MODE_LOADER:
 		printf("enter Rockusb!\n");
-		env_set("preboot", "setenv preboot; rockusb 0 ${devtype} ${devnum}; rbrom");
-		run_command("rockusb 0 ${devtype} ${devnum}", 0);
+		env_set("preboot", "setenv preboot; download");
+		run_command("download", 0);
 		break;
 	case BOOT_MODE_CHARGING:
 		printf("enter charging!\n");

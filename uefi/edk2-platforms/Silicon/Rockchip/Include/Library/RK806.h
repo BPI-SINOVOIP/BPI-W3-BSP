@@ -6,7 +6,7 @@
 #ifndef __RK_806_H
 #define __RK_806_H
 
-#include <Library/RockchipPlatfromLib.h>
+#include <Library/RockchipPlatformLib.h>
 #include "Soc.h"
 
 /* Not used or exisit register and configure */

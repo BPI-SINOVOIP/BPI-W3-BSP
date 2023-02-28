@@ -29,6 +29,8 @@
   Gtdt.aslc
   Dsdt.asl
   Spcr.aslc
+  Mcfg.aslc
+  RK3588PcieIort.aslc
 
 [Packages]
   ArmPkg/ArmPkg.dec
@@ -36,6 +38,7 @@
   EmbeddedPkg/EmbeddedPkg.dec
   MdeModulePkg/MdeModulePkg.dec
   MdePkg/MdePkg.dec
+  Silicon/Rockchip/RockchipPkg.dec
   Platform/Rockchip/RK3588/RK3588.dec
 
 [FixedPcd]
@@ -46,6 +49,17 @@
   gArmTokenSpaceGuid.PcdGicInterruptInterfaceBase
   gArmTokenSpaceGuid.PcdGicDistributorBase
   gArmTokenSpaceGuid.PcdGicRedistributorsBase
+  gRockchipTokenSpaceGuid.PcdPcieRootPort3x4CfgBaseAddress
+  gRockchipTokenSpaceGuid.PcdPcieRootPort3x4ApbBaseAddress
+  gRockchipTokenSpaceGuid.PcdPcieRootPort3x4DbiBaseAddress
+  gRockchipTokenSpaceGuid.PcdPcieRootPort3x4CfgBaseAddress
+  gRockchipTokenSpaceGuid.PcdPcieRootPort3x4CfgSize
+  gRockchipTokenSpaceGuid.PcdPcieRootPort3x4IoBaseAddress
+  gRockchipTokenSpaceGuid.PcdPcieRootPort3x4IoSize
+  gRockchipTokenSpaceGuid.PcdPcieRootPort3x4MemBaseAddress
+  gRockchipTokenSpaceGuid.PcdPcieRootPort3x4MemSize
+  gRockchipTokenSpaceGuid.PcdPcieRootPort3x4MemBaseAddress64
+  gRockchipTokenSpaceGuid.PcdPcieRootPort3x4MemSize64
 
 #[BuildOptions]
   #GCC:*_*_*_ASL_FLAGS       = -vw3133 -vw3150

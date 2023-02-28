@@ -29,7 +29,7 @@
   UefiLib
   UefiDriverEntryPoint
   UefiBootServicesTableLib
-  RockchipPlatfromLib
+  RockchipPlatformLib
   TimerLib
 
 [Protocols]

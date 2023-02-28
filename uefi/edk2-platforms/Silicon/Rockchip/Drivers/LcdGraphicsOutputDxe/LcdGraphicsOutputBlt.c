@@ -9,6 +9,7 @@
 
 #include <PiDxe.h>
 #include <Library/BaseMemoryLib.h>
+#include <Library/CacheMaintenanceLib.h>
 #include <Library/DevicePathLib.h>
 #include <Library/UefiBootServicesTableLib.h>
 #include <Library/UefiRuntimeServicesTableLib.h>
@@ -937,6 +938,8 @@ LcdGraphicsBlt (
     Status = EFI_INVALID_PARAMETER;
     break;
   }
+
+  WriteBackDataCacheRange ((void*)(Instance->Mode.FrameBufferBase), Instance->Mode.FrameBufferSize);
 
 EXIT:
   return Status;

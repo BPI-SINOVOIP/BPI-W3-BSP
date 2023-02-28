@@ -24,7 +24,7 @@
 #include <Library/UefiLib.h>
 
 #include <Protocol/MmcHost.h>
-#include <Library/RockchipPlatfromLib.h>
+#include <Library/RockchipPlatformLib.h>
 #include "Include/Library/CruLib.h"
 #include "Soc.h"
 #include "DwEmmc.h"

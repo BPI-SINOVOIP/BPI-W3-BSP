@@ -39,7 +39,7 @@
   TimerLib
   DxeServicesTableLib
   FspiLib
-  RockchipPlatfromLib
+  RockchipPlatformLib
 
   HobLib
   UefiRuntimeLib
@@ -55,6 +55,7 @@
 
 [Pcd]
   gRockchipTokenSpaceGuid.FspiBaseAddr
+  gRockchipTokenSpaceGuid.CruBaseAddr
 
 [Depex]
  TRUE

@@ -62,6 +62,7 @@ struct rockchip_image {
 #define PART_SYSTEM			"system"
 #define PART_METADATA			"metadata"
 #define PART_USERDATA			"userdata"
+#define PART_META			"meta"
 
 struct blk_desc *rockchip_get_bootdev(void);
 void rockchip_set_bootdev(struct blk_desc *desc);
@@ -72,6 +73,7 @@ int rockchip_read_dtb_file(void *fdt_addr);
 int rockchip_ram_read_dtb_file(void *img, void *fdt_addr);
 int init_kernel_dtb(void);
 int fit_write_trusty_rollback_index(u32 trusty_index);
+int arch_fpga_init(void);
 
 #ifndef CONFIG_SPL_BUILD
 int rockchip_get_boot_mode(void);

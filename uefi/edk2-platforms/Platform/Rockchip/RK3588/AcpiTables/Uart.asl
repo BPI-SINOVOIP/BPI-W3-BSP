@@ -26,6 +26,7 @@
       Package () {
         Package () { "reg-shift", 2 },
         Package () { "reg-io-width", 4 },
+        Package () { "clock-frequency", 24000000 },
       }
     })
 

@@ -352,6 +352,8 @@ DisplayPreInit (
 
   LIST_FOR_EACH_ENTRY(StateInterate, &mDisplayStateList, ListHead) {
     if (StateInterate->IsEnable) {
+      CRTC_STATE *CrtcState = &StateInterate->CrtcState;
+      CONNECTOR_STATE *ConnectorState = &StateInterate->ConnectorState;
       Crtc = (ROCKCHIP_CRTC_PROTOCOL*)StateInterate->CrtcState.Crtc;
       Connector = (ROCKCHIP_CONNECTOR_PROTOCOL *)StateInterate->ConnectorState.Connector;
 
@@ -360,6 +362,8 @@ DisplayPreInit (
 
       if (Connector && Connector->Preinit)
         Status = Connector->Preinit(Connector, StateInterate);
+
+      Crtc->Vps[CrtcState->CrtcID].OutputType = ConnectorState->Type;
 
       if (Crtc && Crtc->Preinit) {
         Status = Crtc->Preinit(Crtc, StateInterate);
@@ -415,11 +419,12 @@ LcdGraphicsOutputDxeInitialize (
   for (i = 0; i < mMaxMode; i++) {
     Mode = &mDisplayModes[i];
 
-    DisplayState = AllocatePool (sizeof(DISPLAY_STATE));
+    DisplayState = AllocateZeroPool (sizeof(DISPLAY_STATE));
     InitializeListHead (&DisplayState->ListHead);
 
     /* adapt to UEFI architecture */
     DisplayState->ModeNumber = i;
+    DisplayState->VpsConfigModeID = Mode->VpsConfigModeID;
 
     Status = gBS->LocateProtocol (&gRockchipCrtcProtocolGuid, NULL,
                                   (VOID **) &DisplayState->CrtcState.Crtc);
@@ -427,13 +432,6 @@ LcdGraphicsOutputDxeInitialize (
       DEBUG ((DEBUG_ERROR, "Can not locate the RockchipCrtcProtocol. Exit Status=%r\n", Status));
       return EFI_INVALID_PARAMETER;
     }
-    Crtc = (ROCKCHIP_CRTC_PROTOCOL*)DisplayState->CrtcState.Crtc;
-    Crtc->Vps = Crtc->GetVps (Crtc, Mode->VpsConfigModeID);
-    if (!Crtc->Vps) {
-      DEBUG ((DEBUG_ERROR, "Can not get vps config. Exit Status=%r\n", EFI_INVALID_PARAMETER));
-      return EFI_INVALID_PARAMETER;
-    }
-
     DisplayState->CrtcState.CrtcID = Mode->CrtcId;
 
     Status = gBS->LocateProtocol (&gRockchipConnectorProtocolGuid, NULL,
@@ -456,10 +454,13 @@ LcdGraphicsOutputDxeInitialize (
     /* add BCSH data if needed --- todo */
     DisplayState->ConnectorState.DispInfo = NULL;
 
-    if (Mode->Horizontal.Resolution == HorizontalResolution && Mode->Vertical.Resolution == VerticalResolution)
+    if (Mode->Horizontal.Resolution == HorizontalResolution && Mode->Vertical.Resolution == VerticalResolution) {
+      Crtc = (ROCKCHIP_CRTC_PROTOCOL*)DisplayState->CrtcState.Crtc;
+      Crtc->Vps[Mode->CrtcId].Enable = TRUE;
       DisplayState->IsEnable = TRUE;
-    else
+    } else {
       DisplayState->IsEnable = FALSE;
+    }
 
     InsertTailList (&mDisplayStateList, &DisplayState->ListHead);
   }

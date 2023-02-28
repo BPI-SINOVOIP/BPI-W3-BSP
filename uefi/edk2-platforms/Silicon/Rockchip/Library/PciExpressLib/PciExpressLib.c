@@ -149,7 +149,7 @@ STATIC VOID rk_pcie_writel_ob_unroll(UINT32 index,
 				     UINT32 reg, UINT32 val)
 {
 	UINT32 offset = PCIE_GET_ATU_OUTB_UNR_REG_OFFSET(index);
-	UINTN base = PcdGet64 (PcdPcieRootPortDbiBaseAddress);
+	UINTN base = PcdGet64 (PcdPcieRootPort3x4DbiBaseAddress);
 
 	MmioWrite32(base + offset + reg, val);
 }
@@ -157,7 +157,7 @@ STATIC VOID rk_pcie_writel_ob_unroll(UINT32 index,
 STATIC UINT32 rk_pcie_readl_ob_unroll(UINT32 index, UINT32 reg)
 {
 	UINT32 offset = PCIE_GET_ATU_OUTB_UNR_REG_OFFSET(index);
-	UINTN base = PcdGet64 (PcdPcieRootPortDbiBaseAddress);
+	UINTN base = PcdGet64 (PcdPcieRootPort3x4DbiBaseAddress);
 
 	return MmioRead32(base + offset + reg);
 }
@@ -208,18 +208,18 @@ STATIC UINTN set_cfg_address(UINTN Address)
 	DEBUG((EFI_D_INFO, "set_cfg_address: bus %d, dev %d, func %d, reg 0x%x\n", bus, dev, func, reg));
 	
 	rk_pcie_prog_outbound_atu_unroll(PCIE_ATU_REGION_INDEX0, PCIE_ATU_TYPE_MEM,
-		PcdGet32(PcdPcieRootPortMemBaseAddress), PcdGet32(PcdPcieRootPortMemBaseAddress), PcdGet32(PcdPcieRootPortMemSize));
+		PcdGet32(PcdPcieRootPort3x4MemBaseAddress), PcdGet32(PcdPcieRootPort3x4MemBaseAddress), PcdGet32(PcdPcieRootPort3x4MemSize));
 	
 			//rk_pcie_prog_outbound_atu_unroll(PCIE_ATU_REGION_INDEX0, PCIE_ATU_TYPE_MEM, 0xf0200000,0xf0210000, 0x4000);
 	       	//rk_pcie_prog_outbound_atu_unroll(PCIE_ATU_REGION_INDEX2, PCIE_ATU_TYPE_MEM, 0xf0200000,0xf0200000, 0x100000);
 	rk_pcie_prog_outbound_atu_unroll(PCIE_ATU_REGION_INDEX2, PCIE_ATU_TYPE_IO,
-		PcdGet32(PcdPcieRootPortIoBaseAddress), PcdGet32(PcdPcieRootPortIoBaseAddress), PcdGet32(PcdPcieRootPortIoSize));
+		PcdGet32(PcdPcieRootPort3x4IoBaseAddress), 0x0, PcdGet32(PcdPcieRootPort3x4IoSize));
 	rk_pcie_prog_outbound_atu_unroll(PCIE_ATU_REGION_INDEX3, PCIE_ATU_TYPE_MEM,
-		PcdGet64(PcdPcieRootPortMemBaseAddress64), PcdGet64(PcdPcieRootPortMemBaseAddress64), PcdGet64(PcdPcieRootPortMemSize64));
+		PcdGet64(PcdPcieRootPort3x4MemBaseAddress64), PcdGet64(PcdPcieRootPort3x4MemBaseAddress64), PcdGet64(PcdPcieRootPort3x4MemSize64));
 
 	/* Use dbi_base for own configuration read and write */
 	if (!bus) {
-		va_address = PcdGet64 (PcdPcieRootPortDbiBaseAddress);
+		va_address = PcdGet64 (PcdPcieRootPort3x4DbiBaseAddress);
 		goto out;
 	}
  
@@ -234,7 +234,7 @@ STATIC UINTN set_cfg_address(UINTN Address)
 		atu_type = PCIE_ATU_TYPE_CFG1;
 
 	d = bus << 16 | dev << 8 | func;
-	va_address = PcdGet64 (PcdPcieRootPortCfgBaseAddress);
+	va_address = PcdGet64 (PcdPcieRootPort3x4CfgBaseAddress);
 	rk_pcie_prog_outbound_atu_unroll(PCIE_ATU_REGION_INDEX1, atu_type, va_address, d << 8, 0x100000);
 
 out:

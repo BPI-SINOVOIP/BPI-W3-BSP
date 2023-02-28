@@ -18,7 +18,7 @@
 #include <Library/MemoryAllocationLib.h>
 #include <stdio.h>
 #include <Library/PcdLib.h>
-#include <Library/RockchipPlatfromLib.h>
+#include <Library/RockchipPlatformLib.h>
 
 extern VOID PcieRegWrite(UINT32 Port, UINTN Offset, UINT32 Value);
 extern EFI_STATUS PciePortReset(UINT32 HostBridgeNum, UINT32 Port);
@@ -155,9 +155,6 @@ static void rk_pcie_setup_host(struct rk_pcie *rk_pcie)
 
 	/* program correct class for RC */
 	MmioWrite16(rk_pcie->dbi_base + PCI_CLASS_DEVICE, PCI_CLASS_BRIDGE_PCI);
-
-	//test hACK
-	MmioWrite16(rk_pcie->dbi_base + PCI_CLASS_DEVICE, 0x0600);
 
 	/* Better disable write permission right after the update */
 	val = MmioRead32(rk_pcie->dbi_base + PCIE_LINK_WIDTH_SPEED_CONTROL);
@@ -384,9 +381,9 @@ PcieInitEntry (
 	/* 先调试3L4，配置Gen 3 */
 	priv->gen = 3;
 	priv->lane = 4;
-	priv->dbi_base = PcdGet64(PcdPcieRootPortDbiBaseAddress);
-	priv->apb_base = PcdGet64(PcdPcieRootPortApbBaseAddress);
-	priv->cfg_base = PcdGet64(PcdPcieRootPortCfgBaseAddress);
+	priv->dbi_base = PcdGet64(PcdPcieRootPort3x4DbiBaseAddress);
+	priv->apb_base = PcdGet64(PcdPcieRootPort3x4ApbBaseAddress);
+	priv->cfg_base = PcdGet64(PcdPcieRootPort3x4CfgBaseAddress);
 
 	DEBUG((EFI_D_ERROR, "dbi_base = 0x%lx   apb_base = 0x%lx  cfg_base = 0x%lx\n",
 		priv->dbi_base, priv->apb_base, priv->cfg_base));	

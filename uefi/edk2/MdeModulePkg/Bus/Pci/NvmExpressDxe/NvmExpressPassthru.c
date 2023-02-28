@@ -516,9 +516,15 @@ NvmExpressPassThru (
   Private     = NVME_CONTROLLER_PRIVATE_DATA_FROM_PASS_THRU (This);
 
   //hack all cache problem
-  WriteBackDataCacheRange (Sq, sizeof(NVME_SQ));
+  //WriteBackDataCacheRange (Sq, sizeof(NVME_SQ));
   WriteBackDataCacheRange (Packet, sizeof(EFI_NVM_EXPRESS_PASS_THRU_COMMAND_PACKET));
   WriteBackDataCacheRange (Private, sizeof(NVME_CONTROLLER_PRIVATE_DATA));
+
+  if (Packet->NvmeCmd->Cdw0.Opcode == NVME_IO_WRITE_OPC)
+	  WriteBackDataCacheRange (Packet->TransferBuffer, Packet->TransferLength);
+  else
+	  InvalidateDataCacheRange(Packet->TransferBuffer, Packet->TransferLength);
+  //WriteBackDataCacheRange (Packet->NvmeCmd, sizeof(EFI_NVM_EXPRESS_COMMAND));
   //
   // Check NamespaceId is valid or not.
   //

@@ -184,6 +184,16 @@ READ_LOCK_STATUS   = TRUE
   INF Silicon/Rockchip/Drivers/OhciDxe/OhciDxe.inf
 
   #
+  # USB Dwc3 Controller
+  #
+  INF Silicon/Rockchip/Drivers/UsbDwc3InitDxe/UsbDwc3.inf
+
+  #
+  # USB Xhci Controller
+  #
+  INF Silicon/Rockchip/Drivers/XhciDxe/XhciDxe.inf
+
+  #
   # USB Host Support
   #
   INF MdeModulePkg/Bus/Usb/UsbBusDxe/UsbBusDxe.inf
@@ -218,7 +228,7 @@ READ_LOCK_STATUS   = TRUE
   #
   INF EmbeddedPkg/Application/AndroidFastboot/AndroidFastbootApp.inf
 
-  !ifdef $(ROCKCHIP_PCIE30)
+!ifdef $(ROCKCHIP_PCIE30)
 
   #PCIe
   INF Silicon/Rockchip/Drivers/PciPlatform/PcieInitDxe.inf
@@ -232,12 +242,12 @@ READ_LOCK_STATUS   = TRUE
   INF MdeModulePkg/Bus/Pci/NvmExpressDxe/NvmExpressDxe.inf
   #INF MdeModulePkg/Bus/Pci/NvmExpressPei/NvmExpressPei.inf
 
-   #INF MdeModulePkg/Bus/Pci/EhciDxe/EhciDxe.inf
+  #INF MdeModulePkg/Bus/Pci/EhciDxe/EhciDxe.inf
   #INF MdeModulePkg/Bus/Usb/UsbKbDxe/UsbKbDxe.inf
   # INF MdeModulePkg/Bus/Pci/EhciDxe/XhciDxe.inf
-    INF MdeModulePkg/Bus/Pci/NonDiscoverablePciDeviceDxe/NonDiscoverablePciDeviceDxe.inf
-     INF MdeModulePkg/Bus/Pci/SataControllerDxe/SataControllerDxe.inf
-     INF MdeModulePkg/Bus/Ata/AtaAtapiPassThru/AtaAtapiPassThru.inf
+  INF MdeModulePkg/Bus/Pci/NonDiscoverablePciDeviceDxe/NonDiscoverablePciDeviceDxe.inf
+  INF MdeModulePkg/Bus/Pci/SataControllerDxe/SataControllerDxe.inf
+  INF MdeModulePkg/Bus/Ata/AtaAtapiPassThru/AtaAtapiPassThru.inf
 !endif
   #
   # Android Boot applications
@@ -269,6 +279,13 @@ READ_LOCK_STATUS   = TRUE
   INF Silicon/Rockchip/Drivers/MmcDxe/MmcDxe.inf
   #INF Silicon/Rockchip/Drivers/DwEmmcDxe/DwEmmcDxe.inf
   INF Silicon/Rockchip/Drivers/SdhciHostDxe/SdhciHostDxe.inf
+
+  #
+  # AHCI Support
+  #
+  INF Silicon/Rockchip/Drivers/SataControllerDxe/SataControllerDxe.inf
+  INF Silicon/Rockchip/Drivers/AtaAtapiPassThru/AtaAtapiPassThru.inf
+  INF MdeModulePkg/Bus/Ata/AtaBusDxe/AtaBusDxe.inf
 
   #
   # SPI NOR FLASH

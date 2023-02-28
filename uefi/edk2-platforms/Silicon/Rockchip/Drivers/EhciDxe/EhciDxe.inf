@@ -69,7 +69,7 @@
   DebugLib
   PcdLib
   ReportStatusCodeLib
-  RockchipPlatfromLib
+  RockchipPlatformLib
   DmaLib
 
   DxeServicesTableLib

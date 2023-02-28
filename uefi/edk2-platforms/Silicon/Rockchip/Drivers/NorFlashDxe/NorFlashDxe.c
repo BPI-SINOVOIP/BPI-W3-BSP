@@ -15,7 +15,7 @@
 #include <Protocol/NorFlashProtocol.h>
 #include <Library/UefiBootServicesTableLib.h>
 #include <Library/DxeServicesTableLib.h>
-#include <Library/RockchipPlatfromLib.h>
+#include <Library/RockchipPlatformLib.h>
 #include <Library/MemoryAllocationLib.h>
 #include <Library/UefiLib.h>
 #include <Uefi/UefiBaseType.h>
@@ -903,6 +903,9 @@ EFI_STATUS Erase(
   EFI_STATUS Status;
   UINTN EraseSize;
 
+  if (EfiAtRuntime ())
+    NorFspiEnableClock(g_nor->spi->CruBase);
+
   EraseSize = g_nor->sectorSize;
 
   // Check input parameters
@@ -938,6 +941,10 @@ EFI_STATUS  Write(
   )
 {
   EFI_STATUS Status = EFI_SUCCESS;
+
+  if (EfiAtRuntime ())
+    NorFspiEnableClock(g_nor->spi->CruBase);
+
   //DEBUG ((EFI_D_ERROR, "[%a]:[%dL]: %x!......................\n", __FUNCTION__,__LINE__,Offset));
   Status = HAL_SNOR_ProgData(g_nor, Offset, Buffer, ulLen);
   if (EFI_ERROR (Status)) {
@@ -954,6 +961,10 @@ EFI_STATUS Read(
   )
 {
   EFI_STATUS Status = EFI_SUCCESS;
+
+  if (EfiAtRuntime ())
+    NorFspiEnableClock(g_nor->spi->CruBase);
+
   //DEBUG ((EFI_D_ERROR, "[%a]:[%dL]: %x!......................\n", __FUNCTION__,__LINE__,Offset));
   Status = HAL_SNOR_ReadData(g_nor, Offset, Buffer, ulLen);
   return Status;
@@ -972,6 +983,9 @@ SpiFlashUpdateBlock (
 {
 
   EFI_STATUS Status;
+
+  if (EfiAtRuntime ())
+    NorFspiEnableClock(g_nor->spi->CruBase);
 
   // Read backup
   if (ToUpdate != EraseSize) {
@@ -1133,6 +1147,7 @@ NorVirtualNotifyEvent (
 {
   // Convert SPI device description
   EfiConvertPointer (0, (VOID**)&g_nor->spi->instance);
+  EfiConvertPointer (0, (VOID**)&g_nor->spi->CruBase);
   EfiConvertPointer (0, (VOID**)&g_nor->spi);
   EfiConvertPointer (0, (VOID**)&g_nor->info);
   EfiConvertPointer (0, (VOID**)&g_nor);
@@ -1156,6 +1171,7 @@ EFIAPI InitializeFlash (
   }
 
   g_spi->instance = (struct FSPI_REG *)FixedPcdGet32(FspiBaseAddr);
+  g_spi->CruBase = (UINT32 *)FixedPcdGet32(CruBaseAddr);
 
   NorFspiIomux();
   HAL_FSPI_Init(g_spi);

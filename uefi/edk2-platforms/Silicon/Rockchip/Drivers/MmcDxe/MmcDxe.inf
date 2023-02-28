@@ -35,7 +35,7 @@
   UefiLib
   UefiDriverEntryPoint
   BaseMemoryLib
-  RockchipPlatfromLib
+  RockchipPlatformLib
 
 [Protocols]
   gEfiDiskIoProtocolGuid

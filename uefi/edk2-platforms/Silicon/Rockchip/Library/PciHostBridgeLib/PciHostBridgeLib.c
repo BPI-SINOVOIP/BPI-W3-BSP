@@ -71,17 +71,17 @@ STATIC PCI_ROOT_BRIDGE mPciRootBridge[] = {
       0xf
     }, {
       // Io disable
-      0x0,//FixedPcdGet32 (PcdPcieRootPortIoBaseAddress),
-      0x10000 - 1,//FixedPcdGet32 (PcdPcieRootPortIoBaseAddress) + FixedPcdGet32 (PcdPcieRootPortIoSize) - 1,  
+      0x0,//FixedPcdGet32 (PcdPcieRootPort3x4IoBaseAddress),
+      0x10000 - 1,//FixedPcdGet32 (PcdPcieRootPort3x4IoBaseAddress) + FixedPcdGet32 (PcdPcieRootPort3x4IoSize) - 1,
       MAX_UINT64 - 0xffff0000 + 1
     }, {
       // Mem
-      FixedPcdGet32 (PcdPcieRootPortMemBaseAddress),
-      FixedPcdGet32 (PcdPcieRootPortMemBaseAddress) + FixedPcdGet32 (PcdPcieRootPortMemSize) - 1
+      FixedPcdGet32 (PcdPcieRootPort3x4MemBaseAddress),
+      FixedPcdGet32 (PcdPcieRootPort3x4MemBaseAddress) + FixedPcdGet32 (PcdPcieRootPort3x4MemSize) - 1
     }, {
       // MemAbove4G
-	 FixedPcdGet64 (PcdPcieRootPortMemBaseAddress64),
-	 FixedPcdGet64 (PcdPcieRootPortMemBaseAddress64) + FixedPcdGet64 (PcdPcieRootPortMemSize64) - 1
+	 FixedPcdGet64 (PcdPcieRootPort3x4MemBaseAddress64),
+	 FixedPcdGet64 (PcdPcieRootPort3x4MemBaseAddress64) + FixedPcdGet64 (PcdPcieRootPort3x4MemSize64) - 1
 
     }, {
       // PMem

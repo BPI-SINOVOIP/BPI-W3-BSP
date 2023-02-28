@@ -65,16 +65,16 @@
   gRockchipTokenSpaceGuid.PcdAlgSmmuBaseAddress|0|UINT64|0x00000048
   gRockchipTokenSpaceGuid.PcdM3SmmuBaseAddress|0|UINT64|0x00000049
 
-  gRockchipTokenSpaceGuid.PcdPcieRootPortApbBaseAddress|0|UINT64|0x10000050
-  gRockchipTokenSpaceGuid.PcdPcieRootPortDbiBaseAddress|0|UINT64|0x10000051
-  gRockchipTokenSpaceGuid.PcdPcieRootPortCfgBaseAddress|0|UINT64|0x10000052
-  gRockchipTokenSpaceGuid.PcdPcieRootPortCfgSize|0|UINT64|0x10000053
-  gRockchipTokenSpaceGuid.PcdPcieRootPortIoBaseAddress|0|UINT32|0x10000054
-  gRockchipTokenSpaceGuid.PcdPcieRootPortIoSize|0|UINT32|0x10000055
-  gRockchipTokenSpaceGuid.PcdPcieRootPortMemBaseAddress|0|UINT32|0x10000056
-  gRockchipTokenSpaceGuid.PcdPcieRootPortMemSize|0|UINT32|0x10000057
-  gRockchipTokenSpaceGuid.PcdPcieRootPortMemBaseAddress64|0|UINT64|0x10000058
-  gRockchipTokenSpaceGuid.PcdPcieRootPortMemSize64|0|UINT64|0x10000059
+  gRockchipTokenSpaceGuid.PcdPcieRootPort3x4ApbBaseAddress|0|UINT64|0x10000050
+  gRockchipTokenSpaceGuid.PcdPcieRootPort3x4DbiBaseAddress|0|UINT64|0x10000051
+  gRockchipTokenSpaceGuid.PcdPcieRootPort3x4CfgBaseAddress|0|UINT64|0x10000052
+  gRockchipTokenSpaceGuid.PcdPcieRootPort3x4CfgSize|0|UINT64|0x10000053
+  gRockchipTokenSpaceGuid.PcdPcieRootPort3x4IoBaseAddress|0|UINT32|0x10000054
+  gRockchipTokenSpaceGuid.PcdPcieRootPort3x4IoSize|0|UINT32|0x10000055
+  gRockchipTokenSpaceGuid.PcdPcieRootPort3x4MemBaseAddress|0|UINT32|0x10000056
+  gRockchipTokenSpaceGuid.PcdPcieRootPort3x4MemSize|0|UINT32|0x10000057
+  gRockchipTokenSpaceGuid.PcdPcieRootPort3x4MemBaseAddress64|0|UINT64|0x10000058
+  gRockchipTokenSpaceGuid.PcdPcieRootPort3x4MemSize64|0|UINT64|0x10000059
 
   gRockchipTokenSpaceGuid.PcdSysControlBaseAddress|0|UINT64|0x01000023
   gRockchipTokenSpaceGuid.PcdCpldBaseAddress|0|UINT64|0x01000024
@@ -303,17 +303,25 @@
   gRockchipTokenSpaceGuid.PcdOhciBaseAddress|0|UINT32|0x50000063
   gRockchipTokenSpaceGuid.PcdNumOhciController|0|UINT32|0x50000064
   gRockchipTokenSpaceGuid.PcdOhciSize|0|UINT32|0x50000065
+
+  gRockchipTokenSpaceGuid.PcdXhciBaseAddress|0|UINT32|0x50000066
+  gRockchipTokenSpaceGuid.PcdNumXhciController|0|UINT32|0x50000067
+  gRockchipTokenSpaceGuid.PcdXhciSize|0|UINT32|0x50000068
+  gRockchipTokenSpaceGuid.PcdDwc3BaseAddress|0|UINT32|0x50000069
+  gRockchipTokenSpaceGuid.PcdNumDwc3Controller|0|UINT32|0x50000070
+  gRockchipTokenSpaceGuid.PcdDwc3Size|0|UINT32|0x50000071
+
   gRockchipTokenSpaceGuid.FspiBaseAddr|0|UINT64|0x21200003
   gRockchipTokenSpaceGuid.PcdSpiVariableOffset|0|UINT32|0x21200004
+  gRockchipTokenSpaceGuid.CruBaseAddr|0|UINT64|0x21200008
 
   gRockchipTokenSpaceGuid.PcdNvStorageVariableBase|0|UINT32|0x21200005
   gRockchipTokenSpaceGuid.PcdNvStorageFtwWorkingBase|0|UINT32|0x21200006
   gRockchipTokenSpaceGuid.PcdNvStorageFtwSpareBase|0|UINT32|0x21200007
 
   gRockchipTokenSpaceGuid.PcdLcdPixelFormat|0|UINT32|0x32000001
-  gRockchipTokenSpaceGuid.PcdLcdDdrFrameBufferSize|0|UINT64|0x32000002
-  gRockchipTokenSpaceGuid.PcdLcdDdrFrameBufferBase|0|UINT64|0x32000003
-
+  gRockchipTokenSpaceGuid.PcdComboPhyMode|{ 0x0 }|VOID*|0x32000002
+  
 [PcdsFeatureFlag]
   gRockchipTokenSpaceGuid.PcdIsItsSupported|FALSE|BOOLEAN|0x00000065
 

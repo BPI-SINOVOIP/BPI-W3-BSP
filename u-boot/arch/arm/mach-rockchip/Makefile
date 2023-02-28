@@ -20,6 +20,7 @@ ifndef CONFIG_TPL_BUILD
 obj-$(CONFIG_$(SPL_)FIT) += fit_misc.o
 ifdef CONFIG_SPL_BUILD
 obj-y += spl_boot_mode.o
+obj-$(CONFIG_ROCKCHIP_META) += rk_meta.o
 endif
 endif
 
@@ -38,7 +39,7 @@ obj-y += boot_rkimg.o
 obj-y += board.o
 obj-y += iomem.o
 obj-y += memblk.o
-obj-y += hotkey.o
+obj-$(CONFIG_ROCKCHIP_HOTKEY) += hotkey.o
 else
 obj-y += usbplug.o
 endif
@@ -51,9 +52,9 @@ obj-$(CONFIG_ROCKCHIP_VENDOR_PARTITION) += vendor.o vendor_misc.o
 obj-$(CONFIG_ROCKCHIP_RESOURCE_IMAGE) += resource_img.o resource_logo.o
 obj-$(CONFIG_ROCKCHIP_HWID_DTB) += resource_hwid.o
 obj-$(CONFIG_ROCKCHIP_DEBUGGER) += rockchip_debugger.o
-obj-$(CONFIG_FPGA_ROCKCHIP) += fpga.o
 endif
 
+obj-$(CONFIG_FPGA_ROCKCHIP) += fpga.o
 obj-$(CONFIG_RAM) += param.o
 obj-$(CONFIG_$(SPL_TPL_)RAM) += sdram.o
 obj-$(CONFIG_SPL_KERNEL_BOOT) += spl_resource_img.o
@@ -87,3 +88,4 @@ obj-$(CONFIG_TPL_BUILD) += $(obj-tpl-y)
 
 obj-$(CONFIG_ROCKCHIP_PRELOADER_ATAGS) += rk_atags.o
 obj-$(CONFIG_SET_DFU_ALT_INFO) += dfu_alt_info.o
+obj-$(CONFIG_PSTORE) += pstore.o

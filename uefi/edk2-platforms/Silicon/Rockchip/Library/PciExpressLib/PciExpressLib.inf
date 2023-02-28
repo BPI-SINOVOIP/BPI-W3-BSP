@@ -26,14 +26,14 @@
   Silicon/Rockchip/RockchipPkg.dec
 
 [FixedPcd]
-  gRockchipTokenSpaceGuid.PcdPcieRootPortDbiBaseAddress
-  gRockchipTokenSpaceGuid.PcdPcieRootPortCfgBaseAddress
-  gRockchipTokenSpaceGuid.PcdPcieRootPortMemSize
-  gRockchipTokenSpaceGuid.PcdPcieRootPortMemBaseAddress
-  gRockchipTokenSpaceGuid.PcdPcieRootPortMemBaseAddress64
-  gRockchipTokenSpaceGuid.PcdPcieRootPortMemSize64
-  gRockchipTokenSpaceGuid.PcdPcieRootPortIoSize
-  gRockchipTokenSpaceGuid.PcdPcieRootPortIoBaseAddress
+  gRockchipTokenSpaceGuid.PcdPcieRootPort3x4DbiBaseAddress
+  gRockchipTokenSpaceGuid.PcdPcieRootPort3x4CfgBaseAddress
+  gRockchipTokenSpaceGuid.PcdPcieRootPort3x4MemSize
+  gRockchipTokenSpaceGuid.PcdPcieRootPort3x4MemBaseAddress
+  gRockchipTokenSpaceGuid.PcdPcieRootPort3x4MemBaseAddress64
+  gRockchipTokenSpaceGuid.PcdPcieRootPort3x4MemSize64
+  gRockchipTokenSpaceGuid.PcdPcieRootPort3x4IoSize
+  gRockchipTokenSpaceGuid.PcdPcieRootPort3x4IoBaseAddress
 
 
 

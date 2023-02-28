@@ -18,6 +18,8 @@
 #include <Library/MediaBusFormat.h>
 #include <Library/DrmModes.h>
 
+#include <string.h>
+
 #include <Protocol/RockchipCrtcProtocol.h>
 
 #include "Vop2Dxe.h"
@@ -87,12 +89,13 @@ STATIC CONST INT32 mSinTable[] = {
 STATIC VOP2_VP_PLANE_MASK mVpPlaneMaskRK3588[VOP2_VP_MAX][VOP2_VP_MAX] = {
   { /* one display policy */
     {/* main display */
-      .PrimaryPlaneId = ROCKCHIP_VOP2_CLUSTER0,
+      .PrimaryPlaneId = ROCKCHIP_VOP2_ESMART0,
       .AttachedLayersNr = 8,
       .AttachedLayers = {
-        ROCKCHIP_VOP2_CLUSTER0, ROCKCHIP_VOP2_ESMART0, ROCKCHIP_VOP2_ESMART2,
-        ROCKCHIP_VOP2_CLUSTER1, ROCKCHIP_VOP2_ESMART1, ROCKCHIP_VOP2_ESMART3,
-        ROCKCHIP_VOP2_CLUSTER2, ROCKCHIP_VOP2_CLUSTER3
+        ROCKCHIP_VOP2_CLUSTER0, ROCKCHIP_VOP2_ESMART0,
+        ROCKCHIP_VOP2_CLUSTER1, ROCKCHIP_VOP2_ESMART1,
+        ROCKCHIP_VOP2_CLUSTER2, ROCKCHIP_VOP2_ESMART2,
+        ROCKCHIP_VOP2_CLUSTER3, ROCKCHIP_VOP2_ESMART3
       },
     },
     {/* second display */},
@@ -102,7 +105,7 @@ STATIC VOP2_VP_PLANE_MASK mVpPlaneMaskRK3588[VOP2_VP_MAX][VOP2_VP_MAX] = {
 
   { /* two display policy */
     {/* main display */
-      .PrimaryPlaneId = ROCKCHIP_VOP2_CLUSTER0,
+      .PrimaryPlaneId = ROCKCHIP_VOP2_ESMART0,
       .AttachedLayersNr = 4,
       .AttachedLayers = {
         ROCKCHIP_VOP2_CLUSTER0, ROCKCHIP_VOP2_ESMART0,
@@ -111,7 +114,7 @@ STATIC VOP2_VP_PLANE_MASK mVpPlaneMaskRK3588[VOP2_VP_MAX][VOP2_VP_MAX] = {
     },
 
     {/* second display */
-      .PrimaryPlaneId = ROCKCHIP_VOP2_CLUSTER2,
+      .PrimaryPlaneId = ROCKCHIP_VOP2_ESMART2,
       .AttachedLayersNr = 4,
       .AttachedLayers = {
         ROCKCHIP_VOP2_CLUSTER2, ROCKCHIP_VOP2_ESMART2,
@@ -124,18 +127,20 @@ STATIC VOP2_VP_PLANE_MASK mVpPlaneMaskRK3588[VOP2_VP_MAX][VOP2_VP_MAX] = {
 
   { /* three display policy */
     {/* main display */
-      .PrimaryPlaneId = ROCKCHIP_VOP2_CLUSTER0,
+      .PrimaryPlaneId = ROCKCHIP_VOP2_ESMART0,
       .AttachedLayersNr = 3,
       .AttachedLayers = {
-        ROCKCHIP_VOP2_CLUSTER0, ROCKCHIP_VOP2_CLUSTER1, ROCKCHIP_VOP2_ESMART0
+        ROCKCHIP_VOP2_CLUSTER0, ROCKCHIP_VOP2_ESMART0,
+        ROCKCHIP_VOP2_CLUSTER1
       },
     },
 
     {/* second display */
-      .PrimaryPlaneId = ROCKCHIP_VOP2_CLUSTER2,
+      .PrimaryPlaneId = ROCKCHIP_VOP2_ESMART1,
       .AttachedLayersNr = 3,
       .AttachedLayers = {
-        ROCKCHIP_VOP2_CLUSTER2, ROCKCHIP_VOP2_CLUSTER3, ROCKCHIP_VOP2_ESMART1
+        ROCKCHIP_VOP2_CLUSTER2, ROCKCHIP_VOP2_ESMART1,
+        ROCKCHIP_VOP2_CLUSTER3
       },
     },
 
@@ -150,25 +155,25 @@ STATIC VOP2_VP_PLANE_MASK mVpPlaneMaskRK3588[VOP2_VP_MAX][VOP2_VP_MAX] = {
 
   { /* four display policy */
     {/* main display */
-      .PrimaryPlaneId = ROCKCHIP_VOP2_CLUSTER0,
+      .PrimaryPlaneId = ROCKCHIP_VOP2_ESMART0,
       .AttachedLayersNr = 2,
       .AttachedLayers = { ROCKCHIP_VOP2_CLUSTER0, ROCKCHIP_VOP2_ESMART0 },
     },
 
     {/* second display */
-      .PrimaryPlaneId = ROCKCHIP_VOP2_CLUSTER1,
+      .PrimaryPlaneId = ROCKCHIP_VOP2_ESMART1,
       .AttachedLayersNr = 2,
       .AttachedLayers = { ROCKCHIP_VOP2_CLUSTER1, ROCKCHIP_VOP2_ESMART1 },
     },
 
     {/* third  display */
-      .PrimaryPlaneId = ROCKCHIP_VOP2_CLUSTER2,
+      .PrimaryPlaneId = ROCKCHIP_VOP2_ESMART2,
       .AttachedLayersNr = 2,
       .AttachedLayers = { ROCKCHIP_VOP2_CLUSTER2, ROCKCHIP_VOP2_ESMART2 },
     },
 
     {/* fourth display */
-      .PrimaryPlaneId = ROCKCHIP_VOP2_CLUSTER3,
+      .PrimaryPlaneId = ROCKCHIP_VOP2_ESMART3,
       .AttachedLayersNr = 2,
       .AttachedLayers = { ROCKCHIP_VOP2_CLUSTER3, ROCKCHIP_VOP2_ESMART3 },
     },
@@ -669,6 +674,25 @@ Vop2FindWinByPhysID (
   return NULL;
 }
 
+INLINE
+BOOLEAN
+IsHotPlugDevices (
+  IN  INT32                                OutputType
+  )
+{
+	switch (OutputType) {
+	case DRM_MODE_CONNECTOR_HDMIA:
+	case DRM_MODE_CONNECTOR_HDMIB:
+	case DRM_MODE_CONNECTOR_TV:
+	case DRM_MODE_CONNECTOR_DisplayPort:
+	case DRM_MODE_CONNECTOR_VGA:
+	case DRM_MODE_CONNECTOR_Unknown:
+		return TRUE;
+	default:
+		return FALSE;
+	}
+}
+
 STATIC
 VOID
 Vop2GlobalInitial (
@@ -679,30 +703,82 @@ Vop2GlobalInitial (
   VOP2 *Vop2 = CrtcState->Private;
   ROCKCHIP_CRTC_PROTOCOL *Crtc = (ROCKCHIP_CRTC_PROTOCOL*)CrtcState->Crtc;
   VOP2_WIN_DATA *WinData;
+  VOP2_VP_PLANE_MASK *PlaneMask;
   UINT32 BakIndex;
   UINT32 i = 0, j = 0;
-  UINT32 PlaneMask, PrimaryPlaneID;
   UINT32 LayerNr = 0;
   UINT8 Shift = 0, TotalUsedLayer = 0;
   INT32 PortMux = 0;
   INT32 LayerPhyID = 0;
 
+  if (Vop2->GlobalInit)
+    return;
+
   /* open the vop global pd */
   MmioWrite32 (0xfd8d8150, 0xffff0000);
   MicroSecondDelay (10);
 
-  /* fix plane mask like dts assign in uboot --- todo */
-  for (i = 0; i < Vop2->Data->NrVps; i++) {
-    PlaneMask = Crtc->Vps[i].PlaneMask;
-    Vop2->VpPlaneMask[i].PlaneMask = PlaneMask;
-    LayerNr = GenericHWeight32 (PlaneMask);
-    Vop2->VpPlaneMask[i].AttachedLayersNr = LayerNr;
-    PrimaryPlaneID = Vop2GetPrimaryPlane (Vop2, PlaneMask);
-    Vop2->VpPlaneMask[i].PrimaryPlaneId = PrimaryPlaneID;
-    Vop2->VpPlaneMask[i].PlaneMask = PlaneMask;
-    for (j = 0; j < LayerNr; j++) {
-      Vop2->VpPlaneMask[i].AttachedLayers[j] = FFS (PlaneMask) - 1;
-      PlaneMask &= ~BIT(Vop2->VpPlaneMask[i].AttachedLayers[j]);
+  if (DisplayState->VpsConfigModeID < 0 || DisplayState->VpsConfigModeID >= mVpsConfigsSize) {
+    INT32 MainVpIndex = -1;
+    INT32 ActiveVpNum = 0;
+
+    for (i = 0; i < Vop2->Data->NrVps; i++) {
+      if (Crtc->Vps[i].Enable)
+        ActiveVpNum++;
+    }
+
+    PlaneMask = Vop2->Data->PlaneMask;
+    PlaneMask += (ActiveVpNum - 1) * VOP2_VP_MAX;
+
+    /* find the first unplug devices and set it as main display */
+    for (i = 0; i < Vop2->Data->NrVps; i++) {
+      if (!IsHotPlugDevices (Crtc->Vps[i].OutputType)) {
+        Vop2->VpPlaneMask[i] = PlaneMask[0];
+        MainVpIndex = i;
+        break;
+      }
+    }
+
+    /* if no find unplug devices, use vp0 as main display */
+    if (MainVpIndex < 0) {
+      ActiveVpNum = 0;
+      Vop2->VpPlaneMask[0] = PlaneMask[0];
+    }
+
+    /* plane_mask[0] store main display, so we from plane_mask[1] */
+    j = 1;
+
+    /* init other display except main display */
+    for (i = 0; i < Vop2->Data->NrVps; i++) {
+      if (i == MainVpIndex || !Crtc->Vps[i].Enable) {
+        continue;
+      }
+      Vop2->VpPlaneMask[i] = PlaneMask[j++];
+    }
+
+    for (i = 0; i < Vop2->Data->NrVps; i++) {
+      LayerNr = Vop2->VpPlaneMask[i].AttachedLayersNr;
+      for (j = 0; j < LayerNr; j++) {
+        LayerPhyID = Vop2->VpPlaneMask[i].AttachedLayers[j];
+        Vop2->VpPlaneMask[i].PlaneMask |= BIT(LayerPhyID);
+      }
+    }
+  } else {
+    UINT32 PlaneMask;
+    UINT32 PrimaryPlaneID;
+
+    for (i = 0; i < Vop2->Data->NrVps; i++) {
+      PlaneMask = mVpsConfigs[DisplayState->VpsConfigModeID][i].PlaneMask;
+      Vop2->VpPlaneMask[i].PlaneMask = PlaneMask;
+      LayerNr = GenericHWeight32 (PlaneMask);
+      Vop2->VpPlaneMask[i].AttachedLayersNr = LayerNr;
+      PrimaryPlaneID = Vop2GetPrimaryPlane (Vop2, PlaneMask);
+      Vop2->VpPlaneMask[i].PrimaryPlaneId = PrimaryPlaneID;
+      Vop2->VpPlaneMask[i].PlaneMask = PlaneMask;
+      for (j = 0; j < LayerNr; j++) {
+        Vop2->VpPlaneMask[i].AttachedLayers[j] = FFS (PlaneMask) - 1;
+        PlaneMask &= ~BIT(Vop2->VpPlaneMask[i].AttachedLayers[j]);
+      }
     }
   }
 
@@ -722,10 +798,10 @@ Vop2GlobalInitial (
                 IF_CTRL_REG_DONE_IMD_SHIFT, 1, FALSE);
 
   for (i = 0; i < Vop2->Data->NrVps; i++) {
-    DEBUG ((DEBUG_INFO, "vp%d have layer nr:%d[", i, Vop2->VpPlaneMask[i].AttachedLayersNr));
+    DEBUG ((DEBUG_INIT, "vp%d have layer nr:%d[", i, Vop2->VpPlaneMask[i].AttachedLayersNr));
     for (j = 0; j < Vop2->VpPlaneMask[i].AttachedLayersNr; j++)
-      DEBUG ((DEBUG_INFO, "%d ", Vop2->VpPlaneMask[i].AttachedLayers[j]));
-    DEBUG ((DEBUG_INFO, "], primary plane: %d\n", Vop2->VpPlaneMask[i].PrimaryPlaneId));
+      DEBUG ((DEBUG_INIT, "%d ", Vop2->VpPlaneMask[i].AttachedLayers[j]));
+    DEBUG ((DEBUG_INIT, "], primary plane: %d\n", Vop2->VpPlaneMask[i].PrimaryPlaneId));
   }
 
   Shift = 0;
@@ -774,6 +850,8 @@ Vop2GlobalInitial (
     Vop2MaskWrite (Vop2->BaseAddress, RK3568_OVL_PORT_SEL, PORT_MUX_MASK,
                    PORT_MUX_SHIFT + Shift, PortMux, FALSE);
   }
+
+  Vop2->GlobalInit = TRUE;
 }
 
 STATIC
@@ -882,16 +960,29 @@ Vop2IfConfig (
 
   if (OutputIf & VOP_OUTPUT_IF_eDP0) {
     Vop2MaskWrite (Vop2->BaseAddress, RK3568_DSP_IF_EN, EN_MASK,
-                  RK3588_EDP0_EN_SHIFT, 1, FALSE);
+                   RK3588_EDP0_EN_SHIFT, 1, FALSE);
     /* temp eDP0 fixed vp2 */
     Vop2MaskWrite (Vop2->BaseAddress, RK3568_DSP_IF_EN, IF_MUX_MASK,
-                  RK3588_HDMI_EDP0_MUX_SHIFT, CrtcState->CrtcID, FALSE);
+                   RK3588_HDMI_EDP0_MUX_SHIFT, CrtcState->CrtcID, FALSE);
     Vop2MaskWrite (Vop2->BaseAddress, RK3568_DSP_IF_CTRL, 0x3,
-                  HDMI_EDP0_DCLK_DIV_SHIFT, IfDclkDiv, FALSE);
+                   HDMI_EDP0_DCLK_DIV_SHIFT, IfDclkDiv, FALSE);
     Vop2MaskWrite (Vop2->BaseAddress, RK3568_DSP_IF_CTRL, 0x3,
-                  HDMI_EDP0_PIXCLK_DIV_SHIFT, IfPixclkDiv, FALSE);
-    Vop2GrfWrite(RK3588_VOP_GRF_BASE, RK3588_GRF_VOP_CON2, EN_MASK,
-                 RK3588_GRF_EDP0_ENABLE_SHIFT, 1);
+                   HDMI_EDP0_PIXCLK_DIV_SHIFT, IfPixclkDiv, FALSE);
+    Vop2GrfWrite (RK3588_VOP_GRF_BASE, RK3588_GRF_VOP_CON2, EN_MASK,
+                  RK3588_GRF_EDP0_ENABLE_SHIFT, 1);
+  }
+
+  if (OutputIf & VOP_OUTPUT_IF_eDP1) {
+    Vop2MaskWrite (Vop2->BaseAddress, RK3568_DSP_IF_EN, EN_MASK,
+                   RK3588_EDP1_EN_SHIFT, 1, FALSE);
+    Vop2MaskWrite (Vop2->BaseAddress, RK3568_DSP_IF_EN, IF_MUX_MASK,
+                   RK3588_HDMI_EDP1_MUX_SHIFT, CrtcState->CrtcID, FALSE);
+    Vop2MaskWrite (Vop2->BaseAddress, RK3568_DSP_IF_CTRL, 0x3,
+                   HDMI_EDP1_DCLK_DIV_SHIFT, IfDclkDiv, FALSE);
+    Vop2MaskWrite (Vop2->BaseAddress, RK3568_DSP_IF_CTRL, 0x3,
+                   HDMI_EDP1_PIXCLK_DIV_SHIFT, IfPixclkDiv, FALSE);
+    Vop2GrfWrite (RK3588_VOP_GRF_BASE, RK3588_GRF_VOP_CON2, EN_MASK,
+                  RK3588_GRF_EDP1_ENABLE_SHIFT, 1);
   }
 
   /* temp eDP0 fixed vp2 */
@@ -1262,6 +1353,8 @@ Vop2PreInit (
     RockchipVop2->BaseAddress = RK3588_VOP2_REG_BASE;
     RockchipVop2->Version = mVop2RK3588.Version;
     RockchipVop2->Data = &mVop2RK3588;
+    RockchipVop2->GlobalInit = FALSE;
+    memset(RockchipVop2->VpPlaneMask, 0, sizeof(VOP2_VP_PLANE_MASK) * VOP2_VP_MAX);
   }
 
   CrtcState->Private = RockchipVop2;
@@ -1844,18 +1937,6 @@ Vop2Disable (
   return EFI_SUCCESS;
 }
 
-VPS_CONFIG*
-Vop2GetVps (
-  IN ROCKCHIP_CRTC_PROTOCOL      *This,
-  IN UINT32                      VpsConfigModeID
-  )
-{
-  if (VpsConfigModeID >= mVpsConfigsSize)
-    return NULL;
-
-  return mVpsConfigs[VpsConfigModeID];
-}
-
 STATIC ROCKCHIP_CRTC_PROTOCOL mVop2 = {
   &mVop2RK3588,
   Vop2PreInit,
@@ -1866,10 +1947,9 @@ STATIC ROCKCHIP_CRTC_PROTOCOL mVop2 = {
   Vop2Enable,
   Vop2Disable,
   NULL,
-  Vop2GetVps,
   {
   },
-  NULL,
+  {},
   FALSE,
   FALSE,
   FALSE

@@ -83,13 +83,6 @@ EFI_STATUS
     IN OUT DISPLAY_STATE           *DisplayState
     );
 
-typedef
-VPS_CONFIG*
-(EFIAPI *ROCKCHIP_CRTC_GET_VPS) (
-    IN ROCKCHIP_CRTC_PROTOCOL      *This,
-    IN UINT32                      VpsConfigModeID
-    );
-
 struct _ROCKCHIP_CRTC_PROTOCOL {
   VOID                           *Private;
   ROCKCHIP_CRTC_PREINIT          Preinit;
@@ -100,9 +93,8 @@ struct _ROCKCHIP_CRTC_PROTOCOL {
   ROCKCHIP_CRTC_ENABLE           Enable;
   ROCKCHIP_CRTC_DISABLE          Disable;
   ROCKCHIP_CRTC_UNPREPARE        Unprepare;
-  ROCKCHIP_CRTC_GET_VPS          GetVps;
   DRM_DISPLAY_MODE               ActiveMode;
-  VPS_CONFIG                     *Vps;
+  VPS_CONFIG                     Vps[4];
   BOOLEAN                        HdmiHpd;
   BOOLEAN                        Active;
   BOOLEAN                        AssignPlane;

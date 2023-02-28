@@ -33,12 +33,12 @@
   UefiBootServicesTableLib
 
 [FixedPcd]
-  gRockchipTokenSpaceGuid.PcdPcieRootPortIoBaseAddress
-  gRockchipTokenSpaceGuid.PcdPcieRootPortIoSize
-  gRockchipTokenSpaceGuid.PcdPcieRootPortMemBaseAddress
-  gRockchipTokenSpaceGuid.PcdPcieRootPortMemSize
-  gRockchipTokenSpaceGuid.PcdPcieRootPortMemBaseAddress64
-  gRockchipTokenSpaceGuid.PcdPcieRootPortMemSize64
+  gRockchipTokenSpaceGuid.PcdPcieRootPort3x4IoBaseAddress
+  gRockchipTokenSpaceGuid.PcdPcieRootPort3x4IoSize
+  gRockchipTokenSpaceGuid.PcdPcieRootPort3x4MemBaseAddress
+  gRockchipTokenSpaceGuid.PcdPcieRootPort3x4MemSize
+  gRockchipTokenSpaceGuid.PcdPcieRootPort3x4MemBaseAddress64
+  gRockchipTokenSpaceGuid.PcdPcieRootPort3x4MemSize64
   gArmTokenSpaceGuid.PcdPciIoBase
   gArmTokenSpaceGuid.PcdPciIoSize
 
