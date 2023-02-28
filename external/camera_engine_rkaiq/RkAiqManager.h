@@ -153,6 +153,7 @@ public:
     void setAiqCalibDb(const CamCalibDbContext_t* calibDb);
 #endif
     void setAiqCalibDb(const CamCalibDbV2Context_t* calibDb);
+    void unsetTuningCalibDb();
     void setLumaAnalyzer(SmartPtr<RkLumaCore> analyzer);
     XCamReturn init();
     XCamReturn prepare(uint32_t width, uint32_t height, rk_aiq_working_mode_t mode);
@@ -191,7 +192,7 @@ public:
     XCamReturn swWorkingModeDyn_msg(rk_aiq_working_mode_t mode);
     void setMulCamConc(bool cc);
     CamCalibDbV2Context_t* getCurrentCalibDBV2(void);
-    XCamReturn calibTuning(const CamCalibDbV2Context_t* aiqCalib,
+    XCamReturn calibTuning(CamCalibDbV2Context_t* aiqCalib,
                            ModuleNameList& change_list);
 #ifdef RKAIQ_ENABLE_CAMGROUP
     void setCamGroupManager(RkAiqCamGroupManager* cam_group_manager, bool isMain) {
@@ -229,6 +230,7 @@ private:
     const CamCalibDbContext_t* mCalibDb;
 #endif
     CamCalibDbV2Context_t* mCalibDbV2;
+    CamCalibDbV2Context_t* tuningCalib;
     rk_aiq_working_mode_t mWorkingMode;
     rk_aiq_working_mode_t mOldWkModeForGray;
     bool mWkSwitching;

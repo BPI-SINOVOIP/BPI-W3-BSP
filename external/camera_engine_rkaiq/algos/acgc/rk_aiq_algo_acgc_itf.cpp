@@ -18,15 +18,18 @@
  */
 
 #include "acgc/rk_aiq_algo_acgc_itf.h"
-#include "xcam_log.h"
+
 #include "rk_aiq_algo_types.h"
+#include "rk_aiq_types_algo_acgc_prvt.h"
+#include "xcam_log.h"
 
 RKAIQ_BEGIN_DECLARE
 
-typedef struct _RkAiqAlgoContext {
-    void* place_holder[0];
-} RkAiqAlgoContext;
-
+static rk_aiq_acgc_params_t g_cgc_def = {
+    .op_mode       = RK_AIQ_OP_MODE_AUTO,
+    .cgc_ratio_en  = false,  // true: 219/224 false: 256/256
+    .cgc_yuv_limit = false   // true: limit range y 16-235/ c 16-240; false: full range
+};
 
 static XCamReturn
 create_context(RkAiqAlgoContext **context, const AlgoCtxInstanceCfg* cfg)
@@ -36,6 +39,24 @@ create_context(RkAiqAlgoContext **context, const AlgoCtxInstanceCfg* cfg)
         LOGE_ACGC( "%s: create acgc context fail!\n", __FUNCTION__);
         return XCAM_RETURN_ERROR_MEM;
     }
+
+    ctx->acgcCtx.calibv2         = cfg->calibv2;
+    rk_aiq_acgc_params_t* params = &ctx->acgcCtx.params;
+    memset(params, 0, sizeof(*params));
+    if (ctx->acgcCtx.calibv2) {
+        Cgc_Param_t* cgc =
+            (Cgc_Param_t*)(CALIBDBV2_GET_MODULE_PTR(ctx->acgcCtx.calibv2, cgc));
+        if (cgc) {
+            *params = *cgc;
+        } else {
+            *params = g_cgc_def;
+        }
+
+    } else {
+        // auto means using chip reset valuse
+        *params = g_cgc_def;
+    }
+
     *context = ctx;
     return XCAM_RETURN_NO_ERROR;
 }
@@ -50,6 +71,16 @@ destroy_context(RkAiqAlgoContext *context)
 static XCamReturn
 prepare(RkAiqAlgoCom* params)
 {
+    rk_aiq_acgc_params_t* acgc_params = &params->ctx->acgcCtx.params;
+    RkAiqAlgoConfigAcgc* pCfgParam    = (RkAiqAlgoConfigAcgc*)params;
+
+    if (!!(params->u.prepare.conf_type & RK_AIQ_ALGO_CONFTYPE_UPDATECALIB)) {
+        if (pCfgParam->com.u.prepare.calibv2) {
+            Cgc_Param_t* cgc =
+                (Cgc_Param_t*)(CALIBDBV2_GET_MODULE_PTR(pCfgParam->com.u.prepare.calibv2, cgc));
+            if (cgc) *acgc_params = *cgc;
+        }
+    }
     return XCAM_RETURN_NO_ERROR;
 }
 
@@ -62,6 +93,13 @@ pre_process(const RkAiqAlgoCom* inparams, RkAiqAlgoResCom* outparams)
 static XCamReturn
 processing(const RkAiqAlgoCom* inparams, RkAiqAlgoResCom* outparams)
 {
+    RkAiqAlgoProcResAcgc* res_com = (RkAiqAlgoProcResAcgc*)outparams;
+    RkAiqAlgoContext* ctx         = inparams->ctx;
+
+    if (ctx->acgcCtx.params.op_mode == RK_AIQ_OP_MODE_AUTO) {
+        ctx->acgcCtx.params = g_cgc_def;
+    }
+    res_com->acgc_res = ctx->acgcCtx.params;
     return XCAM_RETURN_NO_ERROR;
 }
 

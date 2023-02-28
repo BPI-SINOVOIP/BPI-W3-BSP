@@ -59,6 +59,8 @@ struct _GstMppDec
 
   gboolean arm_afbc;
 
+  gboolean dma_feature;
+
   gboolean ignore_error;
 
   gboolean fast_mode;
@@ -115,6 +117,15 @@ GType gst_mpp_dec_get_type (void);
 #endif
 
 #define MPP_DEC_FEATURE_ARM_AFBC "arm-afbc"
+
+#define MPP_DEC_CAPS_MAKE(fmts) \
+    GST_VIDEO_CAPS_MAKE (fmts) ";" \
+    GST_VIDEO_CAPS_MAKE_WITH_FEATURES (GST_CAPS_FEATURE_MEMORY_DMABUF, fmts)
+
+#define MPP_DEC_CAPS_MAKE_AFBC(fmts) \
+    GST_VIDEO_CAPS_MAKE (fmts) ", " MPP_DEC_FEATURE_ARM_AFBC " = (int) 1;" \
+    GST_VIDEO_CAPS_MAKE_WITH_FEATURES (GST_CAPS_FEATURE_MEMORY_DMABUF, fmts) \
+    ", " MPP_DEC_FEATURE_ARM_AFBC " = (int) 1"
 
 void gst_mpp_dec_fixup_video_info (GstVideoDecoder * decoder,
     GstVideoFormat format, gint width, gint height);

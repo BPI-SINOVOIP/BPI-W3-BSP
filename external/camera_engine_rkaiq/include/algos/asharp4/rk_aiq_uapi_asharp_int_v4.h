@@ -30,6 +30,9 @@ XCamReturn
 rk_aiq_uapi_asharpV4_GetStrength(const RkAiqAlgoContext *ctx,
                                  rk_aiq_sharp_strength_v4_t *pStrength);
 
+XCamReturn
+rk_aiq_uapi_asharpV4_GetInfo(const RkAiqAlgoContext *ctx,
+                             rk_aiq_sharp_info_v4_t *pInfo);
 
 
 

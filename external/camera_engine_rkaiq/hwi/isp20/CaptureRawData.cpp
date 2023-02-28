@@ -680,9 +680,9 @@ CaptureRawData::write_raw_to_file(FILE* fp, int dev_index,
             printf(">");
         printf("\n");
 
-        LOGV_CAMHW_SUBM(CAPTURERAW_SUBM, "write frame%d raw\n", sequence);
     }
 
+    LOGV_CAMHW_SUBM(CAPTURERAW_SUBM, "dev(%d) write frame%d raw\n", dev_index, sequence);
     return XCAM_RETURN_NO_ERROR;
 }
 
@@ -709,10 +709,11 @@ CaptureRawData::creat_raw_dir(const char* path)
     timenow = localtime(&now);
 
     if (access(path, W_OK) == -1) {
-        if (mkdir(path, 0755) < 0)
+        if (mkdir(path, 0755) < 0) {
             LOGE_CAMHW_SUBM(CAPTURERAW_SUBM, "mkdir %s error(%s)!\n",
                             path, strerror(errno));
-        return XCAM_RETURN_ERROR_PARAM;
+            return XCAM_RETURN_ERROR_FILE;
+        }
     }
 
     snprintf(raw_dir_path, sizeof(raw_dir_path), "%s/Cam%d-raw_%04d-%02d-%02d_%02d-%02d-%02d-%03ld",
@@ -815,17 +816,18 @@ void CaptureRawData::save_metadata_and_register
             write_metadata_to_file(raw_dir_path,
                     frameId,
                     ispParams, expParams, afParams,working_mode);
-        }
-        _capture_metadata_num--;
-        if (!_capture_metadata_num) {
-            _is_raw_dir_exist = false;
-            if (_capture_raw_type == CAPTURE_RAW_SYNC) {
-                _capture_image_mutex.lock();
-                _capture_image_cond.broadcast();
-                _capture_image_mutex.unlock();
-            }
 
-            LOGD_CAMHW_SUBM(CAPTURERAW_SUBM, "stop capturing raw!\n");
+            _capture_metadata_num--;
+            if (!_capture_metadata_num) {
+                _is_raw_dir_exist = false;
+                if (_capture_raw_type == CAPTURE_RAW_SYNC) {
+                    _capture_image_mutex.lock();
+                    _capture_image_cond.broadcast();
+                    _capture_image_mutex.unlock();
+                }
+
+                LOGD_CAMHW_SUBM(CAPTURERAW_SUBM, "stop capturing raw!\n");
+            }
         }
     }
 }

@@ -277,6 +277,8 @@ destroy_context(RkAiqAlgoContext *context)
     LDCHContext_t* ldchCtx = (LDCHContext_t*)hLDCH;
 
 #if GENMESH_ONLINE
+    if (!hLDCH->aldchReadMeshThread->is_empty())
+        hLDCH->aldchReadMeshThread->clear_attr();
     ldchCtx->aldchReadMeshThread->triger_stop();
     ldchCtx->aldchReadMeshThread->stop();
 #endif

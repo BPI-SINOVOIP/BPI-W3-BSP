@@ -41,7 +41,6 @@ typedef struct DrcProcResV21_s
     int sw_drc_gain_y[ISP21_DRC_Y_NUM];
     int sw_drc_compres_y[ISP21_DRC_Y_NUM];
     int sw_drc_scale_y[ISP21_DRC_Y_NUM];
-    float sw_drc_adrc_gain;
     int sw_drc_iir_weight;
     int sw_drc_min_ogain;
 } DrcProcResV21_t;
@@ -71,7 +70,6 @@ typedef struct DrcProcResV30_s {
     int gain_y[AIQ_ISP3X_DRC_Y_NUM];
     int compres_y[AIQ_ISP3X_DRC_Y_NUM];
     int scale_y[AIQ_ISP3X_DRC_Y_NUM];
-    float adrc_gain;
     int wr_cycle;
     int iir_weight;
     int min_ogain;
@@ -86,13 +84,9 @@ typedef struct DrcProcRes_s {
 
 typedef struct RkAiqAdrcProcResult_s
 {
-    DrcProcRes_t DrcProcRes;
-    CompressMode_t CompressMode;
     bool update;
-    bool LongFrameMode;
-    bool isHdrGlobalTmo;
-    bool bTmoEn;
-    bool isLinearTmo;
+    bool bDrcEn;
+    DrcProcRes_t DrcProcRes;
 } RkAiqAdrcProcResult_t;
 
 
@@ -103,11 +97,8 @@ typedef enum AdrcVersion_e {
 } AdrcVersion_t;
 
 typedef enum drc_OpMode_s {
-    DRC_OPMODE_API_OFF = 0, // run IQ ahdr
-    DRC_OPMODE_MANU = 1,    // run api manual ahdr
-    DRC_OPMODE_DRC_GAIN = 2,
-    DRC_OPMODE_HILIT = 3,
-    DRC_OPMODE_LOCAL_TMO = 4,
+    DRC_OPMODE_AUTO = 0,  // run auto
+    DRC_OPMODE_MANU = 1,  // run manual
 } drc_OpMode_t;
 
 typedef struct drcAttr_s {
@@ -115,12 +106,10 @@ typedef struct drcAttr_s {
 
     AdrcVersion_t Version;
     drc_OpMode_t opMode;
+    adrcAttr_V21_t stAutoV21;
+    adrcAttr_V30_t stAutoV30;
     mdrcAttr_V21_t stManualV21;
     mdrcAttr_V30_t stManualV30;
-    mDrcGain_t stDrcGain;
-    mDrcHiLit_t stHiLit;
-    mLocalDataV21_t stLocalDataV21;
-    mLocalDataV30_t stLocalDataV30;
     DrcInfo_t Info;
 } drcAttr_t;
 

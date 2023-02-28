@@ -1,6 +1,6 @@
 #!/bin/bash
 
-DIR_VIDEO=/rockchip-test/video
+DIR_VIDEO=`dirname $0`
 
 info_view()
 {
@@ -16,7 +16,7 @@ echo "***********************************************************"
 echo "video test:						1"
 echo "video test with FPS display:				2"
 echo "video max FPS test without display:			3"
-echo "multivideo test:					4"
+echo "multivideo test:					        4"
 echo "***********************************************************"
 
 read -t 30 VIDEO_CHOICE
@@ -55,6 +55,6 @@ case ${VIDEO_CHOICE} in
 		multivideo_test
 		;;
 	*)
-		echo "not fount your input."
+		echo "not found your input."
 		;;
 esac

@@ -62,7 +62,7 @@ XCamReturn RkAiqCamGroupAynrV3HandleInt::setAttrib(rk_aiq_ynr_attrib_v3_t* att) 
     // called by RkAiqCore
     bool isChanged = false;
     if (att->sync.sync_mode == RK_AIQ_UAPI_MODE_ASYNC && \
-        memcmp(&mNewAtt, att, sizeof(*att)))
+            memcmp(&mNewAtt, att, sizeof(*att)))
         isChanged = true;
     else if (att->sync.sync_mode != RK_AIQ_UAPI_MODE_ASYNC && \
              memcmp(&mCurAtt, att, sizeof(*att)))
@@ -119,7 +119,7 @@ XCamReturn RkAiqCamGroupAynrV3HandleInt::setStrength(rk_aiq_ynr_strength_v3_t *p
 
     bool isChanged = false;
     if (pStrength->sync.sync_mode == RK_AIQ_UAPI_MODE_ASYNC && \
-        memcmp(&mNewStrength, pStrength, sizeof(*pStrength)))
+            memcmp(&mNewStrength, pStrength, sizeof(*pStrength)))
         isChanged = true;
     else if (pStrength->sync.sync_mode != RK_AIQ_UAPI_MODE_ASYNC && \
              memcmp(&mCurStrength, pStrength, sizeof(*pStrength)))
@@ -159,6 +159,26 @@ XCamReturn RkAiqCamGroupAynrV3HandleInt::getStrength(rk_aiq_ynr_strength_v3_t *p
     EXIT_ANALYZER_FUNCTION();
     return ret;
 }
+
+XCamReturn RkAiqCamGroupAynrV3HandleInt::getInfo(rk_aiq_ynr_info_v3_t *pInfo) {
+    ENTER_ANALYZER_FUNCTION();
+    LOGD_ANR("%s:%d\n", __FUNCTION__, __LINE__);
+    XCamReturn ret = XCAM_RETURN_NO_ERROR;
+
+    if(pInfo->sync.sync_mode == RK_AIQ_UAPI_MODE_SYNC) {
+        mCfgMutex.lock();
+        rk_aiq_uapi_camgroup_aynrV3_GetInfo(mAlgoCtx, pInfo);
+        pInfo->sync.done = true;
+        mCfgMutex.unlock();
+    } else {
+        rk_aiq_uapi_camgroup_aynrV3_GetInfo(mAlgoCtx, pInfo);
+        pInfo->sync.done = true;
+    }
+
+    EXIT_ANALYZER_FUNCTION();
+    return ret;
+}
+
 #endif
 
 };  // namespace RkCam

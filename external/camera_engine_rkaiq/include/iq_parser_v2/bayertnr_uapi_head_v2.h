@@ -45,16 +45,16 @@ typedef struct RK_Bayertnr_Params_V2_Select_s
     int hi_gslum_en;
 
 
-    // M4_ARRAY_DESC("lumapoint", "s32", M4_SIZE(1,16), M4_RANGE(0,65535), "0.0", M4_DIGIT(0), M4_DYNAMIC(0))
+    // M4_ARRAY_DESC("lumapoint", "s32", M4_SIZE(1,16), M4_RANGE(0,65535), "[512,1024,1536,2048,3072,4096,5120,6144,7168,8192,9216,10240,11264,12288,13312,14336]", M4_DIGIT(0), M4_DYNAMIC(0))
     int lumapoint[16];
-    // M4_ARRAY_DESC("sigma", "s32", M4_SIZE(1,16), M4_RANGE(0,65535), "0.0", M4_DIGIT(0), M4_DYNAMIC(0))
+    // M4_ARRAY_DESC("sigma", "s32", M4_SIZE(1,16), M4_RANGE(0,65535), "[256,256,256,256,256,256,256,256,256,256,256,256,256,256,256,256]", M4_DIGIT(0), M4_DYNAMIC(0))
     int sigma[16];
 
-    // M4_ARRAY_DESC("lumapoint2", "s32", M4_SIZE(1,16), M4_RANGE(0,65535), "0.0", M4_DIGIT(0), M4_DYNAMIC(0))
+    // M4_ARRAY_DESC("lumapoint2", "s32", M4_SIZE(1,16), M4_RANGE(0,65535), "[512,1024,1536,2048,3072,4096,5120,6144,7168,8192,9216,10240,11264,12288,13312,14336]", M4_DIGIT(0), M4_DYNAMIC(0))
     int lumapoint2[16];
-    // M4_ARRAY_DESC("lo_sigma", "s32", M4_SIZE(1,16), M4_RANGE(0,65535), "0.0", M4_DIGIT(0), M4_DYNAMIC(0))
+    // M4_ARRAY_DESC("lo_sigma", "s32", M4_SIZE(1,16), M4_RANGE(0,65535), "[32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32]", M4_DIGIT(0), M4_DYNAMIC(0))
     int lo_sigma[16];
-    // M4_ARRAY_DESC("hi_sigma", "s32", M4_SIZE(1,16), M4_RANGE(0,65535), "0.0", M4_DIGIT(0), M4_DYNAMIC(0))
+    // M4_ARRAY_DESC("hi_sigma", "s32", M4_SIZE(1,16), M4_RANGE(0,65535), "[256,256,256,256,256,256,256,256,256,256,256,256,256,256,256,256]", M4_DIGIT(0), M4_DYNAMIC(0))
     int hi_sigma[16];
 
     // M4_NUMBER_DESC("thumbds", "f32", M4_RANGE(0, 8), "8", M4_DIGIT(2))
@@ -79,6 +79,42 @@ typedef struct RK_Bayertnr_Params_V2_Select_s
     // M4_NUMBER_DESC("hidif_th", "f32", M4_RANGE(0, 65535), "32767", M4_DIGIT(0))
     float hidif_th;
 } RK_Bayertnr_Params_V2_Select_t;
+
+
+typedef struct Abayertnr_ExpInfo_V2_s {
+    // M4_NUMBER_DESC("hdr_mode", "u8", M4_RANGE(0, 2), "0", M4_DIGIT(0))
+    int hdr_mode;
+
+    // M4_NUMBER_DESC("snr_mode", "s8", M4_RANGE(0, 2), "0", M4_DIGIT(0))
+    int   snr_mode;
+
+    // M4_ARRAY_DESC("time", "f32", M4_SIZE(1,3), M4_RANGE(0, 1024), "0.01", M4_DIGIT(6))
+    float arTime[3];
+    // M4_ARRAY_DESC("again", "f32", M4_SIZE(1,3), M4_RANGE(0, 204800), "1", M4_DIGIT(3))
+    float arAGain[3];
+    // M4_ARRAY_DESC("dgain", "f32", M4_SIZE(1,3), M4_RANGE(0, 204800), "1", M4_DIGIT(3))
+    float arDGain[3];
+    // M4_ARRAY_DESC("iso", "u32", M4_SIZE(1,3), M4_RANGE(0, 204800), "1", M4_DIGIT(0))
+    int   arIso[3];
+
+    // M4_NUMBER_DESC("isoLow", "u32", M4_RANGE(0, 204800), "50", M4_DIGIT(0))
+    int isoLow;
+    // M4_NUMBER_DESC("isoHigh", "u32", M4_RANGE(0, 204800), "50", M4_DIGIT(0))
+    int isoHigh;
+
+
+} Abayertnr_ExpInfo_V2_t;
+
+
+typedef struct rk_aiq_bayertnr_info_v2_s {
+    // M4_ARRAY_TABLE_DESC("sync", "array_table_ui", "none", "1")
+    rk_aiq_uapi_sync_t sync;
+    // M4_NUMBER_DESC("iso", "u32", M4_RANGE(0, 204800), "50", M4_DIGIT(0), "0", "0")
+    int iso;
+    // M4_ARRAY_TABLE_DESC("expo_info", "normal_ui_style", "none", "0", "0")
+    Abayertnr_ExpInfo_V2_t expo_info;
+} rk_aiq_bayertnr_info_v2_t;
+
 
 RKAIQ_END_DECLARE
 

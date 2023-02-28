@@ -21,11 +21,15 @@
 #include "alsc/rk_aiq_types_alsc_hw.h"
 
 typedef struct rk_aiq_lsc_table_s {
+    // M4_ARRAY_DESC("lsc_sect_size_x", "u16", M4_SIZE(1,16), M4_RANGE(0,10000), "0", M4_DIGIT(0), M4_DYNAMIC(0))
+    uint16_t    lsc_sect_size_x[LSC_SIZE_TBL_SIZE];
+    // M4_ARRAY_DESC("lsc_sect_size_y", "u16", M4_SIZE(1,16), M4_RANGE(0,10000), "0", M4_DIGIT(0), M4_DYNAMIC(0))
+    uint16_t    lsc_sect_size_y[LSC_SIZE_TBL_SIZE];
     // M4_ARRAY_DESC("r_data_tbl", "u16", M4_SIZE(17,17), M4_RANGE(0,4096), "0", M4_DIGIT(0),  M4_DYNAMIC(0))
     unsigned short r_data_tbl[LSC_DATA_TBL_SIZE];
     // M4_ARRAY_DESC("gr_data_tbl", "u16", M4_SIZE(17,17), M4_RANGE(0,4096), "0", M4_DIGIT(0),  M4_DYNAMIC(0))
     unsigned short gr_data_tbl[LSC_DATA_TBL_SIZE];
-    // M4_ARRAY_DESC("gr_data_tbl", "u16", M4_SIZE(17,17), M4_RANGE(0,4096), "0", M4_DIGIT(0),  M4_DYNAMIC(0))
+    // M4_ARRAY_DESC("gb_data_tbl", "u16", M4_SIZE(17,17), M4_RANGE(0,4096), "0", M4_DIGIT(0),  M4_DYNAMIC(0))
     unsigned short gb_data_tbl[LSC_DATA_TBL_SIZE];
     // M4_ARRAY_DESC("b_data_tbl", "u16", M4_SIZE(17,17), M4_RANGE(0,4096), "0", M4_DIGIT(0),  M4_DYNAMIC(0))
     unsigned short b_data_tbl[LSC_DATA_TBL_SIZE];

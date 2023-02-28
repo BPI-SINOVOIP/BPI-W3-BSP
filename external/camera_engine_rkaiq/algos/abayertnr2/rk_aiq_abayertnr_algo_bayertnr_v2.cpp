@@ -80,6 +80,10 @@ Abayertnr_result_V2_t bayertnr_select_params_by_ISO_V2(RK_Bayertnr_Params_V2_t *
         isoLevelCorrect = 0;
     }
 
+    pExpInfo->isoHigh = pParams->iso[isoLevelHig];
+    pExpInfo->isoLow = pParams->iso[isoLevelLow];
+
+
     LOGD_ANR("%s:%d iso:%d high:%d low:%d\n",
              __FUNCTION__, __LINE__,
              isoGain, isoGainHig, isoGainLow);
@@ -272,7 +276,7 @@ Abayertnr_result_V2_t bayertnr_fix_transfer_V2(RK_Bayertnr_Params_V2_Select_t* p
     pFix->bay3d_soft_mode = 0;
     pFix->bay3d_bwsaving_en = 0;
     pFix->bay3d_loswitch_protect = 0;
-    pFix->bay3d_glbpk_en = pSelect->global_pk_en;
+    pFix->bay3d_glbpk_en = 0;//pSelect->global_pk_en;
     pFix->bay3d_logaus3_bypass_en = !pSelect->lo_gslum_en;
     pFix->bay3d_logaus5_bypass_en = !pSelect->lo_gsbay_en;
     pFix->bay3d_lomed_bypass_en = !pSelect->lo_med_en;

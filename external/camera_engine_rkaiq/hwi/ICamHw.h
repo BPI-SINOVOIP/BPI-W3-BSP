@@ -134,6 +134,7 @@ public:
     virtual int getCamPhyId() = 0;
     virtual void setGroupMode(bool bGroup, bool bMain) = 0;
     virtual bool get_pdaf_support() = 0;
+    virtual XCamReturn reset_hardware() = 0;
 private:
     XCAM_DEAD_COPY (ICamHw);
 };

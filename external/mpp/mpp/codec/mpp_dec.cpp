@@ -533,8 +533,14 @@ static void mpp_dec_put_frame(Mpp *mpp, RK_S32 index, HalDecTaskFlag flags)
             HalTaskHnd hnd = NULL;
             HalTaskInfo task;
             HalDecVprocTask *vproc_task = &task.dec_vproc;
+            MPP_RET ret = MPP_OK;
 
-            MPP_RET ret = hal_task_get_hnd(group, TASK_IDLE, &hnd);
+            do {
+                ret = hal_task_get_hnd(group, TASK_IDLE, &hnd);
+                if (ret) {
+                    msleep(10);
+                }
+            } while (ret);
 
             mpp_assert(ret == MPP_OK);
 
@@ -1510,6 +1516,7 @@ void *mpp_dec_advanced_thread(void *data)
             mpp_frame_set_pts(frame, mpp_frame_get_pts(tmp));
             mpp_frame_set_fmt(frame, mpp_frame_get_fmt(tmp));
             mpp_frame_set_errinfo(frame, mpp_frame_get_errinfo(tmp));
+            mpp_frame_set_buf_size(frame, mpp_frame_get_buf_size(tmp));
 
             mpp_buf_slot_clr_flag(packet_slots, task_dec->input,  SLOT_HAL_INPUT);
             mpp_buf_slot_clr_flag(frame_slots, task_dec->output, SLOT_HAL_OUTPUT);
@@ -2126,6 +2133,7 @@ MPP_RET mpp_dec_set_cfg_by_cmd(MppDecCfgSet *set, MpiCmd cmd, void *param)
     } break;
     case MPP_DEC_SET_ENABLE_FAST_PLAY : {
         cfg->enable_fast_play = (param) ? (*((RK_U32 *)param)) : (0);
+        set->status.use_ext_fast_play = 1;
         cfg->change |= MPP_DEC_CFG_CHANGE_ENABLE_FAST_PLAY;
         dec_dbg_func("disable idr immediately output %d\n", cfg->enable_fast_play);
     } break;

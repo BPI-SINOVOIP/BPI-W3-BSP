@@ -20,13 +20,14 @@
 #ifndef _RK_AIQ_TYPES_ADEHAZE_ALGO_PRVT_H_
 #define _RK_AIQ_TYPES_ADEHAZE_ALGO_PRVT_H_
 
-#include "adehaze/rk_aiq_types_adehaze_algo_int.h"
 #include "RkAiqCalibDbTypes.h"
 #include "RkAiqCalibDbTypesV2.h"
-#include "rk_aiq_types_adehaze_stat.h"
-#include "rk_aiq_algo_types.h"
-#include "xcam_log.h"
+#include "adehaze/rk_aiq_types_adehaze_algo_int.h"
 #include "amerge/rk_aiq_types_amerge_algo_prvt.h"
+#include "rk_aiq_algo_types.h"
+#include "rk_aiq_types_adehaze_stat.h"
+#include "xcam_log.h"
+#include "ynr_uapi_head_v3.h"
 
 #define ADHZ10BITMAX     (1023)
 #define ADHZ10BITMIN     (0)
@@ -65,22 +66,10 @@ typedef struct AdehazeAePreRes_s {
     };
 } AdehazeAePreRes_t;
 
-typedef struct CalibDbV2_dehaze_V30_prvt_s {
-    CalibDbDehazeV21_t DehazeTuningPara;
-    CalibDbV2_YnrV3_CalibPara_t  YnrCalibPara;
-} CalibDbV2_dehaze_V30_prvt_t;
-
-typedef struct CalibDbDehazePrvt_s {
-    union {
-        CalibDbV2_dehaze_V20_t Dehaze_v20;
-        CalibDbV2_dehaze_V21_t Dehaze_v21;
-        CalibDbV2_dehaze_V30_prvt_t Dehaze_v30;
-    };
-} CalibDbDehazePrvt_t;
-
 typedef struct AdehazeHandle_s {
     adehaze_sw_V2_t AdehazeAtrr;
-    CalibDbDehazePrvt_t Calib;
+    CalibDbV2_dehaze_V21_t* pCalib;
+    RkAiqYnrV3Res YnrPorcRes;
     RkAiqAdehazeProcResult_t ProcRes;
     rkisp_adehaze_stats_t stats;
     AdehazeVersion_t HWversion;

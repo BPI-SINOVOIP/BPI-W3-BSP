@@ -10,7 +10,7 @@ echo "means npu_freq_test.sh will run 1 hour and every cpu frequency stay 30s"
 echo "test will run $1 seconds"
 echo "every npu frqeucny will stay $2 seconds"
 
-NPU_PATH=/sys/devices/platform/fdab0000.npu/devfreq/fdab0000.npu
+NPU_PATH=/sys/devices/platform/*.npu/devfreq/*.npu
 
 unset FREQS
 read -a FREQS < $NPU_PATH/available_frequencies

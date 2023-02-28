@@ -50,6 +50,7 @@ typedef enum __RkAiqUapiOpMode {
       void *desc, void *sys_ctx, cJSON *cmd_js, cJSON **ret_js, int mode) {    \
     RkAiqUapiDesc_t *uapi_desc = (RkAiqUapiDesc_t *)desc;                      \
     rk_aiq_sys_ctx_t *aiq_ctx = (rk_aiq_sys_ctx_t *)sys_ctx;                   \
+    char* js_str = NULL;                                                       \
     j2s_ctx ctx;                                                               \
     int ret = -1;                                                              \
     j2s_init(&ctx);                                                            \
@@ -71,7 +72,6 @@ typedef enum __RkAiqUapiOpMode {
         XCAM_LOG_ERROR("%s apply patch failed %d!", __func__, ret);            \
         return -1;                                                             \
       }                                                                        \
-      printf("[UAPI RPC] patched json:\n%s\n", cJSON_Print(old_json));         \
       memset(&real_obj, 0, sizeof(type_name));                                 \
       ret = j2s_json_to_struct(&ctx, old_json, #type_name, &real_obj);         \
       j2s_deinit(&ctx);                                                        \
@@ -93,7 +93,6 @@ typedef enum __RkAiqUapiOpMode {
         XCAM_LOG_ERROR("create %s failed.", #type_name);                       \
         return -1;                                                             \
       }                                                                        \
-      printf("[UAPI RPC] readback json:\n%s\n", cJSON_Print(*ret_js));         \
     }                                                                          \
     return 0;                                                                  \
   }

@@ -36,7 +36,7 @@
 #
 #********************************************************************/
 
-test_dir=/data/cfg/rockchip-test/flash_test
+test_dir=/userdata/rockchip-test/flash_test
 source_dir=$test_dir/src_test_data
 dest_dir=$test_dir/des_test_data
 md5_dir=$test_dir/md5_data
@@ -146,7 +146,7 @@ while [ $count -lt $test_max_count ]; do
     echo 3 > /proc/sys/vm/drop_caches
     sleep 5
     while [ $dir_loop -lt $test_max_dir ]; do
-    	#calc md5
+	#calc dir md5
     	echo "$count calc $dest_dir/${dir_loop} md5 start"
     	echo "$count calc $dest_dir/${dir_loop} md5 start" >> $test_dir/test_log.txt
     	cd $dest_dir/${dir_loop}
@@ -168,7 +168,7 @@ while [ $count -lt $test_max_count ]; do
     	dir_loop=$(($dir_loop+1))
     done
 	count=$(($count+1))
-    #if test fail, we can save file for debug
+        #if test fail, we can save file for debug
 	#rm -rf  $test_dir/$dest_dir/*
 	echo -----------------------------------------
 	echo "-------========You can see the result at and $test_dir/test_log.txt file=======------------"

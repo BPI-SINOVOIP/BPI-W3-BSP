@@ -207,6 +207,12 @@ processing(const RkAiqAlgoCom* inparams, RkAiqAlgoResCom* outparams)
             } else {
                 stExpInfo.arDGain[0] = curExp->LinearExp.exp_real_params.digital_gain;
             }
+            if(curExp->LinearExp.exp_real_params.isp_dgain < 1.0) {
+                stExpInfo.arDGain[0] *= 1.0;
+                LOGW_ANR("leanr mode dgain is wrong, use 1.0 instead\n");
+            } else {
+                stExpInfo.arDGain[0] *= curExp->LinearExp.exp_real_params.isp_dgain;
+            }
             stExpInfo.arTime[0] = curExp->LinearExp.exp_real_params.integration_time;
             stExpInfo.arIso[0] = stExpInfo.arAGain[0] * stExpInfo.arDGain[0] * 50;
         } else {

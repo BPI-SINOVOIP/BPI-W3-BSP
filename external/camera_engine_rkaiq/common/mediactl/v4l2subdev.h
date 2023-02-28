@@ -24,6 +24,10 @@
 
 #include <linux/v4l2-subdev.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 struct media_entity;
 
 /**
@@ -202,4 +206,7 @@ const char *v4l2_subdev_pixelcode_to_string(enum v4l2_mbus_pixelcode code);
  */
 enum v4l2_mbus_pixelcode v4l2_subdev_string_to_pixelcode(const char *string,
         unsigned int length);
+#ifdef __cplusplus
+}
+#endif
 #endif

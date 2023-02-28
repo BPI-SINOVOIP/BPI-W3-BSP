@@ -121,6 +121,7 @@ RkAiqManager::RkAiqManager(const char* sns_ent_name,
     , mCalibDb(NULL)
 #endif
     , mCalibDbV2(NULL)
+    , tuningCalib(NULL)
     , _state(AIQ_STATE_INVALID)
     , mCurMirror(false)
     , mCurFlip(false)
@@ -441,6 +442,11 @@ RkAiqManager::deInit()
         delete mCalibDbV2;
         mCalibDbV2 = NULL;
     }
+    if (tuningCalib) {
+        RkAiqCalibDbV2::FreeCalibByJ2S(tuningCalib);
+        mCalibDbV2 = NULL;
+    }
+
     _state = AIQ_STATE_INVALID;
 
     EXIT_XCORE_FUNCTION();
@@ -452,63 +458,19 @@ XCamReturn
 RkAiqManager::updateCalibDb(const CamCalibDbV2Context_t* newCalibDb)
 {
     XCamReturn ret = XCAM_RETURN_NO_ERROR;
-    SmartPtr<RkAiqFullParamsProxy> initParams;
+    auto update_list = std::make_shared<std::list<std::string>>();
+    update_list->push_back("colorAsGrey");
 
-    if (_state != AIQ_STATE_STARTED) {
-        LOGW_ANALYZER("should be called at STARTED state");
-        return ret;
-    }
-
-    mAiqRstAppTh->triger_stop();
-    bool bret = mAiqRstAppTh->stop();
-    ret = bret ? XCAM_RETURN_NO_ERROR : XCAM_RETURN_ERROR_FAILED;
-    RKAIQMNG_CHECK_RET(ret, "apply result thread stop error");
-
-    ret = mRkAiqAnalyzer->stop();
-    RKAIQMNG_CHECK_RET(ret, "analyzer stop error %d", ret);
-
-    *mCalibDbV2 = *newCalibDb;
-
-    if (mRkLumaAnalyzer.ptr()) {
-        CalibDbV2_LUMA_DETECT_t *lumaDetect =
-            (CalibDbV2_LUMA_DETECT_t*)(CALIBDBV2_GET_MODULE_PTR((void*)mCalibDbV2, lumaDetect));
-        ret = mRkLumaAnalyzer->init(lumaDetect);
-    }
+    *mCalibDbV2 = *(CamCalibDbV2Context_t*)newCalibDb;
+    mCamHw->setCalib(newCalibDb);
 
     ret = mRkAiqAnalyzer->setCalib(mCalibDbV2);
 
-    // 3. re-prepare analyzer
-    LOGI_ANALYZER("reprepare analyzer ...");
-    rk_aiq_exposure_sensor_descriptor sensor_des;
-    ret = mCamHw->getSensorModeData(mSnsEntName, sensor_des);
-
-    int working_mode_hw = RK_AIQ_WORKING_MODE_NORMAL;
-    if (mWorkingMode == RK_AIQ_WORKING_MODE_ISP_HDR2)
-        working_mode_hw = RK_AIQ_ISP_HDR_MODE_2_FRAME_HDR;
-    else if (mWorkingMode == RK_AIQ_WORKING_MODE_ISP_HDR3)
-        working_mode_hw = RK_AIQ_ISP_HDR_MODE_2_FRAME_HDR;
-
-    mRkAiqAnalyzer->notifyIspStreamMode(mCamHw->getIspStreamMode());
-    ret = mRkAiqAnalyzer->prepare(&sensor_des, working_mode_hw);
-    RKAIQMNG_CHECK_RET(ret, "analyzer prepare error %d", ret);
-
-    // update calib to hw
-    mCamHw->setCalib(mCalibDbV2);
-
-    initParams = mRkAiqAnalyzer->getAiqFullParams();
-
-    ret = applyAnalyzerResult(initParams);
-    RKAIQMNG_CHECK_RET(ret, "set initial params error %d", ret);
-
-    // 4. restart analyzer
-    LOGI_ANALYZER("restart analyzer");
-    mAiqRstAppTh->triger_start();
-    bret = mAiqRstAppTh->start();
-    ret = bret ? XCAM_RETURN_NO_ERROR : XCAM_RETURN_ERROR_FAILED;
-    RKAIQMNG_CHECK_RET(ret, "apply result thread start error");
-
-    ret = mRkAiqAnalyzer->start();
-    RKAIQMNG_CHECK_RET(ret, "analyzer start error %d", ret);
+    if (!mRkAiqAnalyzer->isRunningState()) {
+      mRkAiqAnalyzer->updateCalibDbBrutal(mCalibDbV2);
+    } else {
+      mRkAiqAnalyzer->calibTuning(mCalibDbV2, update_list);
+    }
 
     EXIT_XCORE_FUNCTION();
     return XCAM_RETURN_NO_ERROR;
@@ -645,6 +607,46 @@ RkAiqManager::hwResCb(SmartPtr<VideoBuffer>& hwres)
             hwevt.aiq_status = RK_AIQ_STATUS_VICAP_READY;
 #endif
             hwevt.ctx = mHwEvtCbCtx;
+            (*mHwEvtCb)(&hwevt);
+        }
+    } else if (hwres->_buf_type == VICAP_RESET_EVT) {
+        LOGD_ANALYZER(" VICAP_RESET_EVT... ");
+        if (mHwEvtCb) {
+            rk_aiq_hwevt_t hwevt;
+
+            memset(&hwevt, 0, sizeof(hwevt));
+            hwevt.cam_id = mCamHw->getCamPhyId();
+            hwevt.aiq_status = RK_AIQ_STATUS_VICAP_RESET;
+            hwevt.ctx = mHwEvtCbCtx;
+
+            LOGE_ANALYZER("cam: %d, VICAP_RESET_EVT...", hwevt.cam_id);
+            (*mHwEvtCb)(&hwevt);
+        }
+    } else if (hwres->_buf_type == VICAP_WITH_RK1608_RESET_EVT) {
+        LOGD_ANALYZER(" VICAP_WITH_RK1608_RESET_EVT... ");
+        SmartPtr<CamHwIsp20> mCamHwIsp20 = mCamHw.dynamic_cast_ptr<CamHwIsp20>();
+        if (mHwEvtCb && mCamHwIsp20.ptr()) {
+            rk_aiq_hwevt_t hwevt;
+
+            memset(&hwevt, 0, sizeof(hwevt));
+            for(int id = 0; id < 8; id++)
+                hwevt.multi_cam.multi_cam_id[id] = -1;
+
+            int i = 0;
+            for(int camPhyId = 0; camPhyId < CAM_INDEX_FOR_1608; camPhyId++) {
+                if (CamHwIsp20::rk1608_share_inf.raw_proc_unit[camPhyId]) {
+                    hwevt.multi_cam.multi_cam_id[i++] = camPhyId;
+                }
+            }
+            hwevt.multi_cam.cam_count = i;
+            hwevt.cam_id = -1;
+            hwevt.aiq_status = RK_AIQ_STATUS_VICAP_WITH_MULTI_CAM_RESET;
+            hwevt.ctx = mHwEvtCbCtx;
+
+            for (i = 0; i < 8; i++) {
+                LOGV_ANALYZER("multi_cam_id[%d]: %d \n", i, hwevt.multi_cam.multi_cam_id[i]);
+            }
+
             (*mHwEvtCb)(&hwevt);
         }
     }
@@ -1023,17 +1025,33 @@ CamCalibDbV2Context_t* RkAiqManager::getCurrentCalibDBV2()
   return mCalibDbV2;
 }
 
-XCamReturn RkAiqManager::calibTuning(const CamCalibDbV2Context_t* aiqCalib,
+XCamReturn RkAiqManager::calibTuning(CamCalibDbV2Context_t* aiqCalib,
                                      ModuleNameList& change_list)
 {
-  if (!aiqCalib) {
-    return XCAM_RETURN_ERROR_PARAM;
-  }
-  *mCalibDbV2 = *aiqCalib;
+    XCamReturn ret = XCAM_RETURN_NO_ERROR;
 
-  mCamHw->setCalib(mCalibDbV2);
+    mCamHw->setCalib(aiqCalib);
+    ret = mRkAiqAnalyzer->setCalib(aiqCalib);
 
-  return mRkAiqAnalyzer->calibTuning(aiqCalib, change_list);
+    mRkAiqAnalyzer->calibTuning(aiqCalib, change_list);
+
+    // Won't free calib witch from iqfiles
+    RkAiqCalibDbV2::FreeCalibByJ2S(tuningCalib);
+    *mCalibDbV2 = *aiqCalib;
+    tuningCalib = const_cast<CamCalibDbV2Context_t*>(aiqCalib);
+
+    change_list.reset();
+
+    EXIT_XCORE_FUNCTION();
+
+    return ret;
+}
+
+void RkAiqManager::unsetTuningCalibDb()
+{
+  tuningCalib = NULL;
 }
 
 }; //namespace RkCam
+
+

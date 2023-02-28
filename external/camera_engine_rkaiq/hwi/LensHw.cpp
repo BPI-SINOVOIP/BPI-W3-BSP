@@ -36,6 +36,7 @@ LensHw::LensHw(const char* name)
     _lenshw_thd = new LensHwHelperThd(this, 0);
     _lenshw_thd1 = new LensHwHelperThd(this, 1);
     _piris_step = -1;
+    _max_logical_pos = 64;
     EXIT_CAMHW_FUNCTION();
 }
 
@@ -254,6 +255,49 @@ LensHw::setLensVcmCfg(rk_aiq_lens_vcmcfg& lens_cfg)
     return XCAM_RETURN_NO_ERROR;
 }
 
+XCamReturn LensHw::getLensVcmMaxlogpos(int& max_log_pos)
+{
+    ENTER_CAMHW_FUNCTION();
+
+    if (!_name)
+        return XCAM_RETURN_NO_ERROR;
+
+    max_log_pos = _max_logical_pos;
+
+    EXIT_CAMHW_FUNCTION();
+    return XCAM_RETURN_NO_ERROR;
+}
+
+XCamReturn LensHw::setLensVcmMaxlogpos(int& max_log_pos)
+{
+    ENTER_CAMHW_FUNCTION();
+
+    struct v4l2_queryctrl focus_query;
+
+    _max_logical_pos = max_log_pos;
+    if (!_name)
+        return XCAM_RETURN_NO_ERROR;
+
+    if (io_control (RK_VIDIOC_SET_VCM_MAX_LOGICALPOS, &max_log_pos) < 0) {
+        LOGE_CAMHW_SUBM(LENS_SUBM, "set vcm cfg failed");
+        return XCAM_RETURN_ERROR_IOCTL;
+    }
+
+    memset(&focus_query, 0, sizeof(focus_query));
+    focus_query.id = V4L2_CID_FOCUS_ABSOLUTE;
+    if (io_control(VIDIOC_QUERYCTRL, &focus_query) < 0) {
+        LOGI_CAMHW_SUBM(LENS_SUBM, "query focus ctrl failed");
+        return XCAM_RETURN_ERROR_IOCTL;
+    } else {
+        _focus_query = focus_query;
+    }
+
+    LOGD_AF("%s: max_log_pos %d", __func__, max_log_pos);
+
+    EXIT_CAMHW_FUNCTION();
+    return XCAM_RETURN_NO_ERROR;
+}
+
 XCamReturn
 LensHw::setFocusParamsSync(int position, bool is_update_time, bool focus_noreback)
 {
@@ -346,27 +390,29 @@ LensHw::setFocusParams(SmartPtr<RkAiqFocusParamsProxy>& focus_params)
         attrPtr->next_pos_num = 1;
         attrPtr->next_lens_pos[0] = p_focus->next_lens_pos[0];
 
-        LOGD_CAMHW_SUBM(LENS_SUBM, "set focus position: %d", attrPtr->next_lens_pos[0]);
+        LOGI_AF("set focus position: %d", attrPtr->next_lens_pos[0]);
         _lenshw_thd->push_attr(attrPtr);
     } else {
         struct v4l2_control control;
         unsigned long start_time, end_time;
-        int position = p_focus->next_lens_pos[0];
+        int algo_pos, driver_pos;
 
-        if (position < _focus_query.minimum)
-            position = _focus_query.minimum;
-        if (position > _focus_query.maximum)
-            position = _focus_query.maximum;
+        algo_pos = p_focus->next_lens_pos[0];
+        driver_pos = algo_pos * (_focus_query.maximum - _focus_query.minimum) / _max_logical_pos + _focus_query.minimum;
+        if (driver_pos < _focus_query.minimum)
+            driver_pos = _focus_query.minimum;
+        if (driver_pos > _focus_query.maximum)
+            driver_pos = _focus_query.maximum;
 
         xcam_mem_clear (control);
         control.id = V4L2_CID_FOCUS_ABSOLUTE;
-        control.value = position;
+        control.value = driver_pos;
 
         if (io_control (VIDIOC_S_CTRL, &control) < 0) {
             LOGE_CAMHW_SUBM(LENS_SUBM, "set focus result failed to device");
             return XCAM_RETURN_ERROR_IOCTL;
         }
-        _focus_pos = position;
+        _focus_pos = algo_pos;
 
         struct rk_cam_vcm_tim tim;
         if (io_control (RK_VIDIOC_VCM_TIMEINFO, &tim) < 0) {
@@ -377,8 +423,8 @@ LensHw::setFocusParams(SmartPtr<RkAiqFocusParamsProxy>& focus_params)
 
         start_time = _focus_tim.vcm_start_t.tv_sec * 1000 + _focus_tim.vcm_start_t.tv_usec / 1000;
         end_time = _focus_tim.vcm_end_t.tv_sec * 1000 + _focus_tim.vcm_end_t.tv_usec / 1000;
-        LOGD_CAMHW_SUBM(LENS_SUBM, "|||set focus result: %d, focus_pos %d, end time %ld, need time %d",
-                        position, position, end_time, end_time - start_time);
+        LOGI_AF("|||set focus: algo_pos %d, driver_pos %d, end time %ld, need time %d",
+                 algo_pos, driver_pos, end_time, end_time - start_time);
     }
 
     EXIT_CAMHW_FUNCTION();

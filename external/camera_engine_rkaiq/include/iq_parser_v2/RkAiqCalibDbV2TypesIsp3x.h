@@ -27,8 +27,8 @@
 #include "bayer2dnr_head_v2.h"
 #include "bayertnr_head_v2.h"
 #include "gain_head_v2.h"
-
-
+#include "cgc_head.h"
+#include "csm_head.h"
 #include "cac_head.h"
 
 RKAIQ_BEGIN_DECLARE
@@ -57,7 +57,7 @@ typedef struct CamCalibDbV2ContextIsp30_s {
     // M4_STRUCT_DESC("agamma_calib", "normal_ui_style")
     CalibDbV2_gamma_V30_t agamma_calib_V30;
     // M4_STRUCT_DESC("adehaze_calib", "normal_ui_style")
-    CalibDbV2_dehaze_V30_t adehaze_calib_v30;
+    CalibDbV2_dehaze_V21_t adehaze_calib_v30;
     // M4_STRUCT_DESC("adpcc_calib", "normal_ui_style")
     CalibDbV2_Dpcc_t adpcc_calib;
     // M4_STRUCT_DESC("aldch", "normal_ui_style")
@@ -88,6 +88,10 @@ typedef struct CamCalibDbV2ContextIsp30_s {
     CalibDbV2_AFV30_t af_v30;
     // M4_STRUCT_DESC("gain_v2", "normal_ui_style")
     CalibDbV2_GainV2_t gain_v2;
+    // M4_STRUCT_DESC("csm", "normal_ui_style")
+    CalibDbV2_csm_t csm;
+    // M4_STRUCT_DESC("cgc", "normal_ui_style")
+    CalibDbV2_cgc_t cgc;
 } CamCalibDbV2ContextIsp30_t;
 
 RKAIQ_END_DECLARE

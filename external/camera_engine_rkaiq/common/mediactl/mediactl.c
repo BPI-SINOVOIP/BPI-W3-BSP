@@ -86,7 +86,6 @@ struct media_entity *media_get_entity_by_name(struct media_device *media,
         }
 	}
 
-    printf("media get entity by name: %s is null\n", name);
 	return NULL;
 }
 

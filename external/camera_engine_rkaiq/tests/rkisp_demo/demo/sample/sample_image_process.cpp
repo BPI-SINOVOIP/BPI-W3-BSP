@@ -46,7 +46,7 @@
 #include "sample_aie_module.h"
 #include "sample_adpcc_module.h"
 #include "sample_again_module.h"
-
+#include "sample_cgc_module.h"
 
 struct module_sample_info {
     const char * const name;
@@ -84,6 +84,7 @@ static struct module_sample_info module_samples[] = {
     MODULE_INFO(RK_ISP_ACP, sample_acp_module, sample_print_acp_info),
     MODULE_INFO(RK_ISP_AIE, sample_aie_module, sample_print_aie_info),
     MODULE_INFO(RK_ISP_AGAIN, sample_again_module, sample_print_again_info),
+    MODULE_INFO(RK_ISP_CGC, sample_cgc_module, sample_print_cgc_info),
 };
 
 static void sample_usage()
@@ -115,6 +116,7 @@ static void sample_usage()
     printf("\t l) AIE:        module test sample.\n");
     printf("\t m) DPCC:       module test sample.\n");
     printf("\t n) AGAIN:      module test sample.\n");
+    printf("\t o) CGC:        module test sample.\n");
     printf("\n");
     printf("\t please press the key: ");
 
@@ -284,6 +286,13 @@ XCamReturn sample_main (const void *arg)
     case 'n': {
         printf("enter GAIN module test\n");
         sample_again_module(arg);
+        break;
+    }
+    case 'o': {
+        printf("enter CGC module test\n");
+        struct module_sample_info *info = &module_samples[RK_ISP_CGC];
+        info->debug (nullptr);
+        info->func (arg);
         break;
     }
     default:

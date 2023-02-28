@@ -61,7 +61,8 @@ AcnrV2_result_t cnr_select_params_by_ISO_V2(RK_CNR_Params_V2_t *pParams, RK_CNR_
             isoGainHigh = pParams->iso[i + 1];
             isoIndexLow = i;
             isoIndexHigh = i + 1;
-            isoIndex = isoIndexLow;
+            //isoIndex = isoIndexLow;
+            isoIndex = (iso - pParams->iso[i]) < (pParams->iso[i + 1] - iso) ? isoIndexLow : isoIndexHigh;
         }
     }
 
@@ -99,6 +100,9 @@ AcnrV2_result_t cnr_select_params_by_ISO_V2(RK_CNR_Params_V2_t *pParams, RK_CNR_
     isoIndexLow = MIN(MAX(isoIndexLow, 0), max_iso_step - 1);
     isoIndexHigh = MIN(MAX(isoIndexHigh, 0), max_iso_step - 1);
 #endif
+
+    pExpInfo->isoHigh = pParams->iso[isoIndexHigh];
+    pExpInfo->isoLow = pParams->iso[isoIndexLow];
 
     LOGD_ANR("%s:%d iso:%d high:%d low:%d \n",
              __FUNCTION__, __LINE__,

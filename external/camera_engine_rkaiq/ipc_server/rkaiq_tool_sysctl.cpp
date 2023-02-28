@@ -114,3 +114,21 @@ int enqueueRkRawFile(rk_aiq_sys_ctx_t* ctx, char* data)
 {
     return rk_aiq_uapi_sysctl_enqueueRkRawFile(ctx, data);
 }
+
+int get3AStats(rk_aiq_sys_ctx_t* ctx, char* data)
+{
+    return rk_aiq_uapi_sysctl_get3AStats(ctx, (rk_aiq_isp_stats_t*)data);
+}
+
+int get3AStatsBlk(rk_aiq_sys_ctx_t* ctx, char* data)
+{
+    rk_aiq_isp_stats_t* new_stats = NULL;
+    rk_aiq_uapi_sysctl_get3AStatsBlk(ctx, &new_stats, -1);
+    if (new_stats) {
+      memcpy(data, new_stats, sizeof(rk_aiq_isp_stats_t));
+      rk_aiq_uapi_sysctl_release3AStatsRef(ctx, new_stats);
+      return 0;
+    } else {
+      return -1;
+    }
+}

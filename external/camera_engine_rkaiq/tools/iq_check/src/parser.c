@@ -758,13 +758,13 @@ void j2s_dump(j2s_ctx *ctx) {
 	printf("#define J2S_NUM_ENUM %d\n", ctx->num_enum);
 	printf("#define J2S_NUM_ENUM_VALUE %d\n\n", ctx->num_enum_value);
 
+	printf("static j2s_obj objs[J2S_NUM_OBJ];\n");
+	printf("static j2s_struct structs[J2S_NUM_STRUCT];\n");
+	printf("static j2s_enum enums[J2S_NUM_ENUM];\n");
+	printf("static j2s_enum_value enum_values[J2S_NUM_ENUM_VALUE];\n\n");
+
 	printf("static void _j2s_init(j2s_ctx *ctx) {\n");
 	printf("\tj2s_obj *obj;\n\n");
-
-	printf("\tstatic j2s_obj objs[J2S_NUM_OBJ];\n");
-	printf("\tstatic j2s_struct structs[J2S_NUM_STRUCT];\n");
-	printf("\tstatic j2s_enum enums[J2S_NUM_ENUM];\n");
-	printf("\tstatic j2s_enum_value enum_values[J2S_NUM_ENUM_VALUE];\n\n");
 
 	printf("\tctx->magic = J2S_MAGIC;\n");
 	printf("\tctx->priv = NULL;\n");

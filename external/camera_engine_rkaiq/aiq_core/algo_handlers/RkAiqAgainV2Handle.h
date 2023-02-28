@@ -40,6 +40,7 @@ public:
     virtual XCamReturn genIspResult(RkAiqFullParams* params, RkAiqFullParams* cur_params);
     XCamReturn setAttrib(rk_aiq_gain_attrib_v2_t *att);
     XCamReturn getAttrib(rk_aiq_gain_attrib_v2_t *att);
+    XCamReturn getInfo(rk_aiq_gain_info_v2_t *pInfo);
 protected:
     virtual void init();
     virtual void deInit() {

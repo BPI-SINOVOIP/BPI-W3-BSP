@@ -25,6 +25,7 @@
 #include "Isp20_module_dbg.h"
 #include "CamHwIsp20.h"
 #include "CaptureRawData.h"
+#include "rkcif-config.h"
 
 namespace RkCam {
 
@@ -52,6 +53,8 @@ RKStream::poll_type_to_str[ISP_POLL_POST_MAX] =
     "ispp_gain_wr",
     "ISP_STREAM_SYNC_POLL",
     "vicap_stream_on_evt",
+    "vicap_reset_evt",
+    "vicap_with_rk1608_reset_evt",
 };
 
 RkPollThread::RkPollThread (const char* thName, int type, SmartPtr<V4l2Device> dev, RKStream *stream)
@@ -144,7 +147,8 @@ XCamReturn RkPollThread::start ()
 XCamReturn RkPollThread::stop ()
 {
     LOGI_CAMHW_SUBM(ISP20HW_SUBM, "RkPollThread %s:%s stop", get_name(),
-                   _dev.ptr() ? _dev->get_device_name() : _subdev->get_device_name());
+                   _dev.ptr() ? _dev->get_device_name() :
+                   _subdev.ptr() ? _subdev->get_device_name() : "null");
     if (_poll_stop_fd[1] != -1) {
         char buf = 0xf;  // random value to write to flush fd.
         unsigned int size = write(_poll_stop_fd[1], &buf, sizeof(char));
@@ -276,15 +280,14 @@ RkEventPollThread::poll_event_loop ()
         return XCAM_RETURN_ERROR_IOCTL;
     }
 
-    LOGD_CAMHW_SUBM(ISP20HW_SUBM, "camId: %d, frameId: %d: dequeue the event on dev: %s",
+    LOGD_CAMHW_SUBM(ISP20HW_SUBM, "camId: %d, frameId: %d: dequeue the type(%d) of event on dev: %s",
                     mCamPhyId, _event.u.frame_sync.frame_sequence,
-                    XCAM_STR(_dev->get_device_name()));
+                    _event.type, XCAM_STR(_dev->get_device_name()));
 
     if (_poll_callback && _stream) {
         SmartPtr<VideoBuffer> video_buf = _stream->new_video_buffer(_event, _subdev);
         _poll_callback->poll_buffer_ready (video_buf);
     }
-
 
     return ret;
 }
@@ -379,13 +382,27 @@ RKStream::start()
 {
     if (!_dev->is_activated())
         _dev->start(_dev_prepared);
+
     _poll_thread->setCamPhyId(mCamPhyId);
+    if (_dev_type == ISP_POLL_3A_STATS || \
+        _dev_type == ISP_POLL_TX || \
+        _dev_type == ISP_POLL_RX) {
+        _poll_thread->set_policy(SCHED_RR);
+        _poll_thread->set_priority(20);
+    }
     _poll_thread->start();
 }
 
 void
 RKStream::startThreadOnly()
 {
+    _poll_thread->setCamPhyId(mCamPhyId);
+    if (_dev_type == ISP_POLL_3A_STATS || \
+        _dev_type == ISP_POLL_TX || \
+        _dev_type == ISP_POLL_RX) {
+        _poll_thread->set_policy(SCHED_RR);
+        _poll_thread->set_priority(20);
+    }
     _poll_thread->start();
 }
 
@@ -435,7 +452,7 @@ RKStream::set_device_prepared(bool prepare)
 
 SmartPtr<VideoBuffer> RKStream::new_video_buffer(SmartPtr<V4l2Buffer> buf,
                                        SmartPtr<V4l2Device> dev)
-{ 
+{
     SmartPtr<VideoBuffer> video_buf = new V4l2BufferProxy (buf, dev);
     video_buf->_buf_type = _dev_type;
     return video_buf;
@@ -529,10 +546,12 @@ RKStatsStream::new_video_buffer(SmartPtr<V4l2Buffer> buf,
 }
 
 /*--------------------sof event stream---------------------------*/
+std::atomic<bool> RKSofEventStream::_is_subscribed{false};
 
-RKSofEventStream::RKSofEventStream (SmartPtr<V4l2SubDevice> dev, int type)
+RKSofEventStream::RKSofEventStream (SmartPtr<V4l2SubDevice> dev, int type, bool linkedToRk1608)
     :RKStream(dev, type)
 {
+    _linked_to_1608 = linkedToRk1608;
     LOGD_CAMHW_SUBM(ISP20HW_SUBM, "RKSofEventStream constructed");
 }
 
@@ -554,6 +573,14 @@ RKSofEventStream::start()
     _poll_thread->setCamPhyId(mCamPhyId);
     _poll_thread->start();
     _subdev->subscribe_event(V4L2_EVENT_FRAME_SYNC);
+    if (_linked_to_1608) {
+        if (!_is_subscribed.load()) {
+            _subdev->subscribe_event(V4L2_EVENT_RESET_DEV);
+            _is_subscribed.store(true);
+        }
+    } else {
+        _subdev->subscribe_event(V4L2_EVENT_RESET_DEV);
+    }
 }
 
 void
@@ -561,6 +588,14 @@ RKSofEventStream::stop()
 {
     _poll_thread->stop();
     _subdev->unsubscribe_event(V4L2_EVENT_FRAME_SYNC);
+    if (_linked_to_1608) {
+        if (_is_subscribed.load()) {
+            _subdev->unsubscribe_event(V4L2_EVENT_RESET_DEV);
+            _is_subscribed.store(false);
+        }
+    } else {
+        _subdev->unsubscribe_event(V4L2_EVENT_RESET_DEV);
+    }
     _subdev->stop();
 }
 
@@ -578,7 +613,14 @@ RKSofEventStream::new_video_buffer(struct v4l2_event &event,
     evtdata->_frameid = exp_id;
 
     video_buf = new SofEventBuffer(evtdata, dev);
-    video_buf->_buf_type = _dev_type;
+    if (event.type == V4L2_EVENT_RESET_DEV) {
+        if (_linked_to_1608) {
+            video_buf->_buf_type = VICAP_WITH_RK1608_RESET_EVT;
+        } else
+            video_buf->_buf_type = VICAP_RESET_EVT;
+    } else {
+        video_buf->_buf_type = _dev_type;
+    }
     video_buf->set_sequence (exp_id);
     EXIT_CAMHW_FUNCTION();
 

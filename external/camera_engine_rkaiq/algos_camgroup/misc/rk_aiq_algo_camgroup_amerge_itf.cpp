@@ -156,57 +156,132 @@ static XCamReturn AmergeProcess(const RkAiqAlgoCom* inparams, RkAiqAlgoResCom* o
             AmergeGetSensorInfo(pAmergeGrpCtx, AeProcResult);
         }
 
-        //get ae pre res and proc
-        XCamVideoBuffer* xCamAePreRes = pAmergeGrpParams->camgroupParmasArray[0]->aec._aePreRes;
-        RkAiqAlgoPreResAe* pAEPreRes = NULL;
-        if (xCamAePreRes) {
-            pAEPreRes = (RkAiqAlgoPreResAe*)xCamAePreRes->map(xCamAePreRes);
-            bypass = AmergeByPassProcessing(pAmergeGrpCtx, pAEPreRes->ae_pre_res_rk);
-        }
-        else {
-            AecPreResult_t AecHdrPreResult;
-            memset(&AecHdrPreResult, 0x0, sizeof(AecPreResult_t));
-            bypass = AmergeByPassProcessing(pAmergeGrpCtx, AecHdrPreResult);
-            bypass = false;
-            LOGE_AMERGE("%s: ae Pre result is null!!!\n", __FUNCTION__);
-        }
-
-        //merge tuning para process
-        if(!bypass)
-            AmergeTuningProcessing(pAmergeGrpCtx);
-
         //expo para process
         MergeExpoData_t ExpoData;
         memset(&ExpoData, 0, sizeof(MergeExpoData_t));
         if(pAmergeGrpCtx->FrameNumber == HDR_2X_NUM) {
-            ExpoData.nextSExpo = pAmergeGrpParams->camgroupParmasArray[0]->aec._effAecExpInfo.HdrExp[0].exp_real_params.analog_gain *
-                                 pAmergeGrpParams->camgroupParmasArray[0]->aec._effAecExpInfo.HdrExp[0].exp_real_params.digital_gain *
-                                 pAmergeGrpParams->camgroupParmasArray[0]->aec._effAecExpInfo.HdrExp[0].exp_real_params.integration_time;
-            ExpoData.nextMExpo = pAmergeGrpParams->camgroupParmasArray[0]->aec._effAecExpInfo.HdrExp[1].exp_real_params.analog_gain *
-                                 pAmergeGrpParams->camgroupParmasArray[0]->aec._effAecExpInfo.HdrExp[1].exp_real_params.digital_gain *
-                                 pAmergeGrpParams->camgroupParmasArray[0]->aec._effAecExpInfo.HdrExp[1].exp_real_params.integration_time;
+            ExpoData.nextSExpo = pAmergeGrpParams->camgroupParmasArray[0]
+                                     ->aec._effAecExpInfo.HdrExp[0]
+                                     .exp_real_params.analog_gain *
+                                 pAmergeGrpParams->camgroupParmasArray[0]
+                                     ->aec._effAecExpInfo.HdrExp[0]
+                                     .exp_real_params.digital_gain *
+                                 pAmergeGrpParams->camgroupParmasArray[0]
+                                     ->aec._effAecExpInfo.HdrExp[0]
+                                     .exp_real_params.isp_dgain *
+                                 pAmergeGrpParams->camgroupParmasArray[0]
+                                     ->aec._effAecExpInfo.HdrExp[0]
+                                     .exp_real_params.integration_time;
+            ExpoData.nextMExpo = pAmergeGrpParams->camgroupParmasArray[0]
+                                     ->aec._effAecExpInfo.HdrExp[1]
+                                     .exp_real_params.analog_gain *
+                                 pAmergeGrpParams->camgroupParmasArray[0]
+                                     ->aec._effAecExpInfo.HdrExp[1]
+                                     .exp_real_params.digital_gain *
+                                 pAmergeGrpParams->camgroupParmasArray[0]
+                                     ->aec._effAecExpInfo.HdrExp[1]
+                                     .exp_real_params.isp_dgain *
+                                 pAmergeGrpParams->camgroupParmasArray[0]
+                                     ->aec._effAecExpInfo.HdrExp[1]
+                                     .exp_real_params.integration_time;
             ExpoData.nextLExpo = ExpoData.nextMExpo;
 
-            ExpoData.nextSGain = pAmergeGrpParams->camgroupParmasArray[0]->aec._effAecExpInfo.HdrExp[0].exp_real_params.analog_gain *
-                                 pAmergeGrpParams->camgroupParmasArray[0]->aec._effAecExpInfo.HdrExp[0].exp_real_params.digital_gain;
-            ExpoData.nextMGain = pAmergeGrpParams->camgroupParmasArray[0]->aec._effAecExpInfo.HdrExp[1].exp_real_params.analog_gain *
-                                 pAmergeGrpParams->camgroupParmasArray[0]->aec._effAecExpInfo.HdrExp[1].exp_real_params.digital_gain;
+            ExpoData.nextSGain = pAmergeGrpParams->camgroupParmasArray[0]
+                                     ->aec._effAecExpInfo.HdrExp[0]
+                                     .exp_real_params.analog_gain *
+                                 pAmergeGrpParams->camgroupParmasArray[0]
+                                     ->aec._effAecExpInfo.HdrExp[0]
+                                     .exp_real_params.isp_dgain *
+                                 pAmergeGrpParams->camgroupParmasArray[0]
+                                     ->aec._effAecExpInfo.HdrExp[0]
+                                     .exp_real_params.digital_gain;
+            ExpoData.nextMGain = pAmergeGrpParams->camgroupParmasArray[0]
+                                     ->aec._effAecExpInfo.HdrExp[1]
+                                     .exp_real_params.analog_gain *
+                                 pAmergeGrpParams->camgroupParmasArray[0]
+                                     ->aec._effAecExpInfo.HdrExp[1]
+                                     .exp_real_params.isp_dgain *
+                                 pAmergeGrpParams->camgroupParmasArray[0]
+                                     ->aec._effAecExpInfo.HdrExp[1]
+                                     .exp_real_params.digital_gain;
+
+            pAmergeGrpCtx->CurrData.CtrlData.ISO = pAmergeGrpParams->camgroupParmasArray[0]
+                                                       ->aec._effAecExpInfo.HdrExp[1]
+                                                       .exp_real_params.analog_gain *
+                                                   pAmergeGrpParams->camgroupParmasArray[0]
+                                                       ->aec._effAecExpInfo.HdrExp[1]
+                                                       .exp_real_params.digital_gain *
+                                                   pAmergeGrpParams->camgroupParmasArray[0]
+                                                       ->aec._effAecExpInfo.HdrExp[1]
+                                                       .exp_real_params.isp_dgain *
+                                                   50.0f;
         }
         else if(pAmergeGrpCtx->FrameNumber == HDR_3X_NUM) {
-            ExpoData.nextSExpo = pAmergeGrpParams->camgroupParmasArray[0]->aec._effAecExpInfo.HdrExp[0].exp_real_params.analog_gain *
-                                 pAmergeGrpParams->camgroupParmasArray[0]->aec._effAecExpInfo.HdrExp[0].exp_real_params.digital_gain *
-                                 pAmergeGrpParams->camgroupParmasArray[0]->aec._effAecExpInfo.HdrExp[0].exp_real_params.integration_time;
-            ExpoData.nextMExpo = pAmergeGrpParams->camgroupParmasArray[0]->aec._effAecExpInfo.HdrExp[1].exp_real_params.analog_gain *
-                                 pAmergeGrpParams->camgroupParmasArray[0]->aec._effAecExpInfo.HdrExp[1].exp_real_params.digital_gain *
-                                 pAmergeGrpParams->camgroupParmasArray[0]->aec._effAecExpInfo.HdrExp[1].exp_real_params.integration_time;
-            ExpoData.nextLExpo = pAmergeGrpParams->camgroupParmasArray[0]->aec._effAecExpInfo.HdrExp[2].exp_real_params.analog_gain *
-                                 pAmergeGrpParams->camgroupParmasArray[0]->aec._effAecExpInfo.HdrExp[2].exp_real_params.digital_gain *
-                                 pAmergeGrpParams->camgroupParmasArray[0]->aec._effAecExpInfo.HdrExp[2].exp_real_params.integration_time;
+            ExpoData.nextSExpo = pAmergeGrpParams->camgroupParmasArray[0]
+                                     ->aec._effAecExpInfo.HdrExp[0]
+                                     .exp_real_params.analog_gain *
+                                 pAmergeGrpParams->camgroupParmasArray[0]
+                                     ->aec._effAecExpInfo.HdrExp[0]
+                                     .exp_real_params.digital_gain *
+                                 pAmergeGrpParams->camgroupParmasArray[0]
+                                     ->aec._effAecExpInfo.HdrExp[0]
+                                     .exp_real_params.isp_dgain *
+                                 pAmergeGrpParams->camgroupParmasArray[0]
+                                     ->aec._effAecExpInfo.HdrExp[0]
+                                     .exp_real_params.integration_time;
+            ExpoData.nextMExpo = pAmergeGrpParams->camgroupParmasArray[0]
+                                     ->aec._effAecExpInfo.HdrExp[1]
+                                     .exp_real_params.analog_gain *
+                                 pAmergeGrpParams->camgroupParmasArray[0]
+                                     ->aec._effAecExpInfo.HdrExp[1]
+                                     .exp_real_params.digital_gain *
+                                 pAmergeGrpParams->camgroupParmasArray[0]
+                                     ->aec._effAecExpInfo.HdrExp[1]
+                                     .exp_real_params.isp_dgain *
+                                 pAmergeGrpParams->camgroupParmasArray[0]
+                                     ->aec._effAecExpInfo.HdrExp[1]
+                                     .exp_real_params.integration_time;
+            ExpoData.nextLExpo = pAmergeGrpParams->camgroupParmasArray[0]
+                                     ->aec._effAecExpInfo.HdrExp[2]
+                                     .exp_real_params.analog_gain *
+                                 pAmergeGrpParams->camgroupParmasArray[0]
+                                     ->aec._effAecExpInfo.HdrExp[2]
+                                     .exp_real_params.digital_gain *
+                                 pAmergeGrpParams->camgroupParmasArray[0]
+                                     ->aec._effAecExpInfo.HdrExp[2]
+                                     .exp_real_params.isp_dgain *
+                                 pAmergeGrpParams->camgroupParmasArray[0]
+                                     ->aec._effAecExpInfo.HdrExp[2]
+                                     .exp_real_params.integration_time;
 
-            ExpoData.nextSGain = pAmergeGrpParams->camgroupParmasArray[0]->aec._effAecExpInfo.HdrExp[0].exp_real_params.analog_gain *
-                                 pAmergeGrpParams->camgroupParmasArray[0]->aec._effAecExpInfo.HdrExp[0].exp_real_params.digital_gain;
-            ExpoData.nextMGain = pAmergeGrpParams->camgroupParmasArray[0]->aec._effAecExpInfo.HdrExp[1].exp_real_params.analog_gain *
-                                 pAmergeGrpParams->camgroupParmasArray[0]->aec._effAecExpInfo.HdrExp[1].exp_real_params.digital_gain;
+            ExpoData.nextSGain = pAmergeGrpParams->camgroupParmasArray[0]
+                                     ->aec._effAecExpInfo.HdrExp[0]
+                                     .exp_real_params.analog_gain *
+                                 pAmergeGrpParams->camgroupParmasArray[0]
+                                     ->aec._effAecExpInfo.HdrExp[0]
+                                     .exp_real_params.isp_dgain *
+                                 pAmergeGrpParams->camgroupParmasArray[0]
+                                     ->aec._effAecExpInfo.HdrExp[0]
+                                     .exp_real_params.digital_gain;
+            ExpoData.nextMGain = pAmergeGrpParams->camgroupParmasArray[0]
+                                     ->aec._effAecExpInfo.HdrExp[1]
+                                     .exp_real_params.analog_gain *
+                                 pAmergeGrpParams->camgroupParmasArray[0]
+                                     ->aec._effAecExpInfo.HdrExp[1]
+                                     .exp_real_params.isp_dgain *
+                                 pAmergeGrpParams->camgroupParmasArray[0]
+                                     ->aec._effAecExpInfo.HdrExp[1]
+                                     .exp_real_params.digital_gain;
+            pAmergeGrpCtx->CurrData.CtrlData.ISO = pAmergeGrpParams->camgroupParmasArray[0]
+                                                       ->aec._effAecExpInfo.HdrExp[1]
+                                                       .exp_real_params.analog_gain *
+                                                   pAmergeGrpParams->camgroupParmasArray[0]
+                                                       ->aec._effAecExpInfo.HdrExp[1]
+                                                       .exp_real_params.digital_gain *
+                                                   pAmergeGrpParams->camgroupParmasArray[0]
+                                                       ->aec._effAecExpInfo.HdrExp[1]
+                                                       .exp_real_params.isp_dgain *
+                                                   50.0f;
         }
         LOGV_AMERGE("%s: nextFrame: sexp: %f-%f, mexp: %f-%f, lexp: %f-%f\n", __FUNCTION__,
                     pAmergeGrpParams->camgroupParmasArray[0]->aec._effAecExpInfo.HdrExp[0].exp_real_params.analog_gain,
@@ -234,6 +309,23 @@ static XCamReturn AmergeProcess(const RkAiqAlgoCom* inparams, RkAiqAlgoResCom* o
             ExpoData.nextRatioLS = 1;
             ExpoData.nextRatioLM = 1;
         }
+
+        // get ae pre res and proc
+        XCamVideoBuffer* xCamAePreRes = pAmergeGrpParams->camgroupParmasArray[0]->aec._aePreRes;
+        RkAiqAlgoPreResAe* pAEPreRes  = NULL;
+        if (xCamAePreRes) {
+            pAEPreRes = (RkAiqAlgoPreResAe*)xCamAePreRes->map(xCamAePreRes);
+            bypass    = AmergeByPassProcessing(pAmergeGrpCtx, pAEPreRes->ae_pre_res_rk);
+        } else {
+            AecPreResult_t AecHdrPreResult;
+            memset(&AecHdrPreResult, 0x0, sizeof(AecPreResult_t));
+            bypass = AmergeByPassProcessing(pAmergeGrpCtx, AecHdrPreResult);
+            bypass = false;
+            LOGE_AMERGE("%s: ae Pre result is null!!!\n", __FUNCTION__);
+        }
+
+        // merge tuning para process
+        if (!bypass) AmergeTuningProcessing(pAmergeGrpCtx);
 
         if(ExpoData.nextRatioLS >= 1 && ExpoData.nextRatioLM >= 1)
             AmergeExpoProcessing(pAmergeGrpCtx, &ExpoData);

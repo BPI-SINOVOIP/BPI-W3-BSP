@@ -5,7 +5,6 @@
 #include <alsa/asoundlib.h>
 #include <pthread.h>
 
-#include <DeviceIo.h>
 #include <RkBtBase.h>
 #include <RkBtSink.h>
 #include <RkBtSource.h>
@@ -1371,7 +1370,7 @@ void _btspp_recv_callback(char *data, int len)
 
 void bt_test_spp_open(char *data)
 {
-	rk_bt_spp_open();
+	rk_bt_spp_open(data);
 	rk_bt_spp_register_status_cb(_btspp_status_callback);
 	rk_bt_spp_register_recv_cb(_btspp_recv_callback);
 }

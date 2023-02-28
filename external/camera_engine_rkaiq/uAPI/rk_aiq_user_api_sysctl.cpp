@@ -121,10 +121,16 @@ typedef struct rk_aiq_sys_preinit_cfg_s {
     rk_aiq_sys_preinit_cfg_s() {
         hwevt_cb = NULL;
         hwevt_cb_ctx = NULL;
+        iq_buffer.addr = NULL;
+        iq_buffer.len = 0;
     };
+    rk_aiq_iq_buffer_info_t iq_buffer;
 } rk_aiq_sys_preinit_cfg_t;
 
 static std::map<std::string, rk_aiq_sys_preinit_cfg_t> g_rk_aiq_sys_preinit_cfg_map;
+static void rk_aiq_init_lib(void) /*__attribute__((constructor))*/;
+static void rk_aiq_deinit_lib(void) /*__attribute__((destructor))*/;
+static bool g_rk_aiq_init_lib = false;
 
 XCamReturn
 rk_aiq_uapi_sysctl_preInit(const char* sns_ent_name,
@@ -242,8 +248,14 @@ rk_aiq_uapi_sysctl_init(const char* sns_ent_name,
     char config_file[256];
     std::string main_scene;
     std::string sub_scene;
+    rk_aiq_iq_buffer_info_t iq_buffer{NULL, 0};
 
     XCAM_ASSERT(sns_ent_name);
+
+    if (!g_rk_aiq_init_lib) {
+        rk_aiq_init_lib();
+        g_rk_aiq_init_lib = true;
+    }
 
     bool is_ent_name = true;
     if (sns_ent_name[0] != 'm' || sns_ent_name[3] != '_')
@@ -251,9 +263,9 @@ rk_aiq_uapi_sysctl_init(const char* sns_ent_name,
 
     if (!is_ent_name) {
         if (config_file_dir && (strlen(config_file_dir) > 0))
-            sprintf(config_file, "%s/%s.xml", config_file_dir, sns_ent_name);
+            sprintf(config_file, "%s/%s.json", config_file_dir, sns_ent_name);
         else
-            sprintf(config_file, "%s/%s.xml", RKAIQ_DEFAULT_IQ_PATH, sns_ent_name);
+            sprintf(config_file, "%s/%s.json", RKAIQ_DEFAULT_IQ_PATH, sns_ent_name);
     }
     rk_aiq_sys_ctx_t* ctx = new rk_aiq_sys_ctx_t();
     RKAIQSYS_CHECK_RET(!ctx, NULL, "malloc main ctx error !");
@@ -273,6 +285,8 @@ rk_aiq_uapi_sysctl_init(const char* sns_ent_name,
         ctx->_rkAiqManager->setHwEvtCb(it->second.hwevt_cb, it->second.hwevt_cb_ctx);
 
     rk_aiq_static_info_t* s_info = CamHwIsp20::getStaticCamHwInfo(sns_ent_name);
+    // TODO: for sensor sync check(ensure 1608 sensor is slave mode).
+    ctx->_is_1608_sensor = s_info->_is_1608_sensor;
     ctx->_rkAiqManager->setCamPhyId(s_info->sensor_info.phyId);
 
     ctx->_camPhyId = s_info->sensor_info.phyId;
@@ -312,7 +326,12 @@ rk_aiq_uapi_sysctl_init(const char* sns_ent_name,
         int user_hdr_mode = -1;
         bool user_spec_iq = false;
         if (it != g_rk_aiq_sys_preinit_cfg_map.end()) {
-            if (!it->second.force_iq_file.empty()) {
+            if (it->second.iq_buffer.addr && it->second.iq_buffer.len > 0) {
+                iq_buffer.addr = it->second.iq_buffer.addr;
+                iq_buffer.len = it->second.iq_buffer.len;
+                user_spec_iq = true;
+                LOGI("use user sepcified iq addr %p, len: %zu", iq_buffer.addr, iq_buffer.len);
+            } else if (!it->second.force_iq_file.empty()) {
                 sprintf(config_file, "%s/%s", config_file_dir, it->second.force_iq_file.c_str());
                 LOGI("use user sepcified iq file %s", config_file);
                 user_spec_iq = true;
@@ -328,19 +347,19 @@ rk_aiq_uapi_sysctl_init(const char* sns_ent_name,
         }
 
         // use auto selected iq file
-        if (is_ent_name && !user_spec_iq) {
+        if (is_ent_name && !user_spec_iq && !ctx->_use_fakecam) {
             char iq_file[128] = {'\0'};
             CamHwIsp20::selectIqFile(sns_ent_name, iq_file);
 
             char* hdr_mode = getenv("HDR_MODE");
-            int start = strlen(iq_file) - strlen(".xml");
+            int start = strlen(iq_file) - strlen(".json");
 
             if (hdr_mode) {
                 iq_file[start] = '\0';
                 if (strstr(hdr_mode, "32"))
-                    strcat(iq_file, "-hdr3.xml");
+                    strcat(iq_file, "-hdr3.json");
                 else
-                    strcat(iq_file, "_normal.xml");
+                    strcat(iq_file, "_normal.json");
             }
 
             if (config_file_dir) {
@@ -353,13 +372,18 @@ rk_aiq_uapi_sysctl_init(const char* sns_ent_name,
             if (hdr_mode && access(config_file, F_OK)) {
                 LOGW("%s not exist, will use the default !", config_file);
                 if (strstr(hdr_mode, "32"))
-                    start = strlen(config_file) - strlen("-hdr3.xml");
+                    start = strlen(config_file) - strlen("-hdr3.json");
                 else
-                    start = strlen(config_file) - strlen("_normal.xml");
+                    start = strlen(config_file) - strlen("_normal.json");
                 config_file[start] = '\0';
-                strcat(config_file, ".xml");
+                strcat(config_file, ".json");
             }
             LOGI("use iq file %s", config_file);
+        } else {
+            if (config_file_dir && (strlen(config_file_dir) > 0))
+                sprintf(config_file, "%s/%s", config_file_dir, "FakeCamera0.json");
+            else
+                sprintf(config_file, "%s/%s", RKAIQ_DEFAULT_IQ_PATH, "FakeCamera0.json");
         }
     }
 #endif
@@ -407,7 +431,10 @@ rk_aiq_uapi_sysctl_init(const char* sns_ent_name,
     CamCalibDbV2Context_t calibdbv2_ctx;
     xcam_mem_clear (calibdbv2_ctx);
 
-    ctx->_calibDbProj = RkAiqCalibDbV2::createCalibDbProj(config_file);
+    if (iq_buffer.addr && iq_buffer.len > 0)
+        ctx->_calibDbProj = RkAiqCalibDbV2::createCalibDbProj(iq_buffer.addr, iq_buffer.len);
+    else
+        ctx->_calibDbProj = RkAiqCalibDbV2::createCalibDbProj(config_file);
     if (!ctx->_calibDbProj)
         goto error;
 
@@ -421,9 +448,8 @@ rk_aiq_uapi_sysctl_init(const char* sns_ent_name,
         calibdbv2_ctx = RkAiqCalibDbV2::toDefaultCalibDb(ctx->_calibDbProj);
     }
     ctx->_rkAiqManager->setAiqCalibDb(&calibdbv2_ctx);
-
     ret = ctx->_rkAiqManager->init();
-    ctx->_socket->Process(ctx);
+    ctx->_socket->Process(ctx, ctx->_camPhyId);
     if (ret)
         goto error;
 
@@ -458,8 +484,12 @@ rk_aiq_uapi_sysctl_deinit_locked(rk_aiq_sys_ctx_t* ctx)
     if (ctx->_rkAiqManager.ptr())
         ctx->_rkAiqManager->deInit();
 
-    ctx->_socket->Deinit();
-    delete(ctx->_socket);
+    if (ctx->_socket) {
+      ctx->_socket->Deinit();
+      delete(ctx->_socket);
+      ctx->_socket = NULL;
+    }
+
     ctx->_analyzer.release();
     ctx->_lumaAnalyzer.release();
     ctx->_rkAiqManager.release();
@@ -474,6 +504,9 @@ rk_aiq_uapi_sysctl_deinit_locked(rk_aiq_sys_ctx_t* ctx)
 
     if (ctx->_sensor_entity_name)
         xcam_free((void*)(ctx->_sensor_entity_name));
+
+    rk_aiq_deinit_lib();
+    g_rk_aiq_init_lib = false;
 }
 
 void
@@ -550,6 +583,11 @@ rk_aiq_uapi_sysctl_getStaticMetas(const char* sns_ent_name, rk_aiq_static_info_t
 {
     if (!sns_ent_name || !static_info)
         return XCAM_RETURN_ERROR_FAILED;
+
+    if (!g_rk_aiq_init_lib) {
+        rk_aiq_init_lib();
+        g_rk_aiq_init_lib = true;
+    }
 #ifdef RK_SIMULATOR_HW
     /* nothing to do now*/
     static_info = NULL;
@@ -564,6 +602,11 @@ rk_aiq_uapi_sysctl_enumStaticMetas(int index, rk_aiq_static_info_t* static_info)
 {
     if (!static_info)
         return XCAM_RETURN_ERROR_FAILED;
+
+    if (!g_rk_aiq_init_lib) {
+        rk_aiq_init_lib();
+        g_rk_aiq_init_lib = true;
+    }
 #ifdef RK_SIMULATOR_HW
     /* nothing to do now*/
     static_info = NULL;
@@ -580,6 +623,11 @@ rk_aiq_uapi_sysctl_enumStaticMetas(int index, rk_aiq_static_info_t* static_info)
 const char*
 rk_aiq_uapi_sysctl_getBindedSnsEntNmByVd(const char* vd)
 {
+    if (!g_rk_aiq_init_lib) {
+        rk_aiq_init_lib();
+        g_rk_aiq_init_lib = true;
+    }
+
 #ifndef RK_SIMULATOR_HW
     return CamHwIsp20::getBindedSnsEntNmByVd(vd);
 #endif
@@ -725,7 +773,8 @@ void
 rk_aiq_uapi_sysctl_release3AStatsRef(const rk_aiq_sys_ctx_t* ctx,
                                      rk_aiq_isp_stats_t *stats)
 {
-    RKAIQ_API_SMART_LOCK(ctx);
+    // blocked API, add lock ?
+    // RKAIQ_API_SMART_LOCK(ctx);
     ctx->_analyzer->release3AStatsRef(stats);
 }
 
@@ -840,6 +889,7 @@ camgroupAlgoHandle(const rk_aiq_sys_ctx_t* ctx, const int algo_type)
 #include "uAPI2/rk_aiq_user_api2_acsm.cpp"
 #include "uAPI2/rk_aiq_user_api2_again_v2.cpp"
 #include "rk_aiq_user_api_again_v2.cpp"
+#include "uAPI2/rk_aiq_user_api2_acgc.cpp"
 
 
 #define RK_AIQ_ALGO_TYPE_MODULES (RK_AIQ_ALGO_TYPE_MAX + 1)
@@ -992,7 +1042,7 @@ extern RkAiqAlgoDescription g_RkIspAlgoDescAtmo;
 
 static void _print_versions()
 {
-    LOGI("\n"
+    printf("\n"
          "************************** VERSION INFOS **************************\n"
          "version release date: %s\n"
          "         AIQ:       %s\n"
@@ -1038,7 +1088,6 @@ void rk_aiq_uapi_get_version_info(rk_aiq_ver_info_t* vers)
          vers->af_algo_ver, vers->ahdr_algo_ver);
 }
 
-static void rk_aiq_init_lib(void) __attribute__((constructor));
 static void rk_aiq_init_lib(void)
 {
     xcam_get_log_level();
@@ -1073,7 +1122,7 @@ static void rk_aiq_init_lib(void)
     EXIT_XCORE_FUNCTION();
 
 }
-static void rk_aiq_deinit_lib(void) __attribute__((destructor));
+
 static void rk_aiq_deinit_lib(void)
 {
     ENTER_XCORE_FUNCTION();
@@ -1332,11 +1381,6 @@ rk_aiq_uapi_sysctl_tuning(const rk_aiq_sys_ctx_t* sys_ctx, char* param)
         return XCAM_RETURN_ERROR_FAILED;
     }
 
-    if (sys_ctx->cam_type == RK_AIQ_CAM_TYPE_GROUP) {
-        LOGE("%s: not support for camgroup\n", __func__);
-        return XCAM_RETURN_ERROR_FAILED;
-    }
-
     // Find json patch
     std::string patch_str(param);
     size_t json_start = patch_str.find_first_of("[");
@@ -1369,8 +1413,38 @@ rk_aiq_uapi_sysctl_tuning(const rk_aiq_sys_ctx_t* sys_ctx, char* param)
     auto tuning_calib = RkCam::RkAiqCalibDbV2::analyzTuningCalib(
                             last_calib, json_str.c_str());
 
+#ifdef RKAIQ_ENABLE_CAMGROUP
+    // api helper call with single instance
+    if (get_binded_group_ctx(sys_ctx)) {
+        int crt_cam_index = 0;
+        rk_aiq_camgroup_ctx_t* grp_ctx = get_binded_group_ctx(sys_ctx);
+        if (!grp_ctx)
+            return XCAM_RETURN_ERROR_FAILED;
+
+        ret = grp_ctx->cam_group_manager->calibTuning(tuning_calib.calib,
+                tuning_calib.ModuleNames);
+        if (ret)
+            LOGE("Faile to update the calib of camGroup\n", __func__);
+
+        for (auto cam_ctx : grp_ctx->cam_ctxs_array) {
+            if (cam_ctx) {
+                // Avoid double free
+                if (crt_cam_index > 0) {
+                    cam_ctx->_rkAiqManager->unsetTuningCalibDb();
+                }
+                ret = cam_ctx->_rkAiqManager->calibTuning(tuning_calib.calib,
+                        tuning_calib.ModuleNames);
+                crt_cam_index++;
+            }
+        }
+    } else {
+        ret = sys_ctx->_rkAiqManager->calibTuning(tuning_calib.calib,
+                tuning_calib.ModuleNames);
+    }
+#else
     ret = sys_ctx->_rkAiqManager->calibTuning(tuning_calib.calib,
             tuning_calib.ModuleNames);
+#endif
 
     return ret;
 }
@@ -1459,24 +1533,132 @@ int rk_aiq_uapi_sysctl_switch_scene(const rk_aiq_sys_ctx_t* sys_ctx,
         return XCAM_RETURN_ERROR_PARAM;
     }
 
-    if (sys_ctx->cam_type == RK_AIQ_CAM_TYPE_GROUP) {
-        LOGE("%s: not support for camgroup\n", __func__);
-        return XCAM_RETURN_ERROR_FAILED;
-    }
-
     if (!main_scene || !sub_scene) {
         LOGE("%s: request is invalied\n", __func__);
         return XCAM_RETURN_ERROR_PARAM;
     }
 
-    auto new_calib = RkAiqSceneManager::refToScene(sys_ctx->_calibDbProj,
-                     main_scene, sub_scene);
+#ifdef RKAIQ_ENABLE_CAMGROUP
+    if (sys_ctx->cam_type == RK_AIQ_CAM_TYPE_GROUP) {
+      rk_aiq_camgroup_ctx_t* grp_ctx = (rk_aiq_camgroup_ctx_t*)(sys_ctx);
+      if (!grp_ctx)
+        return XCAM_RETURN_ERROR_FAILED;
 
-    ret = sys_ctx->_rkAiqManager->updateCalibDb(&new_calib);
-    if (ret) {
+      for (auto cam_ctx : grp_ctx->cam_ctxs_array) {
+        if (cam_ctx) {
+          auto new_calib = RkAiqSceneManager::refToScene(cam_ctx->_calibDbProj,
+                                                         main_scene, sub_scene);
+
+          if (!new_calib.calib_scene) {
+            LOGE("failed to find scene calib\n");
+            return -1;
+          }
+
+          ret = cam_ctx->_rkAiqManager->updateCalibDb(&new_calib);
+          if (ret) {
+            LOGE("failed to switch scene\n");
+            return ret;
+          }
+        }
+      }
+
+      auto new_calib = RkAiqSceneManager::refToScene(grp_ctx->cam_ctxs_array[0]->_calibDbProj,
+                                                     main_scene, sub_scene);
+
+      if (!new_calib.calib_scene) {
+        LOGE("failed to find scene calib\n");
+        return -1;
+      }
+
+      ret = grp_ctx->cam_group_manager->updateCalibDb(&new_calib);
+      if (ret) {
         LOGE("failed to switch scene\n");
         return ret;
+      }
     }
+#endif
+    if (sys_ctx->cam_type != RK_AIQ_CAM_TYPE_GROUP) {
+      auto new_calib = RkAiqSceneManager::refToScene(sys_ctx->_calibDbProj,
+                                                     main_scene, sub_scene);
+
+      if (!new_calib.calib_scene) {
+        LOGE("failed to find scene calib\n");
+        return -1;
+      }
+
+      ret = sys_ctx->_rkAiqManager->updateCalibDb(&new_calib);
+      if (ret) {
+        LOGE("failed to switch scene\n");
+        return ret;
+      }
+    }
+
+    return XCAM_RETURN_NO_ERROR;
+}
+
+int rk_aiq_uapi_sysctl_tuning_enable(rk_aiq_sys_ctx_t* sys_ctx, bool enable)
+{
+    RKAIQ_API_SMART_LOCK(sys_ctx);
+
+    if (!sys_ctx) {
+        LOGE("%s: sys_ctx is invalied\n", __func__);
+        return XCAM_RETURN_ERROR_PARAM;
+    }
+
+#ifdef RKAIQ_ENABLE_CAMGROUP
+    if (sys_ctx->cam_type == RK_AIQ_CAM_TYPE_GROUP) {
+      rk_aiq_camgroup_ctx_t* grp_ctx = (rk_aiq_camgroup_ctx_t*)(sys_ctx);
+      if (!grp_ctx)
+        return XCAM_RETURN_ERROR_FAILED;
+
+      for (auto cam_ctx : grp_ctx->cam_ctxs_array) {
+        if (cam_ctx) {
+          if (enable && cam_ctx->_socket) {
+            LOGW("%s: socket server is already enabled!\n", __func__);
+            continue;
+          }
+
+          if (!enable && !cam_ctx->_socket) {
+            LOGW("%s: socket server is already disabled!\n", __func__);
+            continue;
+          }
+
+          if (enable) {
+            cam_ctx->_socket  = new SocketServer();
+            cam_ctx->_socket->Process(cam_ctx, sys_ctx->_camPhyId);
+          } else {
+            cam_ctx->_socket->Deinit();
+            delete(cam_ctx->_socket);
+            cam_ctx->_socket = NULL;
+          }
+
+          LOGD("%s: change socket server status to %d!\n", __func__, enable);
+        }
+      }
+      return XCAM_RETURN_NO_ERROR;
+    }
+#endif
+
+    if (enable && sys_ctx->_socket) {
+      LOGW("%s: socket server is already enabled!\n", __func__);
+      return XCAM_RETURN_NO_ERROR;
+    }
+
+    if (!enable && !sys_ctx->_socket) {
+      LOGW("%s: socket server is already disabled!\n", __func__);
+      return XCAM_RETURN_NO_ERROR;
+    }
+
+    if (enable) {
+      sys_ctx->_socket  = new SocketServer();
+      sys_ctx->_socket->Process(sys_ctx, sys_ctx->_camPhyId);
+    } else {
+      sys_ctx->_socket->Deinit();
+      delete(sys_ctx->_socket);
+      sys_ctx->_socket = NULL;
+    }
+
+    LOGD("%s: change socket server status to %d!\n", __func__, enable);
 
     return XCAM_RETURN_NO_ERROR;
 }

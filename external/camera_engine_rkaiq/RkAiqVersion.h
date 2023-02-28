@@ -384,10 +384,80 @@
  * - AF: adapt more type zoom-focus curve
  * - AE: delete extra Semicolon & add pointer release in GrpAE
  * - hwi: fix segment fault in setIspConfig when stopping AIQ
+ * v3.0x8.11
+ * - sysctl: remove atrib constructor of rk_aiq_init_lib
+ * - support compile aiq as static lib
+ * - hwi: optimize the bug of vicap drop frame
+ * - xcore: support setting the policy/priority of scheduling before creating thread
+ * - uAPI: print the verison of RKAIQ as default
+ * - fix the bug that ISP params are asynchronous in group cam
+ * - 8_camera_aiq_stable_ver1.0
+ * - dpcc: fix params init
+ * - Adehaze: update api struct and fuctional api
+ * - A3DLUT: some optimization
+ * - ACCM: some optimization
+ * - ASD: fix some bugs
+ * - fix bugs of colorasgray and calibtuning
+ * - tuning: won't free calib witch from iqfiles.
+ * - use json format iqfile in default.
+ * - tuning: update calib async instead stop/start.
+ * - custom AE: adapt for isp2x
+ * - AF: fix can not get soft stats on 356x
+ * - Fix compile bug in android
+ * - Tuning: fix memory leak.
+ * - uAPI: support for updating calib in cam group mode
+ * - compile: use ccache to speed up rebuiding.
+ * - tuning: fix wrong CMD size checking.
+ * - csm: unsupport limit range
+ * - Tuning: add CMD for get 3Astats.
+ * - support acgc
+ * v3.0x9.1-rc0
+ * - iq_parser_v2: code2bin support arch m32/m64
+ * - rk3588: gainV2 module remove some log
+ * - kernel headers: Sync with driver
+ * - CamHwIsp20: set memory mode to word align
+ * - 1: ynr support sigma fomula and subsample point in auto
+ * - HWI: modify AE/HIST HW setting
+ * - support otp for awb/alsc
+ * - Hwi: open all AE hw modules
+ * - CCM/3DLUT: del mode & manual cfg in json
+ * - support the function that reset VICAP
+ * - add uapi for turn on/off socket server.
+ * - PDAF: update to v0.1.1
+ * - hwi: update lsc only when status change.
+ * - CAC/LDCH: Support mesh buffer count
+ * - Debayer:params change with ISO
+ * - tuning: create socket for each camera.
+ * - AF: optimize optical zoom
+ * - PDAF: update to v0.1.0
+ * - PDAF: optimize pdaf
+ * - support for loading iq from buffer address.
+ * - tuning: support for group camera.
+ * - Amerge/drc/dehaze: support iso as ctrldata
+ * - HWI: support the funciton of setting isp dgain
+ * v3.0x9.1
+ * - hwi: convert -1 to an unsigned type for comparison
+ * - algo: alsc: adjust the position of crop for lsc otp
+ * - merge rk3588 with rk356x base on release v3.0x8.8
+ * - force using FakeCamera0.json at offline mode
+ * - awb otp : apply otp in awb stat
+ * - awb: translator awb stat based on pre_wbgain_inv_r and bls1
+ * - AF: skip the same motor position in ipc search
+ * - AF: update calulation of shift value
+ * - iqfiles: isp21: change default af value
+ * - fix memleak for some modules
+ * - IspParamsAssembler: protect from "no free xxx buf" of core
+ * - v4l2_device: fix wrong dequeued flag of params buf
+ * - xcore: set buffer QUEUED flag when get buffer.
+ * - Update the lost isp params by driver again
+ * - iqfiles: af: change for fullsweep and pdaf
+ * - update 356x json files to 3.9.1
+ * - PDAF: update to v0.1.5
+ * - AF: support max logical position
  */
 
-#define RK_AIQ_VERSION_REAL_V "v3.0x8.8"
-#define RK_AIQ_RELEASE_DATE "2022-05-05"
+#define RK_AIQ_VERSION_REAL_V "v3.0x9.1"
+#define RK_AIQ_RELEASE_DATE "2022-09-20"
 
 /******* DO NOT EDIT THE FOLLOWINGS ***********/
 

@@ -732,7 +732,7 @@ void set_frame_sign_bias(Av1dHalCtx *p_hal, DXVA_PicParams_AV1 *dxva)
 {
     RK_U32 i = 0;
     VdpuAv1dRegCtx *reg_ctx = (VdpuAv1dRegCtx *)p_hal->reg_ctx;
-    if (!dxva->order_hint || dxva->format.frame_type == AV1_FRAME_INTRA_ONLY ||
+    if (!dxva->order_hint_bits || dxva->format.frame_type == AV1_FRAME_INTRA_ONLY ||
         dxva->format.frame_type == AV1_FRAME_KEY) {
         for (i = 0; i < AV1_REF_LIST_SIZE; i++) {
             reg_ctx->ref_frame_sign_bias[i] = 0;
@@ -1781,7 +1781,7 @@ MPP_RET vdpu_av1d_gen_regs(void *hal, HalTaskInfo *task)
     MPP_RET ret = MPP_ERR_UNKNOW;
     Av1dHalCtx *p_hal = (Av1dHalCtx *)hal;
     VdpuAv1dRegCtx *ctx = (VdpuAv1dRegCtx *)p_hal->reg_ctx;
-    VdpuAv1dRegSet *regs = ctx->regs;
+    VdpuAv1dRegSet *regs;
     DXVA_PicParams_AV1 *dxva = (DXVA_PicParams_AV1*)task->dec.syntax.data;
     MppFrame mframe;
     MppBuffer buffer = NULL;
@@ -1805,15 +1805,18 @@ MPP_RET vdpu_av1d_gen_regs(void *hal, HalTaskInfo *task)
 
     if (p_hal->fast_mode) {
         RK_U32 i = 0;
+
         for (i = 0; i <  MPP_ARRAY_ELEMS(ctx->reg_buf); i++) {
             if (!ctx->reg_buf[i].valid) {
                 task->dec.reg_index = i;
-                regs = ctx->reg_buf[i].regs;
+                ctx->regs = ctx->reg_buf[i].regs;
                 ctx->reg_buf[i].valid = 1;
                 break;
             }
         }
     }
+
+    regs = ctx->regs;
     memset(regs, 0, sizeof(*regs));
 
     if (!ctx->tile_out_bufs) {

@@ -1,0 +1,1 @@
+cmd_/media/jack/data2/3588_linux/3588_linux5.10_v1.0.5/external/rkwifibt/drivers/bcmdhd/Module.symvers := sed 's/\.ko$$/\.o/' /media/jack/data2/3588_linux/3588_linux5.10_v1.0.5/external/rkwifibt/drivers/bcmdhd/modules.order | scripts/mod/modpost     -o /media/jack/data2/3588_linux/3588_linux5.10_v1.0.5/external/rkwifibt/drivers/bcmdhd/Module.symvers -e -i Module.symvers   -T -

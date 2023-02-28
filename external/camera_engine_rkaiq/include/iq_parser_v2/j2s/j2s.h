@@ -119,6 +119,8 @@ int j2s_json_from_struct(j2s_ctx* ctx, cJSON* json, const char* name,
 void j2s_struct_to_cache(j2s_ctx* ctx, const char* name, int fd, void* ptr);
 int j2s_struct_from_cache(j2s_ctx* ctx, const char* name, int fd, void* ptr);
 
+int j2s_struct_free(j2s_ctx* ctx, const char* name, void* ptr);
+
 /* Dump root struct to cJSON */
 #define j2s_root_struct_to_json(ctx, ptr) j2s_struct_to_json(ctx, NULL, ptr)
 

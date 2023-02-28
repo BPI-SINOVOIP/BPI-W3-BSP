@@ -32,6 +32,7 @@ int main()
             kernel_version == KERNEL_3_10    ? "3.10"    :
             kernel_version == KERNEL_4_4     ? "4.4"     :
             kernel_version == KERNEL_4_19    ? "4.19"    :
+            kernel_version == KERNEL_5_10    ? "5.10"    :
             NULL);
     mpp_log("ioctl  version: %s\n",
             ioctl_version == IOCTL_VCODEC_SERVICE ? "vcodec_service" :
@@ -85,8 +86,8 @@ int main()
     dev = mpp_get_vcodec_dev_name(MPP_CTX_DEC, MPP_VIDEO_CodingVP9);
     mpp_log("VP9   decoder: %s\n", dev);
 
-    dev = mpp_get_vcodec_dev_name(MPP_CTX_DEC, MPP_VIDEO_CodingAVS);
-    mpp_log("avs   decoder: %s\n", dev);
+    dev = mpp_get_vcodec_dev_name(MPP_CTX_DEC, MPP_VIDEO_CodingAVSPLUS);
+    mpp_log("avs+  decoder: %s\n", dev);
 
     mpp_log("\n");
     mpp_log("start probing encoder device name:\n");

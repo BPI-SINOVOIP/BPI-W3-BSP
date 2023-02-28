@@ -49,7 +49,7 @@
 #define HAVE_AVS2   ((RK_U32)(1 << (CODING_TO_IDX(MPP_VIDEO_CodingAVS2))))
 #define HAVE_AV1    ((RK_U32)(1 << (CODING_TO_IDX(MPP_VIDEO_CodingAV1))))
 
-#define CAP_CODING_VDPU         (HAVE_MPEG2|HAVE_H263|HAVE_MPEG4|HAVE_AVC|HAVE_MJPEG|HAVE_VP8)
+#define CAP_CODING_VDPU         (HAVE_MPEG2|HAVE_H263|HAVE_MPEG4|HAVE_AVC|HAVE_MJPEG|HAVE_VP8|HAVE_AVS)
 #define CAP_CODING_JPEGD_PP     (HAVE_MJPEG)
 #define CAP_CODING_AVSD         (HAVE_AVS)
 #define CAP_CODING_AVSPD        (HAVE_AVSP)
@@ -75,6 +75,9 @@ static const MppDecHwCap vdpu1 = {
     .cap_hw_vp9_prob    = 0,
     .cap_jpg_pp_out     = 0,
     .cap_10bit          = 0,
+    .cap_down_scale     = 0,
+    .cap_lmt_linebuf    = 1,
+    .cap_core_num       = 1,
     .reserved           = 0,
 };
 
@@ -89,6 +92,9 @@ static const MppDecHwCap vdpu1_2160p = {
     .cap_hw_vp9_prob    = 0,
     .cap_jpg_pp_out     = 0,
     .cap_10bit          = 0,
+    .cap_down_scale     = 0,
+    .cap_lmt_linebuf    = 1,
+    .cap_core_num       = 1,
     .reserved           = 0,
 };
 
@@ -103,6 +109,9 @@ static const MppDecHwCap vdpu1_jpeg_pp = {
     .cap_hw_vp9_prob    = 0,
     .cap_jpg_pp_out     = 1,
     .cap_10bit          = 0,
+    .cap_down_scale     = 0,
+    .cap_lmt_linebuf    = 1,
+    .cap_core_num       = 1,
     .reserved           = 0,
 };
 
@@ -117,6 +126,9 @@ static const MppDecHwCap vdpu2 = {
     .cap_hw_vp9_prob    = 0,
     .cap_jpg_pp_out     = 0,
     .cap_10bit          = 0,
+    .cap_down_scale     = 0,
+    .cap_lmt_linebuf    = 1,
+    .cap_core_num       = 1,
     .reserved           = 0,
 };
 
@@ -131,6 +143,9 @@ static const MppDecHwCap vdpu2_jpeg = {
     .cap_hw_vp9_prob    = 0,
     .cap_jpg_pp_out     = 0,
     .cap_10bit          = 0,
+    .cap_down_scale     = 0,
+    .cap_lmt_linebuf    = 1,
+    .cap_core_num       = 1,
     .reserved           = 0,
 };
 
@@ -145,6 +160,9 @@ static const MppDecHwCap vdpu2_jpeg_pp = {
     .cap_hw_vp9_prob    = 0,
     .cap_jpg_pp_out     = 1,
     .cap_10bit          = 0,
+    .cap_down_scale     = 0,
+    .cap_lmt_linebuf    = 1,
+    .cap_core_num       = 1,
     .reserved           = 0,
 };
 
@@ -159,6 +177,9 @@ static const MppDecHwCap rk_hevc = {
     .cap_hw_vp9_prob    = 0,
     .cap_jpg_pp_out     = 0,
     .cap_10bit          = 1,
+    .cap_down_scale     = 0,
+    .cap_lmt_linebuf    = 1,
+    .cap_core_num       = 1,
     .reserved           = 0,
 };
 
@@ -173,6 +194,9 @@ static const MppDecHwCap rk_hevc_1080p = {
     .cap_hw_vp9_prob    = 0,
     .cap_jpg_pp_out     = 0,
     .cap_10bit          = 0,
+    .cap_down_scale     = 0,
+    .cap_lmt_linebuf    = 1,
+    .cap_core_num       = 1,
     .reserved           = 0,
 };
 
@@ -187,6 +211,9 @@ static const MppDecHwCap vdpu341 = {
     .cap_hw_vp9_prob    = 0,
     .cap_jpg_pp_out     = 0,
     .cap_10bit          = 1,
+    .cap_down_scale     = 0,
+    .cap_lmt_linebuf    = 1,
+    .cap_core_num       = 1,
     .reserved           = 0,
 };
 
@@ -201,6 +228,9 @@ static const MppDecHwCap vdpu341_lite = {
     .cap_hw_vp9_prob    = 0,
     .cap_jpg_pp_out     = 0,
     .cap_10bit          = 1,
+    .cap_down_scale     = 0,
+    .cap_lmt_linebuf    = 1,
+    .cap_core_num       = 1,
     .reserved           = 0,
 };
 
@@ -215,6 +245,9 @@ static const MppDecHwCap vdpu341_lite_1080p = {
     .cap_hw_vp9_prob    = 0,
     .cap_jpg_pp_out     = 0,
     .cap_10bit          = 0,
+    .cap_down_scale     = 0,
+    .cap_lmt_linebuf    = 1,
+    .cap_core_num       = 1,
     .reserved           = 0,
 };
 
@@ -229,6 +262,9 @@ static const MppDecHwCap vdpu341_h264 = {
     .cap_hw_vp9_prob    = 0,
     .cap_jpg_pp_out     = 0,
     .cap_10bit          = 0,
+    .cap_down_scale     = 0,
+    .cap_lmt_linebuf    = 1,
+    .cap_core_num       = 1,
     .reserved           = 0,
 };
 
@@ -244,6 +280,9 @@ static const MppDecHwCap vdpu34x = {
     .cap_hw_vp9_prob    = 1,
     .cap_jpg_pp_out     = 0,
     .cap_10bit          = 1,
+    .cap_down_scale     = 0,
+    .cap_lmt_linebuf    = 0,
+    .cap_core_num       = 1,
     .reserved           = 0,
 };
 
@@ -258,20 +297,9 @@ static const MppDecHwCap vdpu38x = {
     .cap_hw_vp9_prob    = 1,
     .cap_jpg_pp_out     = 0,
     .cap_10bit          = 1,
-    .reserved           = 0,
-};
-
-static const MppDecHwCap avsd = {
-    .cap_coding         = CAP_CODING_AVSD,
-    .type               = VPU_CLIENT_AVSPLUS_DEC,
-    .cap_fbc            = 0,
-    .cap_4k             = 0,
-    .cap_8k             = 0,
-    .cap_colmv_buf      = 0,
-    .cap_hw_h265_rps    = 0,
-    .cap_hw_vp9_prob    = 0,
-    .cap_jpg_pp_out     = 0,
-    .cap_10bit          = 0,
+    .cap_down_scale     = 1,
+    .cap_lmt_linebuf    = 0,
+    .cap_core_num       = 2,
     .reserved           = 0,
 };
 
@@ -286,6 +314,9 @@ static const MppDecHwCap avspd = {
     .cap_hw_vp9_prob    = 0,
     .cap_jpg_pp_out     = 0,
     .cap_10bit          = 0,
+    .cap_down_scale     = 0,
+    .cap_lmt_linebuf    = 1,
+    .cap_core_num       = 1,
     .reserved           = 0,
 };
 
@@ -300,6 +331,9 @@ static const MppDecHwCap rkjpegd = {
     .cap_hw_vp9_prob    = 0,
     .cap_jpg_pp_out     = 0,
     .cap_10bit          = 0,
+    .cap_down_scale     = 0,
+    .cap_lmt_linebuf    = 0,
+    .cap_core_num       = 1,
     .reserved           = 0,
 };
 
@@ -314,6 +348,9 @@ static const MppDecHwCap av1d = {
     .cap_hw_vp9_prob    = 0,
     .cap_jpg_pp_out     = 0,
     .cap_10bit          = 0,
+    .cap_down_scale     = 0,
+    .cap_lmt_linebuf    = 1,
+    .cap_core_num       = 1,
     .reserved           = 0,
 };
 
@@ -352,7 +389,7 @@ static const MppEncHwCap vepu2_no_jpeg = {
 
 static const MppEncHwCap vepu2_jpeg = {
     .cap_coding         = HAVE_MJPEG,
-    .type               = VPU_CLIENT_VEPU2,
+    .type               = VPU_CLIENT_VEPU2_JPEG,
     .cap_fbc            = 0,
     .cap_4k             = 0,
     .cap_8k             = 0,
@@ -528,11 +565,11 @@ static const MppSocInfo mpp_soc_infos[] = {
         "rk3228h",
         ROCKCHIP_SOC_RK3228H,
         HAVE_VDPU2 | HAVE_VDPU2_PP | HAVE_VEPU2 | HAVE_RKVDEC | HAVE_AVSDEC | HAVE_VEPU22,
-        {   &vdpu341_lite, &vdpu2, &vdpu2_jpeg_pp, &avsd, NULL, NULL, },
+        {   &vdpu341_lite, &vdpu2, &vdpu2_jpeg_pp, &avspd, NULL, NULL, },
         {   &vepu2_no_jpeg, &vepu22, NULL, NULL, },
     },
     {   /*
-         * rk3228 has codec:
+         * rk3328 has codec:
          * 1 - vpu2
          * 2 - RK H.264/H.265/VP9 4K decoder
          * 4 - H.265 encoder
@@ -586,7 +623,7 @@ static const MppSocInfo mpp_soc_infos[] = {
          */
         "rv1109",
         ROCKCHIP_SOC_RV1109,
-        HAVE_VDPU2 | HAVE_VEPU2 | HAVE_RKVDEC | HAVE_RKVENC,
+        HAVE_VDPU2 | HAVE_VEPU2_JPEG | HAVE_RKVDEC | HAVE_RKVENC,
         {   &vdpu2_jpeg, &vdpu341_lite, NULL, NULL, NULL, NULL, },
         {   &vepu2_jpeg, &vepu541, NULL, NULL, },
     },
@@ -598,7 +635,7 @@ static const MppSocInfo mpp_soc_infos[] = {
          */
         "rv1126",
         ROCKCHIP_SOC_RV1126,
-        HAVE_VDPU2 | HAVE_VEPU2 | HAVE_RKVDEC | HAVE_RKVENC,
+        HAVE_VDPU2 | HAVE_VEPU2_JPEG | HAVE_RKVDEC | HAVE_RKVENC,
         {   &vdpu2_jpeg, &vdpu341_lite, NULL, NULL, NULL, NULL, },
         {   &vepu2_jpeg, &vepu541, NULL, NULL, },
     },
@@ -668,7 +705,8 @@ static const MppSocInfo mpp_soc_infos[] = {
          */
         "rk3588",
         ROCKCHIP_SOC_RK3588,
-        HAVE_VDPU2 | HAVE_VDPU2_PP | HAVE_VEPU2 | HAVE_RKVDEC | HAVE_RKVENC | HAVE_JPEG_DEC | HAVE_AV1DEC | HAVE_AVSDEC,
+        HAVE_VDPU2 | HAVE_VDPU2_PP | HAVE_VEPU2 | HAVE_RKVDEC | HAVE_RKVENC |
+        HAVE_JPEG_DEC | HAVE_AV1DEC | HAVE_AVSDEC | HAVE_VEPU2_JPEG,
         {   &vdpu38x, &rkjpegd, &vdpu2, &vdpu2_jpeg_pp, &av1d, &avspd},
         {   &vepu58x, &vepu2, &vepu2_jpeg, NULL, },
     },
@@ -824,16 +862,6 @@ RockchipSocType mpp_get_soc_type(void)
 
     soc_type = MppSocService::get()->get_soc_info()->soc_type;
     return soc_type;
-}
-
-RK_U32 mpp_get_vcodec_type(void)
-{
-    static RK_U32 vcodec_type = 0;
-
-    if (!vcodec_type)
-        vcodec_type = MppSocService::get()->get_soc_info()->vcodec_type;
-
-    return vcodec_type;
 }
 
 static RK_U32 is_valid_cap_coding(RK_U32 cap, MppCodingType coding)

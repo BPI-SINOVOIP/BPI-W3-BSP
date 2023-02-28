@@ -46,6 +46,8 @@ static void _j2s_obj_to_cache(j2s_ctx* ctx, int obj_index, int fd, void* ptr);
 static void _j2s_struct_to_cache(j2s_ctx* ctx, int struct_index, int fd,
     void* ptr);
 
+static int _j2s_struct_free(j2s_ctx* ctx, int struct_index, void* ptr);
+
 static inline int j2s_find_struct_index(j2s_ctx* ctx, const char* name)
 {
     if (!name)
@@ -58,6 +60,13 @@ static inline int j2s_find_struct_index(j2s_ctx* ctx, const char* name)
     }
 
     return -1;
+}
+
+int j2s_struct_free(j2s_ctx* ctx, const char* name, void* ptr)
+{
+    int struct_index = name ? j2s_find_struct_index(ctx, name) : ctx->root_index;
+
+    return _j2s_struct_free(ctx, struct_index, ptr);
 }
 
 cJSON* j2s_struct_to_json(j2s_ctx* ctx, const char* name, void* ptr)
@@ -596,6 +605,116 @@ out:
         return NULL;
     }
     return root;
+}
+
+static int _j2s_obj_free(j2s_ctx* ctx, int obj_index, void* ptr)
+{
+    j2s_obj* obj;
+
+    if (obj_index < 0)
+        return -1;
+
+    obj = &ctx->objs[obj_index];
+
+    /* Handle simple string */
+    if (J2S_IS_SIMPLE_STRING(obj)) {
+        ptr += obj->offset;
+
+        if (obj->flags & J2S_FLAG_ARRAY) {
+            return 0;
+        }
+
+        if (obj->flags & J2S_FLAG_POINTER) {
+            ptr = *(char**)ptr;
+        }
+
+        if (ptr) {
+            free(ptr);
+        }
+        return 0;
+    }
+
+    /* Handle array member */
+    if (J2S_IS_ARRAY(obj)) {
+        j2s_obj tmp_obj;
+        tmp_obj = *obj;
+
+        /* Walk into array */
+        j2s_extract_array(obj);
+
+        for (int i = 0; i < tmp_obj.num_elem; i++) {
+            _j2s_obj_free(ctx, obj_index, ptr);
+            obj->offset += tmp_obj.elem_size;
+        }
+
+        *obj = tmp_obj;
+        return 0;
+    }
+
+    /* Handle dynamic array */
+    if (J2S_IS_POINTER(obj)) {
+        j2s_obj tmp_obj;
+        void* root_ptr = *(void**)ptr;
+        int len;
+
+        if (obj->len_index < 0) {
+            DBG("dynamic array %s missing len\n", obj->name);
+            return -1;
+        }
+
+        len = j2s_obj_get_value(ctx, obj->len_index, ptr);
+
+        if (len <= 0) {
+            DBG("array size error: %s %d\n", obj->name, len);
+            return -1;
+        }
+
+        tmp_obj = *obj;
+
+        /* Walk into dynamic array */
+        ptr = j2s_extract_dynamic_array(obj, len, ptr);
+
+        _j2s_obj_free(ctx, obj_index, ptr);
+
+        if (ptr) {
+            free(ptr);
+        }
+
+        *obj = tmp_obj;
+        return 0;
+    }
+
+    /* Handle struct member */
+    if (obj->type == J2S_TYPE_STRUCT) {
+        return _j2s_struct_free(ctx, obj->struct_index, ptr + obj->offset);
+    }
+
+    return 0;
+}
+
+static int _j2s_struct_free(j2s_ctx* ctx, int struct_index, void* ptr)
+{
+    j2s_struct* struct_obj = NULL;
+    j2s_obj* child = NULL;
+    int child_index, ret = 0;
+
+    if (struct_index < 0)
+        return -1;
+
+    struct_obj = &ctx->structs[struct_index];
+    if (struct_obj->child_index < 0)
+        return -1;
+
+    ret = -1;
+
+    /* Walk child list */
+    for (child_index = struct_obj->child_index; child_index >= 0;
+         child_index = child->next_index) {
+        child = &ctx->objs[child_index];
+        ret = _j2s_obj_free(ctx, child_index, ptr);
+    }
+
+    return ret;
 }
 
 static int j2s_json_to_array_with_index(j2s_ctx* ctx, cJSON* json,

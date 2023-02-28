@@ -483,6 +483,15 @@ typedef enum {
     RK_MODULE_MAX
 } rk_aiq_module_id_t;
 
+typedef enum
+{
+    RK_AIQ_BAYER_INVALID    = -1,
+    RK_AIQ_BAYER_BGGR       = 0,
+    RK_AIQ_BAYER_GBRG       = 1,
+    RK_AIQ_BAYER_GRBG       = 2,
+    RK_AIQ_BAYER_RGGB       = 3,
+} RkAiqBayerPattern_t;
+
 typedef enum {
     RK_AIQ_UAPI_MODE_DEFAULT = 0,
     RK_AIQ_UAPI_MODE_SYNC,

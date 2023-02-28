@@ -2,13 +2,20 @@
 #define __BLUETOOTH_SINK_H__
 
 #include <RkBtBase.h>
-#include <bt_manager_1s2.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-typedef struct btmg_track_info_t BtTrackInfo;
+typedef struct btmg_track_info_t {
+	char title[256];
+	char artist[256];
+	char album[256];
+	char track_num[64];
+	char num_tracks[64];
+	char genre[256];
+	char playing_time[256];
+} BtTrackInfo;
 
 typedef enum {
 	RK_BT_SINK_STATE_IDLE = 0,

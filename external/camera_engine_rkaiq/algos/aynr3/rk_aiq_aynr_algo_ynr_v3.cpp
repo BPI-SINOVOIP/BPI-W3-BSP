@@ -80,6 +80,7 @@ Aynr_result_V3_t ynr_select_params_by_ISO_V3(RK_YNR_Params_V3_t *pParams, RK_YNR
             ratio = (iso - lowIso ) / (float)(highIso - lowIso);
             pParamLo = &pParams->arYnrParamsISO[i];
             pParamHi = &pParams->arYnrParamsISO[i + 1];
+
             break;
         }
     }
@@ -96,18 +97,33 @@ Aynr_result_V3_t ynr_select_params_by_ISO_V3(RK_YNR_Params_V3_t *pParams, RK_YNR
         ratio = 0;
         pParamLo = &pParams->arYnrParamsISO[0];
         pParamHi = &pParams->arYnrParamsISO[1];
+#ifndef RK_SIMULATOR_HW
+        lowIso = pParams->iso[0];
+        highIso = pParams->iso[1];
+#else
+        lowIso = iso_div * (1 << 0);
+        highIso = iso_div * (1 << 1);
+#endif
     }
 
     if(iso > maxIso) {
         ratio = 1;
-        pParamLo = &pParams->arYnrParamsISO[RK_YNR_V3_MAX_ISO_NUM - 1];
-        pParamHi = &pParams->arYnrParamsISO[RK_YNR_V3_MAX_ISO_NUM];
+        pParamLo = &pParams->arYnrParamsISO[RK_YNR_V3_MAX_ISO_NUM - 2];
+        pParamHi = &pParams->arYnrParamsISO[RK_YNR_V3_MAX_ISO_NUM - 1];
+#ifndef RK_SIMULATOR_HW
+        lowIso = pParams->iso[RK_YNR_V3_MAX_ISO_NUM - 2];
+        highIso = pParams->iso[RK_YNR_V3_MAX_ISO_NUM - 1];
+#else
+        lowIso = iso_div * (1 << (RK_YNR_V3_MAX_ISO_NUM - 2));
+        highIso = iso_div * (1 << (RK_YNR_V3_MAX_ISO_NUM - 1));
+#endif
     }
 
+    pExpInfo->isoHigh = highIso;
+    pExpInfo->isoLow = lowIso;
 
     LOGD_ANR("oyyf %s:%d  iso:%d low:%d hight:%d ratio:%f iso_index:%d \n", __FUNCTION__, __LINE__,
              iso, lowIso, highIso, ratio, cur_iso_idx);
-
     //global gain local gain cfg
     pSelect->ynr_global_gain_alpha = ratio * (pParamHi->ynr_global_gain_alpha - pParamLo->ynr_global_gain_alpha) + pParamLo->ynr_global_gain_alpha;
     pSelect->ynr_global_gain       = ratio * (pParamHi->ynr_global_gain - pParamLo->ynr_global_gain) + pParamLo->ynr_global_gain;
@@ -283,7 +299,7 @@ Aynr_result_V3_t ynr_fix_transfer_V3(RK_YNR_Params_V3_Select_t* pSelect, RK_YNR_
 
 
     // YNR_2700_LOWNR_CTRL1  (0x0014)
-    tmp = (int)(pSelect->low_peak_supress / fStrength * (1 << 7));
+    tmp = (int)(pSelect->low_peak_supress * (1 << 7));
     pFix->ynr_low_peak_supress = CLIP(tmp, 0, 0x80);
     tmp = (int)(pSelect->low_thred_adj * fStrength * (1 << 6));
     pFix->ynr_low_thred_adj = CLIP(tmp, 0, 0x7ff);
@@ -296,23 +312,23 @@ Aynr_result_V3_t ynr_fix_transfer_V3(RK_YNR_Params_V3_Select_t* pSelect, RK_YNR_
 
 
     // YNR_2700_LOWNR_CTRL3 (0x001c)
-    tmp = (int)(pSelect->low_bi_weight * fStrength * (1 << 7));
+    tmp = (int)(pSelect->low_bi_weight * (1 << 7));
     pFix->ynr_low_bi_weight = CLIP(tmp, 0, 0x80);
-    tmp = (int)(pSelect->low_weight *  fStrength * (1 << 7));
+    tmp = (int)(pSelect->low_weight * (1 << 7));
     pFix->ynr_low_weight = CLIP(tmp, 0, 0x80);
-    tmp = (int)(pSelect->low_center_weight / fStrength * (1 << 10));
+    tmp = (int)(pSelect->low_center_weight * (1 << 10));
     pFix->ynr_low_center_weight = CLIP(tmp, 0, 0x400);
 
     // YNR_2700_HIGHNR_CTRL0 (0x0020)
-    tmp = (int)(pSelect->hi_min_adj / fStrength * (1 << 6));
+    tmp = (int)(pSelect->hi_min_adj * (1 << 6));
     pFix->ynr_hi_min_adj = CLIP(tmp, 0, 0x3f);
     tmp = (int)(pSelect->high_thred_adj * fStrength * (1 << 6));
     pFix->ynr_high_thred_adj = CLIP(tmp, 0, 0x7ff);
 
     // YNR_2700_HIGHNR_CTRL1  (0x0024)
-    tmp = (1 << 7) - (int)(pSelect->high_weight * fStrength * (1 << 7));
+    tmp = (1 << 7) - (int)(pSelect->high_weight * (1 << 7));
     pFix->ynr_high_retain_weight = CLIP(tmp, 0, 0x80);
-    tmp = (int)(pSelect->hi_edge_thed / fStrength);
+    tmp = (int)(pSelect->hi_edge_thed);
     pFix->ynr_hi_edge_thed = CLIP(tmp, 0, 0xff);
 
     // YNR_2700_HIGHNR_BASE_FILTER_WEIGHT  (0x0028)
@@ -640,35 +656,45 @@ Aynr_result_V3_t ynr_init_params_json_V3(RK_YNR_Params_V3_t *pYnrParams, CalibDb
     isoCurveSectValue1 = (1 << bit_calib);
 
 
+
     for(j = 0; j < pCalibdbV2->CalibPara.Setting[tuning_idx].Calib_ISO_len && j < RK_YNR_V3_MAX_ISO_NUM ; j++) {
         pCalibISO = &pCalibdbV2->CalibPara.Setting[tuning_idx].Calib_ISO[j];
         pYnrParams->iso[j] = pCalibISO->iso;
-
-        // get noise sigma sample data at [0, 64, 128, ... , 1024]
-        for (i = 0; i < YNR_V3_ISO_CURVE_POINT_NUM; i++) {
-            if (i == (YNR_V3_ISO_CURVE_POINT_NUM - 1)) {
-                ave1 = (float)isoCurveSectValue1;
-            } else {
-                ave1 = (float)(i * isoCurveSectValue);
+        pYnrParams->sigma_use_point = pCalibdbV2->CalibPara.sigma_use_point;
+        if(pCalibdbV2->CalibPara.sigma_use_point) {
+            LOGD_ANR("oyyf ynr use point\n");
+            for (i = 0; i < YNR_V3_ISO_CURVE_POINT_NUM; i++) {
+                pYnrParams->arYnrParamsISO[j].sigma[i] = pCalibISO->sigma[i];
+                pYnrParams->arYnrParamsISO[j].lumaPoint[i] = pCalibISO->lumaPoint[i];
             }
-            pYnrParams->arYnrParamsISO[j].lumaPoint[i] = (short)ave1;
-            ave2 = ave1 * ave1;
-            ave3 = ave2 * ave1;
-            ave4 = ave3 * ave1;
-            pYnrParams->arYnrParamsISO[j].sigma[i] = pCalibISO->sigma_curve[0] * ave4
-                    + pCalibISO->sigma_curve[1] * ave3
-                    + pCalibISO->sigma_curve[2] * ave2
-                    + pCalibISO->sigma_curve[3] * ave1
-                    + pCalibISO->sigma_curve[4];
+        } else {
+            LOGD_ANR("oyyf ynr use formula\n");
+            // get noise sigma sample data at [0, 64, 128, ... , 1024]
+            for (i = 0; i < YNR_V3_ISO_CURVE_POINT_NUM; i++) {
+                if (i == (YNR_V3_ISO_CURVE_POINT_NUM - 1)) {
+                    ave1 = (float)isoCurveSectValue1;
+                } else {
+                    ave1 = (float)(i * isoCurveSectValue);
+                }
+                pYnrParams->arYnrParamsISO[j].lumaPoint[i] = (short)ave1;
+                ave2 = ave1 * ave1;
+                ave3 = ave2 * ave1;
+                ave4 = ave3 * ave1;
+                pYnrParams->arYnrParamsISO[j].sigma[i] = pCalibISO->sigma_curve[0] * ave4
+                        + pCalibISO->sigma_curve[1] * ave3
+                        + pCalibISO->sigma_curve[2] * ave2
+                        + pCalibISO->sigma_curve[3] * ave1
+                        + pCalibISO->sigma_curve[4];
 
-            if (pYnrParams->arYnrParamsISO[j].sigma[i] < 0) {
-                pYnrParams->arYnrParamsISO[j].sigma[i] = 0;
-            }
+                if (pYnrParams->arYnrParamsISO[j].sigma[i] < 0) {
+                    pYnrParams->arYnrParamsISO[j].sigma[i] = 0;
+                }
 
-            if (bit_shift > 0) {
-                pYnrParams->arYnrParamsISO[j].lumaPoint[i] >>= bit_shift;
-            } else {
-                pYnrParams->arYnrParamsISO[j].lumaPoint[i] <<= ABS(bit_shift);
+                if (bit_shift > 0) {
+                    pYnrParams->arYnrParamsISO[j].lumaPoint[i] >>= bit_shift;
+                } else {
+                    pYnrParams->arYnrParamsISO[j].lumaPoint[i] <<= ABS(bit_shift);
+                }
             }
         }
 

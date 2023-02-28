@@ -107,16 +107,7 @@ typedef enum AcnrV2_ParamMode_e {
     ACNRV2_PARAM_MODE_MAX                                      /**< max */
 } AcnrV2_ParamMode_t;
 
-typedef struct AcnrV2_ExpInfo_s {
-    int hdr_mode;
-    float arTime[3];
-    float arAGain[3];
-    float arDGain[3];
-    int   arIso[3];
-    int   snr_mode;
-    int rawWidth;
-    int rawHeight;
-} AcnrV2_ExpInfo_t;
+
 
 typedef struct RK_CNR_Params_V2_s
 {

@@ -21,5 +21,8 @@ XCamReturn
 rk_aiq_uapi_camgroup_againV2_GetAttrib(const RkAiqAlgoContext *ctx,
                                        rk_aiq_gain_attrib_v2_t *attr);
 
+XCamReturn
+rk_aiq_uapi_camgroup_againV2_GetInfo(const RkAiqAlgoContext *ctx,
+                                     rk_aiq_gain_info_v2_t *pInfo);
 
 #endif

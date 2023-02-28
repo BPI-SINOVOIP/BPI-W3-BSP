@@ -8,6 +8,8 @@
 #include "RkAiqCalibDbV2Helper.h"
 #include "xcam_log.h"
 
+#define INTERP_DEBAYER(x0, x1, ratio)    ((ratio) * ((x1) - (x0)) + x0)
+
 typedef enum AdebayerState_e {
     ADEBAYER_STATE_INVALID           = 0,
     ADEBAYER_STATE_INITIALIZED       = 1,
@@ -19,21 +21,21 @@ typedef enum AdebayerState_e {
 
 typedef struct AdebayerFullParam_s {
     unsigned char enable;
-    int iso[9];
+    int iso[DEBAYER_ISO_LEN];
     signed char filter1[5];
     signed char filter2[5];
-    unsigned char gain_offset;
-    unsigned char sharp_strength[9];
-    unsigned char offset;
-    unsigned short hf_offset[9];
-    unsigned char clip_en;
-    unsigned char filter_g_en;
-    unsigned char filter_c_en;
-    unsigned char thed0;
-    unsigned char thed1;
-    unsigned char dist_scale;
-    unsigned char cnr_strength;
-    unsigned char shift_num;
+    unsigned char gain_offset[DEBAYER_ISO_LEN];
+    unsigned char sharp_strength[DEBAYER_ISO_LEN];
+    unsigned char offset[DEBAYER_ISO_LEN];
+    unsigned short hf_offset[DEBAYER_ISO_LEN];
+    unsigned char clip_en[DEBAYER_ISO_LEN];
+    unsigned char filter_g_en[DEBAYER_ISO_LEN];
+    unsigned char filter_c_en[DEBAYER_ISO_LEN];
+    unsigned char thed0[DEBAYER_ISO_LEN];
+    unsigned char thed1[DEBAYER_ISO_LEN];
+    unsigned char dist_scale[DEBAYER_ISO_LEN];
+    unsigned char cnr_strength[DEBAYER_ISO_LEN];
+    unsigned char shift_num[DEBAYER_ISO_LEN];
     std::atomic<bool> updated;
 } AdebayerFullParam_t;
 

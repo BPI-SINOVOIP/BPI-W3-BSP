@@ -1,28 +1,22 @@
 #!/bin/bash
 
-delay=10
+delay=8
 total=${1:-10000}
-fudev=/dev/sda
-CNT=/userdata/cfg/rockchip-test/reboot_cnt
+CNT=/userdata/rockchip-test/reboot_cnt
 
-if [ ! -e "/userdata/cfg/rockchip-test" ]; then
-	echo "no /userdata/cfg/rockchip-test"
-	mkdir -p /userdata/cfg/rockchip-test
+if [ ! -e "/userdata//rockchip-test" ]; then
+	echo "no /userdata/rockchip-test"
+	mkdir -p /userdata/rockchip-test
 fi
 
-if [ ! -e "/userdata/cfg/rockchip-test/auto_reboot.sh" ]; then
-	cp /rockchip-test/auto_reboot/auto_reboot.sh /userdata/cfg/rockchip-test
-        echo $total > /userdata/cfg/rockchip-test/reboot_total_cnt
+if [ ! -e "/userdata/rockchip-test/auto_reboot.sh" ]; then
+	cp /rockchip-test/auto_reboot/auto_reboot.sh /userdata/rockchip-test
+	echo $total > /userdata/rockchip-test/reboot_total_cnt
     sync
 fi
 
 while true
 do
-
-#if [ ! -e "$fudev" ]; then
-#    echo "Please insert a U disk to start test!"
-#    exit 0
-#fi
 
 if [ -e $CNT ]
 then
@@ -41,8 +35,8 @@ then
     echo AutoReboot Finisned.
     echo "off" > $CNT
     echo "do cleaning ..."
-    rm -rf /userdata/cfg/rockchip-test/auto_reboot.sh
-    rm -rf /userdata/cfg/rockchip-test/reboot_total_cnt
+    rm -rf /userdata/rockchip-test/auto_reboot.sh
+    rm -rf /userdata/rockchip-test/reboot_total_cnt
     rm -f $CNT
     sync
     exit 0
@@ -50,7 +44,7 @@ fi
 
 echo $cnt > $CNT
 echo "current cnt = $cnt, total cnt = $total"
-echo "You can stop reboot by: echo off > /userdata/cfg/rockchip-test/reboot_cnt"
+echo "You can stop reboot by: echo off > /userdata/rockchip-test/reboot_cnt"
 sleep $delay
 cnt=`cat $CNT`
 if [ $cnt != "off" ]; then
@@ -62,8 +56,8 @@ if [ $cnt != "off" ]; then
            echo "no found 'Restarting system' log in last time kernel message"
            echo "consider kernel crash in last time reboot test"
            echo "quit reboot test"
-            rm -rf /userdata/cfg/rockchip-test/auto_reboot.sh
-            rm -rf /userdata/cfg/rockchip-test/reboot_total_cnt
+            rm -rf /userdata/rockchip-test/auto_reboot.sh
+            rm -rf /userdata/rockchip-test/reboot_total_cnt
             sync
 	   exit 1
         else
@@ -74,8 +68,8 @@ if [ $cnt != "off" ]; then
     fi
 else
     echo "Auto reboot is off"
-    rm -rf /userdata/cfg/rockchip-test/auto_reboot.sh
-    rm -rf /userdata/cfg/rockchip-test/reboot_total_cnt
+    rm -rf /userdata/rockchip-test/auto_reboot.sh
+    rm -rf /userdata/rockchip-test/reboot_total_cnt
     rm -f $CNT
     sync
 fi

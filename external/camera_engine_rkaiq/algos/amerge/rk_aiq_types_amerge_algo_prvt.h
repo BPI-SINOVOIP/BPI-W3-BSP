@@ -64,7 +64,7 @@ typedef enum FrameNumber_e {
 #define MOVECOEFMIN     (0.0)
 #define OECURVESMOOTHMAX     (200)
 #define OECURVESMOOTHMIN     (20)
-#define OECURVEOFFSETMAX     (300)
+#define OECURVEOFFSETMAX     (280)
 #define OECURVEOFFSETMIN     (108)
 #define MDCURVESMOOTHMAX     (200)
 #define MDCURVESMOOTHMIN     (20)
@@ -148,6 +148,7 @@ typedef struct MergePrevCtrlData_s
 {
     int MergeMode;
     float EnvLv;
+    float ISO;
     float MoveCoef;
     merge_OpModeV21_t ApiMode;
 } MergePrevCtrlData_t;
@@ -173,6 +174,7 @@ typedef struct MergeCurrAeResult_s {
 typedef struct MergeCurrCtrlData_s
 {
     float EnvLv;
+    float ISO;
     float MoveCoef;
     float MergeOEDamp;
     float MergeMDDampLM;
@@ -200,7 +202,7 @@ typedef struct AmergeConfigV20_s {
     int MergeMode;
     int MaxEnvLvKnots;
     int MaxMoveCoefKnots;
-    float* EnvLv; //0: dark 1:bright
+    float* CtrlData;
     float* MoveCoef;
     float* OECurve_smooth;  //current over exposure curve slope
     float* OECurve_offset; //current over exposure curve offset
@@ -209,6 +211,7 @@ typedef struct AmergeConfigV20_s {
     float* MDCurveMS_smooth;  //Move Detect curve slope betwwen middle frame and short frame
     float* MDCurveMS_offset;  //Move Detect curve slope betwwen middle frame and short frame
     float ByPassThr;
+    CtrlDataType_t CtrlDataType;
     float OECurve_damp;
     float MDCurveLM_damp;
     float MDCurveMS_damp ;
@@ -218,6 +221,7 @@ typedef struct AmergeConfigV30_s {
     MergeBaseFrame_t BaseFrm;
     float ByPassThr;
     int MergeMode;
+    CtrlDataType_t CtrlDataType;
 
     int LongFrmMaxEnvLvKnots;
     int LongFrmMaxMoveCoefKnots;

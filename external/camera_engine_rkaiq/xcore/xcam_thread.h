@@ -39,6 +39,14 @@ public:
         return _name;
     }
 
+    // set the policy/priority of scheduling before creating thread
+    void set_policy(int policy) {
+        _policy = policy;
+    }
+    void set_priority(int priority) {
+        _priority = priority;
+    }
+
 protected:
     // return true to start loop, else the thread stopped
     virtual bool started ();
@@ -59,6 +67,8 @@ private:
     XCam::Cond      _exit_cond;
     bool            _started;
     bool            _stopped;
+    int             _policy;
+    int             _priority;
 };
 
 };

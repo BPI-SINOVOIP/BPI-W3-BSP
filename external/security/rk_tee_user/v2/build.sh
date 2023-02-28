@@ -8,6 +8,11 @@ WORK_DIR_TOP=$(cd `dirname $0` ; pwd)
 #./build.sh ta to compile TA with 32 bits
 
 TOOLCHAIN_PREBUILTS=$WORK_DIR_TOP/../../../../prebuilts
+
+if [ ! -d "$TOOLCHAIN_PREBUILTS" ]; then
+	TOOLCHAIN_PREBUILTS=$WORK_DIR_TOP/../../../prebuilts
+fi
+
 TOOLCHAIN_PATH_ARM32=$TOOLCHAIN_PREBUILTS/gcc/linux-x86/arm/gcc-arm-10.2-2020.11-x86_64-arm-none-linux-gnueabihf/bin
 TOOLCHAIN_PATH_AARCH64=$TOOLCHAIN_PREBUILTS/gcc/linux-x86/aarch64/gcc-arm-10.2-2020.11-x86_64-aarch64-none-linux-gnu/bin
 CROSS_COMPILE32=arm-none-linux-gnueabihf-

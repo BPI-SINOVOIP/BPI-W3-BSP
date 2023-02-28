@@ -42,6 +42,8 @@
 #define OPT_NUM_SURFACES "num-surfaces="
 #define OPT_MAX_FPS "max-fps="
 #define OPT_ATOMIC "atomic="
+#define OPT_SCALE "scale="
+#define OPT_SCALE_FROM "scale-from="
 
 #define DRM_MAX_CRTCS 8
 
@@ -102,11 +104,20 @@ typedef struct {
   int width;
   int height;
 
+  int scaled_w;
+  int scaled_h;
+
   int x;
   int y;
 
+  int scaled_x;
+  int scaled_y;
+
   int off_x;
   int off_y;
+
+  int hot_x;
+  int hot_y;
 
   int request;
 } drm_cursor_state;
@@ -162,6 +173,9 @@ typedef struct {
   int atomic;
   int hide;
   uint64_t min_interval;
+
+  float scale_x, scale_y;
+  float scale_from;
 
   char *configs;
 } drm_ctx;
@@ -517,6 +531,20 @@ static drm_ctx *drm_get_ctx(int fd)
 
   DRM_INFO("max fps: %d\n", max_fps);
 
+  config = drm_get_config(ctx, OPT_SCALE_FROM);
+  if (config) {
+    int w, h, screen_w, screen_h;
+    if (config &&
+        sscanf(config, "%dx%d/%dx%d", &w, &h, &screen_w, &screen_h) == 4) {
+      ctx->scale_from = 1.0 * w * h / screen_w / screen_h;
+      DRM_INFO("scale from: %s\n", config);
+    }
+  } else {
+    config = drm_get_config(ctx, OPT_SCALE);
+    if (config && sscanf(config, "%fx%f", &ctx->scale_x, &ctx->scale_y) == 2)
+      DRM_INFO("scale: %s\n", config);
+  }
+
   ctx->res = drmModeGetResources(ctx->fd);
   if (!ctx->res)
     goto err_free_configs;
@@ -726,27 +754,51 @@ static int drm_update_crtc(drm_ctx *ctx, drm_crtc *crtc)
 static int drm_crtc_update_offsets(drm_ctx *ctx, drm_crtc *crtc,
                                    drm_cursor_state *cursor_state)
 {
-  int width, height;
+  int x, y, off_x, off_y, width, height, area_w, area_h;
+  float scale_x, scale_y;
 
   if (drm_update_crtc(ctx, crtc) < 0)
     return -1;
 
-  width = crtc->width - cursor_state->width;
-  height = crtc->height - cursor_state->height;
+  width = cursor_state->width;
+  height = cursor_state->height;
 
-  cursor_state->off_x = cursor_state->off_y = 0;
+  if (ctx->scale_from) {
+    scale_x = scale_y =
+      ctx->scale_from * crtc->width * crtc->height / width / height;
+  } else {
+    scale_x = ctx->scale_x ? ctx->scale_x : 1.0;
+    scale_y = ctx->scale_y ? ctx->scale_y : 1.0;
+  }
 
-  if (cursor_state->x < 0)
-    cursor_state->off_x = cursor_state->x;
+  width *= scale_x;
+  height *= scale_y;
 
-  if (cursor_state->y < 0)
-    cursor_state->off_y = cursor_state->y;
+  x = cursor_state->x + cursor_state->hot_x - cursor_state->hot_x * scale_x;
+  y = cursor_state->y + cursor_state->hot_y - cursor_state->hot_y * scale_y;
+  area_w = crtc->width - width;
+  area_h = crtc->height - height;
 
-  if (cursor_state->x > width)
-    cursor_state->off_x = cursor_state->x - width;
+  off_x = off_y = 0;
 
-  if (cursor_state->y > height)
-    cursor_state->off_y = cursor_state->y - height;
+  if (x < 0)
+    off_x = x;
+
+  if (y < 0)
+    off_y = y;
+
+  if (x > area_w)
+    off_x = x - area_w;
+
+  if (y > area_h)
+    off_y = y - area_h;
+
+  cursor_state->scaled_x = x;
+  cursor_state->scaled_y = y;
+  cursor_state->off_x = off_x;
+  cursor_state->off_y = off_y;
+  cursor_state->scaled_w = width;
+  cursor_state->scaled_h = height;
 
   return 0;
 }
@@ -776,8 +828,8 @@ static int drm_crtc_update_cursor(drm_ctx *ctx, drm_crtc *crtc,
 
   /* Unchanged */
   if (crtc->cursor_curr.fb == cursor_state->fb &&
-      crtc->cursor_curr.x == cursor_state->x &&
-      crtc->cursor_curr.y == cursor_state->y &&
+      crtc->cursor_curr.scaled_x == cursor_state->scaled_x &&
+      crtc->cursor_curr.scaled_y == cursor_state->scaled_y &&
       crtc->cursor_curr.off_x == cursor_state->off_x &&
       crtc->cursor_curr.off_y == cursor_state->off_y) {
     crtc->cursor_curr = *cursor_state;
@@ -785,10 +837,10 @@ static int drm_crtc_update_cursor(drm_ctx *ctx, drm_crtc *crtc,
   }
 
   fb = cursor_state->fb;
-  x = cursor_state->x - cursor_state->off_x;
-  y = cursor_state->y - cursor_state->off_y;
-  w = cursor_state->width;
-  h = cursor_state->height;
+  x = cursor_state->scaled_x - cursor_state->off_x;
+  y = cursor_state->scaled_y - cursor_state->off_y;
+  w = cursor_state->scaled_w;
+  h = cursor_state->scaled_h;
 
   DRM_DEBUG("CRTC[%d]: setting fb: %d (%dx%d) on plane: %d at (%d,%d)\n",
             crtc->crtc_id, fb, w, h, plane->plane_id, x, y);
@@ -812,11 +864,14 @@ static int drm_crtc_create_fb(drm_ctx *ctx, drm_crtc *crtc,
   uint32_t handle = cursor_state->handle;
   int width = cursor_state->width;
   int height = cursor_state->height;
+  int scaled_w = cursor_state->scaled_w;
+  int scaled_h = cursor_state->scaled_h;
   int off_x = cursor_state->off_x;
   int off_y = cursor_state->off_y;
 
-  DRM_DEBUG("CRTC[%d]: convert FB from %d (%dx%d) offset:(%d,%d)\n",
-            crtc->crtc_id, handle, width, height, off_x, off_y);
+  DRM_DEBUG("CRTC[%d]: convert FB from %d (%dx%d) to (%dx%d) offset: (%d,%d)\n",
+            crtc->crtc_id, handle, width, height,
+            scaled_w, scaled_h, off_x, off_y);
 
   if (!crtc->egl_ctx) {
     uint64_t modifier;
@@ -832,7 +887,7 @@ static int drm_crtc_create_fb(drm_ctx *ctx, drm_crtc *crtc,
     }
 
     crtc->egl_ctx = egl_init_ctx(ctx->fd, ctx->num_surfaces,
-                                 width, height, format, modifier);
+                                 scaled_w, scaled_h, format, modifier);
     if (!crtc->egl_ctx) {
       DRM_ERROR("CRTC[%d]: failed to init egl ctx\n", crtc->crtc_id);
       return -1;
@@ -939,9 +994,9 @@ static void *drm_crtc_thread_fn(void *data)
       cursor_state.request &= ~REQ_MOVE_CURSOR;
 
       /* Handle move-cursor */
-      DRM_DEBUG("CRTC[%d]: move cursor to (%d[-%d],%d[-%d])\n",
-                crtc->crtc_id, cursor_state.x, cursor_state.off_x,
-                cursor_state.y, cursor_state.off_y);
+      DRM_DEBUG("CRTC[%d]: move cursor to (%d[%d],%d[%d])\n",
+                crtc->crtc_id, cursor_state.scaled_x, -cursor_state.off_x,
+                cursor_state.scaled_y, -cursor_state.off_y);
 
       if (!crtc->cursor_curr.handle) {
         /* Pre-moving */
@@ -1065,7 +1120,8 @@ static drm_crtc *drm_get_crtc(drm_ctx *ctx, uint32_t crtc_id)
 }
 
 static int drm_set_cursor(int fd, uint32_t crtc_id, uint32_t handle,
-                          uint32_t width, uint32_t height)
+                          uint32_t width, uint32_t height,
+                          int hot_x, int hot_y)
 {
   drm_crtc *crtc;
   drm_ctx *ctx;
@@ -1103,6 +1159,8 @@ static int drm_set_cursor(int fd, uint32_t crtc_id, uint32_t handle,
   cursor_next->handle = handle;
   cursor_next->width = width;
   cursor_next->height = height;
+  cursor_next->hot_x = hot_x;
+  cursor_next->hot_y = hot_y;
   crtc->state = PENDING;
   pthread_cond_signal(&crtc->cond);
 
@@ -1167,28 +1225,40 @@ static int drm_move_cursor(int fd, uint32_t crtc_id, int x, int y)
 
 /* Hook functions */
 
-int drmModeSetCursor(int fd, uint32_t crtcId, uint32_t bo_handle,
-                     uint32_t width, uint32_t height)
+int drmModeSetCursor2(int fd, uint32_t crtcId, uint32_t bo_handle,
+                      uint32_t width, uint32_t height,
+                      int32_t hot_x, int32_t hot_y)
 {
   /* Init log file */
   drm_get_ctx(fd);
 
+  DRM_DEBUG("fd: %d crtc: %d handle: %d size: %dx%d (%d, %d)\n",
+            fd, crtcId, bo_handle, width, height, hot_x, hot_y);
+  return drm_set_cursor(fd, crtcId, bo_handle, width, height, hot_x, hot_y);
+}
+
+int drmModeSetCursor(int fd, uint32_t crtcId, uint32_t bo_handle,
+                     uint32_t width, uint32_t height)
+{
+  drm_ctx *ctx;
+
+  ctx = drm_get_ctx(fd);
+  if (!ctx)
+    return -1;
+
   DRM_DEBUG("fd: %d crtc: %d handle: %d size: %dx%d\n",
             fd, crtcId, bo_handle, width, height);
-  return drm_set_cursor(fd, crtcId, bo_handle, width, height);
+
+  if (bo_handle && width && height &&
+      (ctx->scale_from || ctx->scale_x || ctx->scale_y))
+    DRM_INFO("CRTC[%d]: scaling without hotspots, use drmModeSetCursor2()!\n",
+             crtcId);
+
+  return drm_set_cursor(fd, crtcId, bo_handle, width, height, 0, 0);
 }
 
 int drmModeMoveCursor(int fd, uint32_t crtcId, int x, int y)
 {
   DRM_DEBUG("fd: %d crtc: %d position: %d,%d\n", fd, crtcId, x, y);
   return drm_move_cursor(fd, crtcId, x, y);
-}
-
-int drmModeSetCursor2(int fd, uint32_t crtcId, uint32_t bo_handle,
-                      uint32_t width, uint32_t height,
-                      int32_t hot_x, int32_t hot_y)
-{
-  DRM_DEBUG("fd: %d crtc: %d handle: %d size: %dx%d (%d, %d)\n",
-            fd, crtcId, bo_handle, width, height, hot_x, hot_y);
-  return -EINVAL;
 }

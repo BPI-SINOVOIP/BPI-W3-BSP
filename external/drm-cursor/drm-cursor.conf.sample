@@ -11,3 +11,5 @@
 # prefer-plane=65
 # prefer-planes=61,65
 # crtc-blocklist=64,83 
+# scale=2.5x1
+# scale-from=64x64/1920x1080 # expected cursor size / screen size

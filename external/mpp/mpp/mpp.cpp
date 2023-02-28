@@ -103,12 +103,12 @@ Mpp::Mpp(MppCtx ctx)
       mEncAyncIo(0),
       mEncAyncProc(0),
       mIoMode(MPP_IO_MODE_DEFAULT),
+      mDump(NULL),
       mType(MPP_CTX_BUTT),
       mCoding(MPP_VIDEO_CodingUnused),
       mInitDone(0),
       mStatus(0),
-      mExtraPacket(NULL),
-      mDump(NULL)
+      mExtraPacket(NULL)
 {
     mpp_env_get_u32("mpp_debug", &mpp_debug, 0);
 
@@ -695,10 +695,9 @@ MPP_RET Mpp::put_frame_async(MppFrame frame)
 
 MPP_RET Mpp::get_packet_async(MppPacket *packet)
 {
-    MppPacket pkt = NULL;
-
     AutoMutex autoPacketLock(mPktOut->mutex());
 
+    *packet = NULL;
     if (0 == mPktOut->list_size()) {
         if (mOutputTimeout) {
             if (mOutputTimeout < 0) {
@@ -720,17 +719,21 @@ MPP_RET Mpp::get_packet_async(MppPacket *packet)
     }
 
     if (mPktOut->list_size()) {
+        MppPacket pkt = NULL;
+
         mPktOut->del_at_head(&pkt, sizeof(pkt));
         mPacketGetCount++;
         notify(MPP_OUTPUT_DEQUEUE);
+
+        *packet = pkt;
     } else {
         AutoMutex autoFrameLock(mFrmIn->mutex());
 
         if (mFrmIn->list_size())
             notify(MPP_INPUT_ENQUEUE);
-    }
 
-    *packet = pkt;
+        return MPP_NOK;
+    }
 
     return MPP_OK;
 }

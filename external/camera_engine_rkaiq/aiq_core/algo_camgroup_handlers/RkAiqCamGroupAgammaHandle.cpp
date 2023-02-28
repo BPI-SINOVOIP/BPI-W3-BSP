@@ -80,7 +80,7 @@ XCamReturn RkAiqCamGroupAgammaHandleInt::getAttrib(rk_aiq_gamma_attr_t* att) {
         mCfgMutex.unlock();
     } else {
         if (updateAtt) {
-            memcpy(att, &mNewAtt, sizeof(updateAtt));
+            memcpy(att, &mNewAtt, sizeof(rk_aiq_gamma_attr_t));
             att->sync.done = false;
         } else {
             rk_aiq_uapi_agamma_GetAttrib(mAlgoCtx, att);

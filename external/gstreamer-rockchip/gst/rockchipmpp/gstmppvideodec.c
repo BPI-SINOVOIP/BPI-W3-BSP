@@ -82,9 +82,9 @@ static GstStaticPadTemplate gst_mpp_video_dec_src_template =
     GST_STATIC_PAD_TEMPLATE ("src",
     GST_PAD_SRC,
     GST_PAD_ALWAYS,
-    GST_STATIC_CAPS (GST_VIDEO_CAPS_MAKE ("{" MPP_DEC_FORMATS "}") ";"
-        GST_VIDEO_CAPS_MAKE ("{NV12, NV16, NV12_10LE40}") ", "
-        MPP_DEC_FEATURE_ARM_AFBC " = (int) 1" ";"));
+    GST_STATIC_CAPS (MPP_DEC_CAPS_MAKE ("{" MPP_DEC_FORMATS "}") ";"
+        MPP_DEC_CAPS_MAKE_AFBC ("{" MPP_DEC_FORMATS "}") ";")
+    );
 
 static MppCodingType
 gst_mpp_video_dec_get_mpp_type (GstStructure * s)

@@ -80,7 +80,7 @@ enum TEST_CTL_TYPE {
 
 static struct termios oldt;
 static int silent;
-static demo_context_t *g_main_ctx = NULL, *g_second_ctx = NULL;
+static demo_context_t *g_main_ctx = NULL,  *g_second_ctx = NULL, *g_third_ctx = NULL, *g_fourth_ctx = NULL;
 static bool _if_quit = false;
 
 
@@ -113,8 +113,12 @@ char* get_dev_name(demo_context_t* ctx)
 {
     if (ctx->dev_using == 1)
         return ctx->dev_name;
-    else if(ctx->dev_using == 2)
+    else if (ctx->dev_using == 2)
         return ctx->dev_name2;
+    else if (ctx->dev_using == 3)
+        return ctx->dev_name3;
+    else if (ctx->dev_using == 4)
+        return ctx->dev_name4;
     else {
         ERR("!!!dev_using is not supported!!!");
         return NULL;
@@ -1546,6 +1550,8 @@ static void parse_args(int argc, char **argv, demo_context_t *ctx)
             {"format",   required_argument, 0, 'f' },
             {"device",   required_argument, 0, 'd' },
             {"device2",   required_argument, 0, 'i' },
+            {"device3",   required_argument, 0, 'g' },
+            {"device4",   required_argument, 0, 'j' },
             {"stream-to",   required_argument, 0, 'o' },
             {"stream-count",   required_argument, 0, 'n' },
             {"stream-skip",   required_argument, 0, 'k' },
@@ -1567,7 +1573,7 @@ static void parse_args(int argc, char **argv, demo_context_t *ctx)
         };
 
         //c = getopt_long(argc, argv, "w:h:f:i:d:o:c:ps",
-        c = getopt_long(argc, argv, "w:h:f:i:d:o:c:n:k:a:t:1:2:3mpsevrl",
+        c = getopt_long(argc, argv, "w:h:f:i:g:j:d:o:c:n:k:a:t:1:2:3mpsevrl",
                         long_options, &option_index);
         if (c == -1)
             break;
@@ -1590,6 +1596,12 @@ static void parse_args(int argc, char **argv, demo_context_t *ctx)
             break;
         case 'i':
             strcpy(ctx->dev_name2, optarg);
+            break;
+        case 'g':
+            strcpy(ctx->dev_name3, optarg);
+            break;
+        case 'j':
+            strcpy(ctx->dev_name4, optarg);
             break;
         case 'o':
             strcpy(ctx->out_file, optarg);
@@ -1673,6 +1685,8 @@ static void parse_args(int argc, char **argv, demo_context_t *ctx)
                 "         --count,  default 1000,            optional, how many frames to capture\n"
                 "         --device,                          required, path of video device1\n"
                 "         --device2,                         required, path of video device2\n"
+                "         --device3,                         required, path of video device3\n"
+                "         --device4,                         required, path of video device4\n"
                 "         --stream-to,                       optional, output file path, if <file> is '-', then the data is written to stdout\n"
                 "         --stream-count, default 3          optional, how many frames to write files\n"
                 "         --stream-skip, default 30          optional, how many frames to skip befor writing file\n"
@@ -2269,7 +2283,7 @@ restart:
     }
 }
 
-static void* secondary_thread(void* args) {
+static void* others_thread(void* args) {
     pthread_detach (pthread_self());
     demo_context_t* ctx = (demo_context_t*) args;
     rkisp_routine(ctx);
@@ -2312,6 +2326,8 @@ int main(int argc, char **argv)
         .out_file = {'\0'},
         .dev_name = {'\0'},
         .dev_name2 = {'\0'},
+        .dev_name3 = {'\0'},
+        .dev_name4 = {'\0'},
         .sns_name = {'\0'},
         .dev_using = 1,
         .width = 640,
@@ -2353,11 +2369,13 @@ int main(int argc, char **argv)
         .camGroup = false,
     };
     demo_context_t second_ctx;
+    demo_context_t third_ctx;
+    demo_context_t fourth_ctx;
 
     parse_args(argc, argv, &main_ctx);
 
     if (main_ctx.vop) {
-
+        // FIXME: run multi-sensor(>=3), stop using vop.
 #ifndef Android
 #ifndef NO_RGA_DISPLAY
         if (strlen(main_ctx.dev_name) && strlen(main_ctx.dev_name2)) {
@@ -2391,7 +2409,23 @@ int main(int argc, char **argv)
         second_ctx = main_ctx;
         second_ctx.dev_using = 2;
         g_second_ctx = &second_ctx;
-        pthread_create(&sec_tid, NULL, secondary_thread, &second_ctx);
+        pthread_create(&sec_tid, NULL, others_thread, &second_ctx);
+    }
+
+    if(strlen(main_ctx.dev_name3)) {
+        pthread_t thr_tid;
+        third_ctx = main_ctx;
+        third_ctx.dev_using = 3;
+        g_third_ctx = &third_ctx;
+        pthread_create(&thr_tid, NULL, others_thread, &third_ctx);
+    }
+
+    if(strlen(main_ctx.dev_name4)) {
+        pthread_t fou_tid;
+        fourth_ctx = main_ctx;
+        fourth_ctx.dev_using = 4;
+        g_fourth_ctx = &fourth_ctx;
+        pthread_create(&fou_tid, NULL, others_thread, &fourth_ctx);
     }
 
 #ifdef ENABLE_UAPI_TEST

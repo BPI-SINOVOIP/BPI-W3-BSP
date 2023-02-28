@@ -6,6 +6,11 @@ WORK_DIR_TOP=$(cd `dirname $0` ; pwd)
 #./build.sh ta to compile TA with 32 bits
 
 TOOLCHAIN_PREBUILTS=$WORK_DIR_TOP/../../../../prebuilts
+
+if [ ! -d "$TOOLCHAIN_PREBUILTS" ]; then
+	TOOLCHAIN_PREBUILTS=$WORK_DIR_TOP/../../../prebuilts
+fi
+
 TOOLCHAIN_PATH_ARM32=$TOOLCHAIN_PREBUILTS/gcc/linux-x86/arm/gcc-linaro-6.3.1-2017.05-x86_64_arm-linux-gnueabihf/bin
 TOOLCHAIN_PATH_AARCH64=$TOOLCHAIN_PREBUILTS/gcc/linux-x86/aarch64/gcc-linaro-6.3.1-2017.05-x86_64_aarch64-linux-gnu/bin
 CROSS_COMPILE32=arm-linux-gnueabihf-

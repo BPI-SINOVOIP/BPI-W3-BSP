@@ -169,14 +169,17 @@ private:
 class RKSofEventStream : public RKStream
 {
 public:
-    RKSofEventStream               (SmartPtr<V4l2SubDevice> dev, int type);
-    RKSofEventStream               (const char *name, int type);
+    RKSofEventStream               (SmartPtr<V4l2SubDevice> dev, int type, bool linkedToRk1608 = false);
+    // RKSofEventStream               (const char *name, int type, bool linkedTo1608 = false);
     virtual ~RKSofEventStream      ();
     virtual void start             ();
     virtual void stop              ();
     virtual SmartPtr<VideoBuffer>
     new_video_buffer               (struct v4l2_event &event, SmartPtr<V4l2Device> dev);
 protected:
+    bool _linked_to_1608;
+    /* the sensors which are connected to Rk1608 only subscribe a reset event */
+    static std::atomic<bool> _is_subscribed;
     XCAM_DEAD_COPY (RKSofEventStream);
 };
 

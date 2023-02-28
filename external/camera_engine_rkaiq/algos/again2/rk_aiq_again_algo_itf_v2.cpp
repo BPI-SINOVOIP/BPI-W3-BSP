@@ -176,13 +176,10 @@ processing(const RkAiqAlgoCom* inparams, RkAiqAlgoResCom* outparams)
     stExpInfo.snr_mode = 0;
 
 #if 1// TODO Merge
-
-    RKAiqAecExpInfo_t *preExp = pAgainProcParams->com.u.proc.preExp;
     RKAiqAecExpInfo_t *curExp = pAgainProcParams->com.u.proc.curExp;
 
-    if(preExp != NULL && curExp != NULL) {
+    if( curExp != NULL) {
         stExpInfo.snr_mode = curExp->CISFeature.SNR;
-        stExpInfo.pre_snr_mode = preExp->CISFeature.SNR;
         if(pAgainProcParams->hdr_mode == RK_AIQ_WORKING_MODE_NORMAL) {
             stExpInfo.hdr_mode = 0;
             if(curExp->LinearExp.exp_real_params.analog_gain < 1.0) {
@@ -197,22 +194,17 @@ processing(const RkAiqAlgoCom* inparams, RkAiqAlgoResCom* outparams)
             } else {
                 stExpInfo.arDGain[0] = curExp->LinearExp.exp_real_params.digital_gain;
             }
-            stExpInfo.arDcgMode[0] = curExp->LinearExp.exp_real_params.dcg_mode;
+            if(curExp->LinearExp.exp_real_params.isp_dgain < 1.0) {
+                stExpInfo.arDGain[0] *= 1.0;
+                LOGW_ANR("leanr mode dgain is wrong, use 1.0 instead\n");
+            } else {
+                stExpInfo.arDGain[0] *= curExp->LinearExp.exp_real_params.isp_dgain;
+            }
             stExpInfo.arTime[0] = curExp->LinearExp.exp_real_params.integration_time;
             stExpInfo.arIso[0] = stExpInfo.arAGain[0] * stExpInfo.arDGain[0] * 50;
 
-            stExpInfo.preAGain[0] = preExp->LinearExp.exp_real_params.analog_gain;
-            stExpInfo.preDGain[0] = preExp->LinearExp.exp_real_params.digital_gain;
-            stExpInfo.preTime[0] = preExp->LinearExp.exp_real_params.integration_time;
-            stExpInfo.preDcgMode[0] = preExp->LinearExp.exp_real_params.dcg_mode;
-            stExpInfo.preIso[0] = stExpInfo.preAGain[0] * stExpInfo.preDGain[0] * 50;
-            LOGD_ANR("anr: %s-%d, preExp(%f, %f, %f, %d, %d), curExp(%f, %f, %f, %d, %d)\n",
+            LOGD_ANR("anr: %s-%d, curExp(%f, %f, %f, %d, %d)\n",
                      __FUNCTION__, __LINE__,
-                     preExp->LinearExp.exp_real_params.analog_gain,
-                     preExp->LinearExp.exp_real_params.integration_time,
-                     preExp->LinearExp.exp_real_params.digital_gain,
-                     preExp->LinearExp.exp_real_params.dcg_mode,
-                     preExp->CISFeature.SNR,
                      curExp->LinearExp.exp_real_params.analog_gain,
                      curExp->LinearExp.exp_real_params.integration_time,
                      curExp->LinearExp.exp_real_params.digital_gain,
@@ -233,28 +225,21 @@ processing(const RkAiqAlgoCom* inparams, RkAiqAlgoResCom* outparams)
                     stExpInfo.arDGain[i] = curExp->HdrExp[i].exp_real_params.digital_gain;
                 }
                 stExpInfo.arTime[i] = curExp->HdrExp[i].exp_real_params.integration_time;
-                stExpInfo.arDcgMode[i] = curExp->HdrExp[i].exp_real_params.dcg_mode;
                 stExpInfo.arIso[i] = stExpInfo.arAGain[i] * stExpInfo.arDGain[i] * 50;
 
-                stExpInfo.preAGain[i] =  preExp->HdrExp[i].exp_real_params.analog_gain,
-                                         stExpInfo.preDGain[i] = preExp->HdrExp[i].exp_real_params.digital_gain;
-                stExpInfo.preTime[i] = preExp->HdrExp[i].exp_real_params.integration_time;
-                stExpInfo.preDcgMode[i] = preExp->HdrExp[i].exp_real_params.dcg_mode;
-                stExpInfo.preIso[i] = stExpInfo.preAGain[i] * stExpInfo.preDGain[i] * 50;
-
-                LOGD_ANR("%s:%d index:%d again:%f %f dgain:%f %f time:%f %f iso:%d %d hdr_mode:%d  \n",
+                LOGD_ANR("%s:%d index:%d again:%f  dgain:%f  time:%f iso:%d hdr_mode:%d  \n",
                          __FUNCTION__, __LINE__,
                          i,
-                         stExpInfo.preAGain[i], stExpInfo.arAGain[i],
-                         stExpInfo.preDGain[i], stExpInfo.arDGain[i],
-                         stExpInfo.preTime[i], stExpInfo.arTime[i],
-                         stExpInfo.preIso[i], stExpInfo.arIso[i],
+                         stExpInfo.arAGain[i],
+                         stExpInfo.arDGain[i],
+                         stExpInfo.arTime[i],
+                         stExpInfo.arIso[i],
                          stExpInfo.hdr_mode);
             }
         }
     } else {
-        LOGE_ANR("%s:%d preExp(%p) or curExp(%p) is NULL, so use default instead \n",
-                 __FUNCTION__, __LINE__, preExp, curExp);
+        LOGE_ANR("%s:%d curExp(%p) is NULL, so use default instead \n",
+                 __FUNCTION__, __LINE__, curExp);
     }
 
 

@@ -1,29 +1,43 @@
-created by Victoria Zhislina, the Senior Application Engineer, Intel Corporation,  victoria.zhislina@intel.com
+SMSLib Sudden Motion Sensor Access Library
+Copyright (c) 2010 Suitable Systems
+All rights reserved.
 
-*** Copyright (C) 2012-2020 Intel Corporation.  All rights reserved.
+Developed by: Daniel Griscom
+              Suitable Systems
+              http://www.suitable.com
 
-IMPORTANT: READ BEFORE DOWNLOADING, COPYING, INSTALLING OR USING.
+Permission is hereby granted, free of charge, to any person obtaining a
+copy of this software and associated documentation files (the
+"Software"), to deal with the Software without restriction, including
+without limitation the rights to use, copy, modify, merge, publish,
+distribute, sublicense, and/or sell copies of the Software, and to
+permit persons to whom the Software is furnished to do so, subject to
+the following conditions:
 
-By downloading, copying, installing or using the software you agree to this license.
-If you do not agree to this license, do not download, install, copy or use the software.
+- Redistributions of source code must retain the above copyright notice,
+this list of conditions and the following disclaimers.
 
-                             License Agreement
-Redistribution and use in source and binary forms, with or without modification,
-are permitted provided that the following conditions are met:
+- Redistributions in binary form must reproduce the above copyright
+notice, this list of conditions and the following disclaimers in the
+documentation and/or other materials provided with the distribution.
 
- * Redistributions of source code must retain the above copyright notice,
-   this list of conditions and the following disclaimer.
+- Neither the names of Suitable Systems nor the names of its
+contributors may be used to endorse or promote products derived from
+this Software without specific prior written permission.
 
- * The name of the copyright holders may not be used to endorse or promote products
-   derived from this software without specific prior written permission.
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+IN NO EVENT SHALL THE CONTRIBUTORS OR COPYRIGHT HOLDERS BE LIABLE FOR
+ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+SOFTWARE OR THE USE OR OTHER DEALINGS WITH THE SOFTWARE.
 
-This software is provided by the copyright holders and contributors "as is" and
-any express or implied warranties, including, but not limited to, the implied
-warranties of merchantability and fitness for a particular purpose are disclaimed.
-In no event shall the Intel Corporation or contributors be liable for any direct,
-indirect, incidental, special, exemplary, or consequential damages
-(including, but not limited to, procurement of substitute goods or services;
-loss of use, data, or profits; or business interruption) however caused
-and on any theory of liability, whether in contract, strict liability,
-or tort (including negligence or otherwise) arising in any way out of
-the use of this software, even if advised of the possibility of such damage.
+For more information about SMSLib, see
+   <http://www.suitable.com/tools/smslib.html>
+or contact
+   Daniel Griscom
+   Suitable Systems
+   1 Centre Street, Suite 204
+   Wakefield, MA 01880
+   (781) 665-0053

@@ -1006,8 +1006,28 @@ RK_S32 VpuApiLegacy::encode(VpuCodecContext *ctx, EncInputStream_t *aEncInStrm, 
 
     mpp_frame_set_width(frame, width);
     mpp_frame_set_height(frame, height);
-    mpp_frame_set_hor_stride(frame, hor_stride);
     mpp_frame_set_ver_stride(frame, ver_stride);
+    switch (format & MPP_FRAME_FMT_MASK) {
+    case MPP_FMT_YUV420SP :
+    case MPP_FMT_YUV420SP_VU : {
+        mpp_frame_set_hor_stride(frame, hor_stride);
+    } break;
+    case MPP_FMT_RGB565:
+    case MPP_FMT_BGR565:
+    case MPP_FMT_RGB555:
+    case MPP_FMT_BGR555: {
+        mpp_frame_set_hor_stride(frame, hor_stride * 2);
+    } break;
+    case MPP_FMT_ARGB8888 :
+    case MPP_FMT_ABGR8888 :
+    case MPP_FMT_BGRA8888 :
+    case MPP_FMT_RGBA8888 : {
+        mpp_frame_set_hor_stride(frame, hor_stride * 4);
+    } break;
+    default: {
+        mpp_err("unsupport format 0x%x\n", format & MPP_FRAME_FMT_MASK);
+    } break;
+    }
 
     fd = aEncInStrm->bufPhyAddr;
     if (fd_input < 0) {
@@ -1239,9 +1259,29 @@ RK_S32 VpuApiLegacy::encoder_sendframe(VpuCodecContext *ctx, EncInputStream_t *a
 
     mpp_frame_set_width(frame, width);
     mpp_frame_set_height(frame, height);
-    mpp_frame_set_hor_stride(frame, hor_stride);
     mpp_frame_set_ver_stride(frame, ver_stride);
     mpp_frame_set_pts(frame, pts);
+    switch (format & MPP_FRAME_FMT_MASK) {
+    case MPP_FMT_YUV420SP :
+    case MPP_FMT_YUV420SP_VU : {
+        mpp_frame_set_hor_stride(frame, hor_stride);
+    } break;
+    case MPP_FMT_RGB565:
+    case MPP_FMT_BGR565:
+    case MPP_FMT_RGB555:
+    case MPP_FMT_BGR555: {
+        mpp_frame_set_hor_stride(frame, hor_stride * 2);
+    } break;
+    case MPP_FMT_ARGB8888 :
+    case MPP_FMT_ABGR8888 :
+    case MPP_FMT_BGRA8888 :
+    case MPP_FMT_RGBA8888 : {
+        mpp_frame_set_hor_stride(frame, hor_stride * 4);
+    } break;
+    default: {
+        mpp_err("unsupport format 0x%x\n", format & MPP_FRAME_FMT_MASK);
+    } break;
+    }
 
     if (aEncInStrm->nFlags) {
         mpp_log_f("found eos true\n");
@@ -1430,7 +1470,7 @@ RK_S32 VpuApiLegacy::control(VpuCodecContext *ctx, VPU_API_CMD cmd, void *param)
     case VPU_API_ENC_SETFORMAT : {
         EncInputPictureType type = *((EncInputPictureType *)param);
         format = vpu_pic_type_remap_to_mpp(type);
-        return 0;
+        return mpi->control(mpp_ctx, MPP_DEC_SET_OUTPUT_FORMAT, &format);
     } break;
     case VPU_API_ENC_SETIDRFRAME : {
         mpicmd = MPP_ENC_SET_IDR_FRAME;

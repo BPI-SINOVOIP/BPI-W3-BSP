@@ -861,7 +861,7 @@ XCamReturn FakeCamHwIsp20::setupOffLineLink(int isp_index, bool enable)
     media_entity* entity  = NULL;
     media_pad* src_pad    = NULL;
     media_pad* sink_pad   = NULL;
-    int lvds_max_entities = 4;
+    int lvds_max_entities = 6;
     int lvds_entity       = 0;
 
     device = media_device_new(mIspHwInfos.isp_info[isp_index].media_dev_path);
@@ -883,7 +883,11 @@ XCamReturn FakeCamHwIsp20::setupOffLineLink(int isp_index, bool enable)
     for (lvds_entity = 0; lvds_entity < lvds_max_entities; lvds_entity++) {
         char entity_name[128] = {0};
         src_pad               = NULL;
-        snprintf(entity_name, 128, "rkcif-mipi-lvds%d", lvds_entity);
+        if (!lvds_entity) {
+          snprintf(entity_name, 128, "rkcif-mipi-lvds");
+        } else {
+          snprintf(entity_name, 128, "rkcif-mipi-lvds%d", lvds_entity - 1);
+        }
         entity = media_get_entity_by_name(device, entity_name, strlen(entity_name));
         if (entity) {
             src_pad = (media_pad*)media_entity_get_pad(entity, 0);

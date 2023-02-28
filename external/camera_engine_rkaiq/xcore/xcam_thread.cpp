@@ -30,6 +30,8 @@ Thread::Thread (const char *name)
     , _thread_id (0)
     , _started (false)
     , _stopped (true)
+    , _policy (-1)
+    , _priority (-1)
 {
     if (name)
         _name = strndup (name, XCAM_MAX_STR_SIZE);
@@ -111,8 +113,44 @@ bool Thread::start ()
     if (_started)
         return true;
 
-    if (pthread_create (&_thread_id, NULL, (void * (*)(void*))thread_func, this) != 0)
-        return false;
+    if (_policy != -1 || _priority != -1) {
+        int ret = -1;
+        pthread_attr_t attr;
+
+        pthread_attr_init(&attr);
+
+        if (_policy != -1) {
+            ret = pthread_attr_setschedpolicy(&attr, _policy);
+            if (ret)
+                XCAM_LOG_WARNING ("Thread(%s) set sched policy failed.(%d, %s)",
+                        XCAM_STR(_name), ret, strerror(ret));
+        }
+
+        if (_policy != -1 && _policy != SCHED_OTHER && _priority != -1) {
+            struct sched_param param;
+            param.sched_priority = _priority;
+            ret = pthread_attr_setschedparam(&attr, &param);
+            if (ret)
+                XCAM_LOG_WARNING ("Thread(%s) set sched priority failed.(%d, %s)",
+                        XCAM_STR(_name), ret, strerror(ret));
+        }
+
+        ret = pthread_attr_setinheritsched(&attr, PTHREAD_EXPLICIT_SCHED);
+        if (ret)
+            XCAM_LOG_WARNING ("Thread(%s) set sched inherit failed.(%d, %s)",
+                    XCAM_STR(_name), ret, strerror(ret));
+
+        if (pthread_create (&_thread_id, &attr, (void * (*)(void*))thread_func, this) != 0) {
+            pthread_attr_destroy(&attr);
+            return false;
+        }
+
+        pthread_attr_destroy(&attr);
+    } else {
+        if (pthread_create (&_thread_id, NULL, (void * (*)(void*))thread_func, this) != 0)
+            return false;
+    }
+
     _started = true;
     _stopped = false;
 
@@ -148,6 +186,10 @@ bool Thread::stop ()
     while (!_stopped) {
         _exit_cond.wait(_mutex);
     }
+
+    _policy = -1;
+    _priority = -1;
+
     return true;
 }
 

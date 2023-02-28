@@ -145,7 +145,8 @@ static XCamReturn groupAbayernrPrepare(RkAiqAlgoCom* params)
 
     if(g_abayernr_hw_ver == ABAYERNR_HARDWARE_V2) {
         Abayer2dnr_Context_V2_t * abayer2dnr_contex_v2 = abayernr_group_contex->abayernr_contex_v2;
-        if(!!(params->u.prepare.conf_type & RK_AIQ_ALGO_CONFTYPE_UPDATECALIB )) {
+		abayer2dnr_contex_v2->prepare_type = params->u.prepare.conf_type;
+		if(!!(params->u.prepare.conf_type & RK_AIQ_ALGO_CONFTYPE_UPDATECALIB )) {
             // todo  update calib pars for surround view
 #if ABAYER2DNR_USE_JSON_FILE_V2
             void *pCalibdbV2 = (void*)(para->s_calibv2);
@@ -165,7 +166,8 @@ static XCamReturn groupAbayernrPrepare(RkAiqAlgoCom* params)
     }
     else if(g_abayernr_hw_ver == ABAYERNR_HARDWARE_V1) {
         Abayernr_Context_V2_t * abayernr_contex_v2 = abayernr_group_contex->abayernr_contex_v1;
-        if(!!(params->u.prepare.conf_type & RK_AIQ_ALGO_CONFTYPE_UPDATECALIB )) {
+		abayernr_contex_v2->prepare_type = params->u.prepare.conf_type;
+		if(!!(params->u.prepare.conf_type & RK_AIQ_ALGO_CONFTYPE_UPDATECALIB )) {
             // todo  update calib pars for surround view
 #if ABAYERNR_USE_JSON_FILE_V2
             void *pCalibdbV2 = (void*)(para->s_calibv2);
@@ -236,7 +238,8 @@ static XCamReturn groupAbayernrProcessing(const RkAiqAlgoCom* inparams, RkAiqAlg
         if((rk_aiq_working_mode_t)procParaGroup->working_mode == RK_AIQ_WORKING_MODE_NORMAL) {
             stExpInfoV2.hdr_mode = 0;
             stExpInfoV2.arAGain[0] = pCurExp->LinearExp.exp_real_params.analog_gain;
-            stExpInfoV2.arDGain[0] = pCurExp->LinearExp.exp_real_params.digital_gain;
+            stExpInfoV2.arDGain[0] = pCurExp->LinearExp.exp_real_params.digital_gain *
+                pCurExp->LinearExp.exp_real_params.isp_dgain;
             stExpInfoV2.arTime[0] = pCurExp->LinearExp.exp_real_params.integration_time;
             stExpInfoV2.arIso[0] = stExpInfoV2.arAGain[0] * stExpInfoV2.arDGain[0] * 50;
 

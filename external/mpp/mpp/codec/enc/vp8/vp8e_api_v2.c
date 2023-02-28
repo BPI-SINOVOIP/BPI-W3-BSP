@@ -100,7 +100,7 @@ static MPP_RET vp8e_init(void *ctx, EncImplCfg *ctrl_cfg)
     rc_cfg->fps_out_num = 30;
     rc_cfg->fps_out_denorm = 1;
     rc_cfg->gop = 60;
-    rc_cfg->max_reenc_times = 0;
+    rc_cfg->max_reenc_times = 1;
 
     p->rc = mpp_calloc(Vp8eRc, 1);
     memset(p->rc, 0, sizeof(Vp8eRc));
@@ -161,7 +161,7 @@ static MPP_RET vp8e_proc_prep_cfg(MppEncPrepCfg *dst, MppEncPrepCfg *src)
         if (change & MPP_ENC_PREP_CFG_CHANGE_INPUT) {
             if ((src->width < 0 || src->width > 1920) ||
                 (src->height < 0 || src->height > 3840) ||
-                (src->hor_stride < 0 || src->hor_stride > 3840) ||
+                (src->hor_stride < 0 || src->hor_stride > 7680) ||
                 (src->ver_stride < 0 || src->ver_stride > 3840)) {
                 mpp_err("invalid input w:h [%d:%d] [%d:%d]\n",
                         src->width, src->height,

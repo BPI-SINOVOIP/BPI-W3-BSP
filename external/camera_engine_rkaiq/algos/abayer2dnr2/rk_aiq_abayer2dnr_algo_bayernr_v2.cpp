@@ -63,6 +63,9 @@ Abayer2dnr_result_V2_t bayer2dnr_select_params_by_ISO_V2(RK_Bayer2dnr_Params_V2_
         }
     }
 
+    pExpInfo->isoHigh = pParams->iso[isoLevelHig];
+    pExpInfo->isoLow = pParams->iso[isoLevelLow];
+
     LOGD_ANR("%s:%d iso:%d high:%d low:%d\n",
              __FUNCTION__, __LINE__,
              isoGain, isoGainHig, isoGainLow);
@@ -508,8 +511,15 @@ Abayer2dnr_result_V2_t bayer2dnr_init_params_json_V2(RK_Bayer2dnr_Params_V2_t *p
         pParams->ratio[i] = pTuningISO->ratio;
         pParams->gauss_guide[i] = pTuningISO->gauss_guide;
 
-        pParams->pix_diff[i] = FIXDIFMAX - 1;
-        pParams->diff_thld[i] = LUTPRECISION_FIX;
+        if(pTuningISO->pix_diff == 0)
+            pParams->pix_diff[i] = FIXDIFMAX - 1;
+        else
+            pParams->pix_diff[i] = pTuningISO->pix_diff;
+
+        if(pTuningISO->diff_thld == 0)
+            pParams->diff_thld[i] = LUTPRECISION_FIX;
+        else
+            pParams->diff_thld[i] = pTuningISO->diff_thld;
 
         pParams->hdr_dgain_scale_s[i] = pTuningISO->hdr_dgain_scale_s;
         pParams->hdr_dgain_scale_m[i] = pTuningISO->hdr_dgain_scale_m;

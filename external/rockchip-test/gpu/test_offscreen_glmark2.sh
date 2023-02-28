@@ -21,7 +21,7 @@ elif [[  "$1" == "rk3566" || "$1" == "rk3568"  ]]; then
 	glmark2-es2-wayland --off-screen
 
 elif [[  "$1" == "rk3588" || "$1" == "rk3588s"  ]]; then
-	glmark2-es2-wayland --off-screen
+	taskset -c 4-8 glmark2-es2-wayland --off-screen
 
 elif [[  "$1" == "rk1808" || "$1" == "rk3308"  ]]; then
 	echo "the chips didn't support gpu"

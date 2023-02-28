@@ -201,4 +201,50 @@ rk_aiq_user_api2_acnrV2_GetStrength(const rk_aiq_sys_ctx_t* sys_ctx, rk_aiq_cnr_
 
 }
 
+XCamReturn
+rk_aiq_user_api2_acnrV2_GetInfo(const rk_aiq_sys_ctx_t* sys_ctx, rk_aiq_cnr_info_v2_t *pInfo)
+{
+    XCamReturn ret = XCAM_RETURN_NO_ERROR;
+    RKAIQ_API_SMART_LOCK(sys_ctx);
+
+
+    if (sys_ctx->cam_type == RK_AIQ_CAM_TYPE_GROUP) {
+#ifdef RKAIQ_ENABLE_CAMGROUP
+
+        RkAiqCamGroupAcnrV2HandleInt* algo_handle =
+            camgroupAlgoHandle<RkAiqCamGroupAcnrV2HandleInt>(sys_ctx, RK_AIQ_ALGO_TYPE_ACNR);
+
+        if (algo_handle) {
+            LOGD_ANR("%s:%d !!!!!!!!!!!!!group!!!!!!!!\n", __FUNCTION__, __LINE__);
+            return algo_handle->getInfo(pInfo);
+        } else {
+            const rk_aiq_camgroup_ctx_t* camgroup_ctx = (rk_aiq_camgroup_ctx_t *)sys_ctx;
+            for (auto camCtx : camgroup_ctx->cam_ctxs_array) {
+                if (!camCtx)
+                    continue;
+                LOGD_ANR("%s:%d !!!!!!!!!!!!!multi single!!!!!!!!\n", __FUNCTION__, __LINE__);
+                RkAiqAcnrV2HandleInt* singleCam_algo_handle =
+                    algoHandle<RkAiqAcnrV2HandleInt>(camCtx, RK_AIQ_ALGO_TYPE_ACNR);
+                if (singleCam_algo_handle)
+                    ret = singleCam_algo_handle->getInfo(pInfo);
+            }
+        }
+#else
+        return XCAM_RETURN_ERROR_FAILED;
+#endif
+
+    } else {
+        RkAiqAcnrV2HandleInt* algo_handle =
+            algoHandle<RkAiqAcnrV2HandleInt>(sys_ctx, RK_AIQ_ALGO_TYPE_ACNR);
+        LOGD_ANR("%s:%d !!!!!!!!!!!!!single!!!!!!!!\n", __FUNCTION__, __LINE__);
+        if (algo_handle) {
+            return algo_handle->getInfo(pInfo);
+        }
+    }
+
+    return ret;
+
+}
+
+
 RKAIQ_END_DECLARE

@@ -96,16 +96,6 @@ typedef enum Asharp4_ParamMode_e {
 
 #endif
 
-typedef struct Asharp4_ExpInfo_s {
-    int hdr_mode;
-    float arTime[3];
-    float arAGain[3];
-    float arDGain[3];
-    int   arIso[3];
-    int   snr_mode;
-    int rawWidth;
-    int rawHeight;
-} Asharp4_ExpInfo_t;
 
 
 typedef struct RK_SHARP_Params_V4_s

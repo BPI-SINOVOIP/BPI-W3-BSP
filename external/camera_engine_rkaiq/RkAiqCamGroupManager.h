@@ -146,6 +146,7 @@ private:
     SafeList<rk_aiq_groupcam_result_wrapper_t>  mMsgQueue;
 };
 
+typedef std::shared_ptr<std::list<std::string>> ModuleNameList;
 class RkAiqCamgroupHandle;
 class RkAiqCamGroupManager
 {
@@ -200,6 +201,9 @@ public:
     RkAiqAlgoContext* getEnabledAxlibCtx(const int algo_type);
     RkAiqAlgoContext* getAxlibCtx(const int algo_type, const int lib_id);
     RkAiqCamgroupHandle* getAiqCamgroupHandle(const int algo_type, const int lib_id);
+    XCamReturn calibTuning(const CamCalibDbV2Context_t* aiqCalib, ModuleNameList& change_name_list);
+    XCamReturn updateCalibDb(const CamCalibDbV2Context_t* newCalibDb);
+    XCamReturn rePrepare();
 
     void setVicapReady(rk_aiq_hwevt_t* hwevt);
     bool isAllVicapReady();
@@ -278,8 +282,15 @@ protected:
     void addDefaultAlgos(const struct RkAiqAlgoDesCommExt* algoDes);
     virtual SmartPtr<RkAiqCamgroupHandle> newAlgoHandle(RkAiqAlgoDesComm* algo, int hw_ver);
     SmartPtr<RkAiqCamgroupHandle> getDefAlgoTypeHandle(int algo_type);
+    XCamReturn syncSingleCamResultWithMaster(rk_aiq_groupcam_result_t* gc_res);
     std::map<int, SmartPtr<RkAiqCamgroupHandle>>* getAlgoTypeHandleMap(int algo_type);
     void* mGroupCtx;
+private:
+    CamCalibDbV2Context_t mCalibv2;
+    bool needReprepare;
+    XCam::Mutex _update_mutex;
+    XCam::Cond _update_done_cond;
+    std::atomic<bool> _sync_sof_running;
 };
 
 }; //namespace

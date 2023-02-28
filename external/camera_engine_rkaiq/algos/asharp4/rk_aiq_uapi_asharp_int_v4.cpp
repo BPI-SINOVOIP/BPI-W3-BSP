@@ -105,4 +105,19 @@ rk_aiq_uapi_asharpV4_GetStrength(const RkAiqAlgoContext *ctx,
     return XCAM_RETURN_NO_ERROR;
 }
 
+XCamReturn
+rk_aiq_uapi_asharpV4_GetInfo(const RkAiqAlgoContext *ctx,
+                             rk_aiq_sharp_info_v4_t *pInfo)
+{
+
+    Asharp_Context_V4_t* pAsharpCtx = (Asharp_Context_V4_t*)ctx;
+
+    pInfo->iso = pAsharpCtx->stExpInfo.arIso[pAsharpCtx->stExpInfo.hdr_mode];
+    pInfo->expo_info = pAsharpCtx->stExpInfo;
+
+    return XCAM_RETURN_NO_ERROR;
+}
+
+
+
 

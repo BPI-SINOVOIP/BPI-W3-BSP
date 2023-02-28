@@ -98,10 +98,10 @@ typedef struct AblcProc_s {
 
     bool blc1_enable;
 
-    short int blc1_r;
-    short int blc1_gr;
-    short int blc1_gb;
-    short int blc1_b;
+    float blc1_r;
+    float blc1_gr;
+    float blc1_gb;
+    float blc1_b;
 
     bool isNeedUpdate;
 } AblcProc_t;
@@ -117,13 +117,7 @@ typedef struct rk_aiq_blc_attrib_s {
     AblcManualAttr_t stBlc1Manual;
 } rk_aiq_blc_attrib_t;
 
-typedef struct AblcExpInfo_s {
-    int hdr_mode;
-    float arTime[3];
-    float arAGain[3];
-    float arDGain[3];
-    int   arIso[3];
-} AblcExpInfo_t;
+
 
 #endif
 

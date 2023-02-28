@@ -115,48 +115,48 @@ AdebayerFullParamsInit
             (CalibDb_RKDM_t*)(CALIBDB_GET_MODULE_PTR(pAdebayerCtx->pCalibDb, dm));
 
         pAdebayerCtx->full_param.enable = calib_dm->debayer_en;
-        for (int i = 0; i < 9; i++) {
-            pAdebayerCtx->full_param.iso[i] = calib_dm->ISO[i];
-            pAdebayerCtx->full_param.hf_offset[i] = calib_dm->debayer_hf_offset[i];
-            pAdebayerCtx->full_param.sharp_strength[i] = calib_dm->sharp_strength[i];
-        }
         for (int i = 0; i < 5; i++) {
             pAdebayerCtx->full_param.filter1[i] = calib_dm->debayer_filter1[i];
             pAdebayerCtx->full_param.filter2[i] = calib_dm->debayer_filter2[i];
         }
-        pAdebayerCtx->full_param.clip_en = calib_dm->debayer_clip_en;
-        pAdebayerCtx->full_param.filter_g_en = calib_dm->debayer_filter_g_en;
-        pAdebayerCtx->full_param.filter_c_en = calib_dm->debayer_filter_c_en;
-        pAdebayerCtx->full_param.thed0 = calib_dm->debayer_thed0;
-        pAdebayerCtx->full_param.thed1 = calib_dm->debayer_thed1;
-        pAdebayerCtx->full_param.dist_scale = calib_dm->debayer_dist_scale;
-        pAdebayerCtx->full_param.gain_offset = calib_dm->debayer_gain_offset;
-        pAdebayerCtx->full_param.offset = calib_dm->debayer_offset;
-        pAdebayerCtx->full_param.shift_num = calib_dm->debayer_shift_num;
-        pAdebayerCtx->full_param.cnr_strength = calib_dm->debayer_cnr_strength;
+        for (int i = 0; i < DEBAYER_ISO_LEN; i++) {
+            pAdebayerCtx->full_param.clip_en[i] = calib_dm->debayer_clip_en;
+            pAdebayerCtx->full_param.filter_g_en[i] = calib_dm->debayer_filter_g_en;
+            pAdebayerCtx->full_param.filter_c_en[i] = calib_dm->debayer_filter_c_en;
+            pAdebayerCtx->full_param.thed0[i] = calib_dm->debayer_thed0;
+            pAdebayerCtx->full_param.thed1[i] = calib_dm->debayer_thed1;
+            pAdebayerCtx->full_param.dist_scale[i] = calib_dm->debayer_dist_scale;
+            pAdebayerCtx->full_param.gain_offset[i] = calib_dm->debayer_gain_offset;
+            pAdebayerCtx->full_param.offset[i] = calib_dm->debayer_offset;
+            pAdebayerCtx->full_param.shift_num[i] = calib_dm->debayer_shift_num;
+            pAdebayerCtx->full_param.cnr_strength[i] = calib_dm->debayer_cnr_strength;
+            pAdebayerCtx->full_param.iso[i] = calib_dm->ISO[MIN(i, 8)];
+            pAdebayerCtx->full_param.hf_offset[i] = calib_dm->debayer_hf_offset[MIN(i, 8)];
+            pAdebayerCtx->full_param.sharp_strength[i] = calib_dm->sharp_strength[MIN(i, 8)];
+        }
     } else if (pAdebayerCtx->pCalibDbV2) {
         CalibDbV2_Debayer_t* debayer =
             (CalibDbV2_Debayer_t*)(CALIBDBV2_GET_MODULE_PTR(pAdebayerCtx->pCalibDbV2, debayer));
         pAdebayerCtx->full_param.enable = debayer->param.debayer_en;
-        for (int i = 0; i < 9; i++) {
-            pAdebayerCtx->full_param.iso[i] = debayer->param.array.ISO[i];
-            pAdebayerCtx->full_param.hf_offset[i] = debayer->param.array.debayer_hf_offset[i];
-            pAdebayerCtx->full_param.sharp_strength[i] = debayer->param.array.sharp_strength[i];
+        for (int i = 0; i < DEBAYER_ISO_LEN; i++) {
+            pAdebayerCtx->full_param.iso[i] = debayer->param.debayer_auto.ISO[i];
+            pAdebayerCtx->full_param.hf_offset[i] = debayer->param.debayer_auto.debayer_hf_offset[i];
+            pAdebayerCtx->full_param.sharp_strength[i] = debayer->param.debayer_auto.debayer_sharp_strength[i];
+            pAdebayerCtx->full_param.clip_en[i] = debayer->param.debayer_auto.debayer_clip_en[i];
+            pAdebayerCtx->full_param.filter_g_en[i] = debayer->param.debayer_auto.debayer_filter_g_en[i];
+            pAdebayerCtx->full_param.filter_c_en[i] = debayer->param.debayer_auto.debayer_filter_c_en[i];
+            pAdebayerCtx->full_param.thed0[i] = debayer->param.debayer_auto.debayer_thed0[i];
+            pAdebayerCtx->full_param.thed1[i] = debayer->param.debayer_auto.debayer_thed1[i];
+            pAdebayerCtx->full_param.dist_scale[i] = debayer->param.debayer_auto.debayer_dist_scale[i];
+            pAdebayerCtx->full_param.gain_offset[i] = debayer->param.debayer_auto.debayer_gain_offset[i];
+            pAdebayerCtx->full_param.offset[i] = debayer->param.debayer_auto.debayer_offset[i];
+            pAdebayerCtx->full_param.shift_num[i] = debayer->param.debayer_auto.debayer_shift_num[i];
+            pAdebayerCtx->full_param.cnr_strength[i] = debayer->param.debayer_auto.debayer_cnr_strength[i];
         }
         for (int i = 0; i < 5; i++) {
             pAdebayerCtx->full_param.filter1[i] = debayer->param.debayer_filter1[i];
             pAdebayerCtx->full_param.filter2[i] = debayer->param.debayer_filter2[i];
         }
-        pAdebayerCtx->full_param.clip_en = debayer->param.debayer_clip_en;
-        pAdebayerCtx->full_param.filter_g_en = debayer->param.debayer_filter_g_en;
-        pAdebayerCtx->full_param.filter_c_en = debayer->param.debayer_filter_c_en;
-        pAdebayerCtx->full_param.thed0 = debayer->param.debayer_thed0;
-        pAdebayerCtx->full_param.thed1 = debayer->param.debayer_thed1;
-        pAdebayerCtx->full_param.dist_scale = debayer->param.debayer_dist_scale;
-        pAdebayerCtx->full_param.gain_offset = debayer->param.debayer_gain_offset;
-        pAdebayerCtx->full_param.offset = debayer->param.debayer_offset;
-        pAdebayerCtx->full_param.shift_num = debayer->param.debayer_shift_num;
-        pAdebayerCtx->full_param.cnr_strength = debayer->param.debayer_cnr_strength;
         pAdebayerCtx->full_param.updated = false;
     } else {
         LOGE_ADEBAYER("%s(%d): calibDb are all null!\n", __FUNCTION__, __LINE__);
@@ -194,7 +194,7 @@ AdebayerTranslateParamsAtManualMode(AdebayerContext_t *pAdebayerCtx)
 }
 
 XCamReturn
-AdebayerTranslateParamsAtAutoMode(AdebayerContext_t *pAdebayerCtx, int8_t ISO)
+AdebayerTranslateParamsAtAutoMode(AdebayerContext_t *pAdebayerCtx, int ISO, int* index)
 {
     if(!pAdebayerCtx) {
         LOGE_ADEBAYER("%s(%d): null pointer\n", __FUNCTION__, __LINE__);
@@ -206,72 +206,57 @@ AdebayerTranslateParamsAtAutoMode(AdebayerContext_t *pAdebayerCtx, int8_t ISO)
         pAdebayerCtx->config.filter1_coe[i] = pAdebayerCtx->full_param.filter1[i];
         pAdebayerCtx->config.filter2_coe[i] = pAdebayerCtx->full_param.filter2[i];
     }
-    pAdebayerCtx->config.gain_offset = pAdebayerCtx->full_param.gain_offset;
 
-    int sharp_strength_tmp[9];
+    //select params according to iso
 
-    for (int i = 0; i < 9; i ++)
-    {
-        float iso_index = pAdebayerCtx->full_param.iso[i];
-        int gain = (int)(log((float)iso_index / 50) / log((float)2));
-        sharp_strength_tmp[gain] = pAdebayerCtx->full_param.sharp_strength[i];
-    }
-    pAdebayerCtx->config.offset = pAdebayerCtx->full_param.offset;
-
-    int hfOffset_tmp[9];
-    for (int i = 0; i < 9; i ++)
-    {
-        float iso_index = pAdebayerCtx->full_param.iso[i];
-        int gain = (int)(log((float)iso_index / 50) / log((float)2));
-        hfOffset_tmp[gain]  = pAdebayerCtx->full_param.hf_offset[i];
-    }
-    pAdebayerCtx->config.clip_en = pAdebayerCtx->full_param.clip_en;
-    pAdebayerCtx->config.filter_g_en = pAdebayerCtx->full_param.filter_g_en;
-    pAdebayerCtx->config.filter_c_en = pAdebayerCtx->full_param.filter_c_en;
-    pAdebayerCtx->config.thed0 = pAdebayerCtx->full_param.thed0;
-    pAdebayerCtx->config.thed1 = pAdebayerCtx->full_param.thed1;
-    pAdebayerCtx->config.dist_scale = pAdebayerCtx->full_param.dist_scale;
-    pAdebayerCtx->config.shift_num = pAdebayerCtx->full_param.shift_num;
-
-    //select sharp params
-    int iso_low = ISO, iso_high = ISO;
-    int gain_high, gain_low;
+    int iso_low = 0, iso_high = 0, iso_low_index = 0, iso_high_index = 0;
     float ratio = 0.0f;
-    int iso_div             = 50;
-    int max_iso_step        = 9;
-    for (int i = max_iso_step - 1; i >= 0; i--)
-    {
-        if (ISO < iso_div * (2 << i))
+    int i = 0;
+
+    for(i = 0; i < DEBAYER_ISO_LEN; i++) {
+        if (ISO < pAdebayerCtx->full_param.iso[i])
         {
-            iso_low = iso_div * (2 << (i)) / 2;
-            iso_high = iso_div * (2 << i);
+
+            iso_low = pAdebayerCtx->full_param.iso[MAX(0, i - 1)];
+            iso_high = pAdebayerCtx->full_param.iso[i];
+            iso_low_index = MAX(0, i - 1);
+            iso_high_index = i;
+
+            if(i == 0)
+                ratio = 0.0f;
+            else
+                ratio = (float)(ISO - iso_low) / (iso_high - iso_low);
+
+            break;
         }
     }
-    ratio = (float)(ISO - iso_low) / (iso_high - iso_low);
-    if (iso_low == ISO)
-    {
-        iso_high = ISO;
-        ratio = 0;
-    }
-    if (iso_high == ISO )
-    {
-        iso_low = ISO;
+
+    if(i == DEBAYER_ISO_LEN) {
+        iso_low = pAdebayerCtx->full_param.iso[i - 1];
+        iso_high = pAdebayerCtx->full_param.iso[i - 1];
+        iso_low_index = i - 1;
+        iso_high_index = i - 1;
         ratio = 1;
     }
-    gain_high = (int)(log((float)iso_high / 50) / log((float)2));
-    gain_low = (int)(log((float)iso_low / 50) / log((float)2));
 
-    gain_low = MIN(MAX(gain_low, 0), 8);
-    gain_high = MIN(MAX(gain_high, 0), 8);
-
-    pAdebayerCtx->config.max_ratio = ((ratio) * (sharp_strength_tmp[gain_high] - sharp_strength_tmp[gain_low]) + sharp_strength_tmp[gain_low]);
-    pAdebayerCtx->config.hf_offset = ((ratio) * (hfOffset_tmp[gain_high] - hfOffset_tmp[gain_low]) + hfOffset_tmp[gain_low]);
+    pAdebayerCtx->config.offset = ROUND_F(INTERP_DEBAYER(pAdebayerCtx->full_param.offset[iso_low_index], pAdebayerCtx->full_param.offset[iso_high_index], ratio));
+    pAdebayerCtx->config.gain_offset = ROUND_F(INTERP_DEBAYER(pAdebayerCtx->full_param.gain_offset[iso_low_index], pAdebayerCtx->full_param.gain_offset[iso_high_index], ratio));
+    pAdebayerCtx->config.clip_en = ROUND_F(INTERP_DEBAYER(pAdebayerCtx->full_param.clip_en[iso_low_index], pAdebayerCtx->full_param.clip_en[iso_high_index], ratio));
+    pAdebayerCtx->config.filter_g_en = ROUND_F(INTERP_DEBAYER(pAdebayerCtx->full_param.filter_g_en[iso_low_index], pAdebayerCtx->full_param.filter_g_en[iso_high_index], ratio));
+    pAdebayerCtx->config.filter_c_en = ROUND_F(INTERP_DEBAYER(pAdebayerCtx->full_param.filter_c_en[iso_low_index], pAdebayerCtx->full_param.filter_c_en[iso_high_index], ratio));
+    pAdebayerCtx->config.thed0 = ROUND_F(INTERP_DEBAYER(pAdebayerCtx->full_param.thed0[iso_low_index], pAdebayerCtx->full_param.thed0[iso_high_index], ratio));
+    pAdebayerCtx->config.thed1 = ROUND_F(INTERP_DEBAYER(pAdebayerCtx->full_param.thed1[iso_low_index], pAdebayerCtx->full_param.thed1[iso_high_index], ratio));
+    pAdebayerCtx->config.dist_scale = ROUND_F(INTERP_DEBAYER(pAdebayerCtx->full_param.dist_scale[iso_low_index], pAdebayerCtx->full_param.dist_scale[iso_high_index], ratio));
+    pAdebayerCtx->config.shift_num = ROUND_F(INTERP_DEBAYER(pAdebayerCtx->full_param.shift_num[iso_low_index], pAdebayerCtx->full_param.shift_num[iso_high_index], ratio));
+    pAdebayerCtx->config.max_ratio = ROUND_F(INTERP_DEBAYER(pAdebayerCtx->full_param.sharp_strength[iso_low_index], pAdebayerCtx->full_param.sharp_strength[iso_high_index], ratio));
+    pAdebayerCtx->config.hf_offset = ROUND_F(INTERP_DEBAYER(pAdebayerCtx->full_param.hf_offset[iso_low_index], pAdebayerCtx->full_param.hf_offset[iso_high_index], ratio));
+    *index = ROUND_F(INTERP_DEBAYER(pAdebayerCtx->full_param.cnr_strength[iso_low_index], pAdebayerCtx->full_param.cnr_strength[iso_high_index], ratio));
 
     return XCAM_RETURN_NO_ERROR;
 }
 
 XCamReturn
-AdebayerTranslateParams(AdebayerContext_t *pAdebayerCtx, int8_t ISO)
+AdebayerTranslateParams(AdebayerContext_t *pAdebayerCtx, int ISO)
 {
     if(!pAdebayerCtx) {
         LOGE_ADEBAYER("%s(%d): null pointer\n", __FUNCTION__, __LINE__);
@@ -297,8 +282,7 @@ AdebayerTranslateParams(AdebayerContext_t *pAdebayerCtx, int8_t ISO)
 
     int index = 0;
     if (pAdebayerCtx->mode == RK_AIQ_DEBAYER_MODE_AUTO) {
-        index = pAdebayerCtx->full_param.cnr_strength;
-        ret = AdebayerTranslateParamsAtAutoMode(pAdebayerCtx, ISO);
+        ret = AdebayerTranslateParamsAtAutoMode(pAdebayerCtx, ISO, &index);
     } else if  (pAdebayerCtx->mode == RK_AIQ_DEBAYER_MODE_MANUAL) {
         index = pAdebayerCtx->manualAttrib.cnr_strength;
         ret = AdebayerTranslateParamsAtManualMode(pAdebayerCtx);

@@ -29,6 +29,7 @@ typedef struct alut3d_sw_info_s {
     float awbIIRDampCoef;
     bool awbConverged;
     bool lut3dConverged;
+    uint8_t invarMode;
     uint32_t count;
 } alut3d_sw_info_t;
 

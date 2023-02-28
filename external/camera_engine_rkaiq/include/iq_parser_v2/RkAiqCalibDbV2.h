@@ -33,6 +33,12 @@
 
 namespace RkCam {
 
+typedef struct __map_index {
+  void *dst_offset;
+  void *ptr_offset;
+  size_t len;
+} map_index_t;
+
 typedef std::shared_ptr<std::list<std::string>> ModuleNameList;
 typedef std::shared_ptr<std::list<RkAiqAlgoType_t>> AlgoList;
 
@@ -50,10 +56,14 @@ public:
 
 public:
     static CamCalibDbProj_t *createCalibDbProj(const char *jsfile);
+    static CamCalibDbProj_t *createCalibDbProj(const void *bin_buff, size_t len);
     static CamCalibDbCamgroup_t* createCalibDbCamgroup(const char *jsfile);
     static int CamCalibDbCamgroupFree(CamCalibDbCamgroup_t* calib_camgroup);
 
     static CamCalibDbProj_t *json2calibproj(const char *jsfile);
+    static CamCalibDbProj_t *json2calibproj(const char *jstr, size_t len);
+    static CamCalibDbProj_t *bin2calibproj(const char *binfile);
+    static CamCalibDbProj_t *bin2calibproj(const void *bin_buff, size_t len);
     static CamCalibDbV2Context_t *json2calib(const char *jsfile);
     static CamCalibDbV2Context_t *cjson2calib(cJSON *json);
 
@@ -97,6 +107,11 @@ public:
                                          cJSON* patch);
     static TuningCalib analyzTuningCalib(const CamCalibDbV2Context_t *calib,
                                          const char* patch_str);
+
+    static int FreeCalibByJ2S(void* ctx);
+
+    static void *loadWholeFile(const char *fpath, size_t *fsize);
+    static int parseBinStructMap(uint8_t *data, size_t len);
 
 private:
     static std::map<std::string, CamCalibDbProj_t *> mCalibDbsMap;
@@ -153,7 +168,7 @@ private:
 
     //isp30
     static int CamCalibDbFreeGammaV2Ctx(CalibDbV2_gamma_V30_t* gamma);
-    static int CamCalibDbFreeDehazeV30Ctx(CalibDbV2_dehaze_V30_t* dehaze);
+    static int CamCalibDbFreeDehazeV30Ctx(CalibDbV2_dehaze_V21_t* dehaze);
     static int CamCalibDbFreeDrcV2Ctx(CalibDbV2_drc_V2_t* drc);
     static int CamCalibDbFreeMergeV2Ctx(CalibDbV2_merge_V2_t* merge);
     static int CamCalibDbFreeCacCtx(CalibDbV2_Cac_t* cac_calib);

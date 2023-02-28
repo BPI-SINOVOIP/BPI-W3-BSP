@@ -74,16 +74,9 @@ void convertCCMCalib2CalibV2(const CamCalibDbContext_t *calib,CamCalibDbV2Contex
 
     //copy value
     ccm_v2->control.enable = ccm->enable;
-    ccm_v2->control.mode = CALIB_CCM_MODE_AUTO;
     ccm_v2->control.gain_tolerance = 0.2;
     ccm_v2->control.wbgain_tolerance = 0.1;
-    for (int i = 0; i < 9; i++) {
-        if (i ==0 ||i==4 ||i==8)
-            ccm_v2->manualPara.ccMatrix[i] = 1;
-        else
-            ccm_v2->manualPara.ccMatrix[i] = 0;
-    }
-    memset(ccm_v2->manualPara.ccOffsets, 0, sizeof(ccm_v2->manualPara.ccOffsets));
+
     ccm_v2->TuningPara.damp_enable = ccm->mode_cell[0].damp_enable;
     ccm_v2->TuningPara.illu_estim.interp_enable = 0;
     strcpy(ccm_v2->TuningPara.illu_estim.default_illu, ccm->mode_cell[0].aCcmCof.illAll[0].illuName);

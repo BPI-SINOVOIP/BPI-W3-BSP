@@ -132,6 +132,7 @@ Again_result_V2_t gain_select_params_by_ISO_V2(RK_GAIN_Params_V2_t *pParams, RK_
     }
 #endif
 
+
     for (i = 0; i < RK_GAIN_V2_MAX_ISO_NUM - 1; i++)
     {
         if (isoGain >= isoGainStd[i] && isoGain <= isoGainStd[i + 1])
@@ -144,6 +145,9 @@ Again_result_V2_t gain_select_params_by_ISO_V2(RK_GAIN_Params_V2_t *pParams, RK_
             isoLevelCorrect = ((isoGain - isoGainStd[i]) <= (isoGainStd[i + 1] - isoGain)) ? i : (i + 1);
         }
     }
+
+    pExpInfo->isoHigh = pParams->iso[isoLevelHig];
+    pExpInfo->isoLow = pParams->iso[isoLevelLow];
 
     pSelect->hdrgain_ctrl_enable = pParams->hdrgain_ctrl_enable;
 

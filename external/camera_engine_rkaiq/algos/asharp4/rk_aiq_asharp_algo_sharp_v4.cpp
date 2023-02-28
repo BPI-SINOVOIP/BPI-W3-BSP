@@ -95,6 +95,10 @@ Asharp4_result_t sharp_select_params_by_ISO_V4(
     gain_high = MIN(MAX(gain_high, 0), max_iso_step - 1);
 #endif
 
+    pExpInfo->isoHigh = pParams->iso[gain_high];
+    pExpInfo->isoLow = pParams->iso[gain_low];
+
+
     LOGD_ASHARP("%s:%d iso:%d gainlow:%d gian_high:%d\n", __FUNCTION__, __LINE__, iso, gain_high, gain_high);
 
     pSelect->enable = pParams->enable;

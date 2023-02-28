@@ -50,8 +50,7 @@ typedef struct __RkAiqSocketPacket_s {
   unsigned int dataSize;
   char *data;
   unsigned int dataHash;
-} RkAiqSocketPacket;
-#pragma pack()
+} __attribute__((packed)) RkAiqSocketPacket;
 
 typedef struct __RkAiqSocketPacket {
   uint8_t magic[4] = {'R', 0xAA, 0xFF, 'K'};
@@ -62,8 +61,7 @@ typedef struct __RkAiqSocketPacket {
   uint32_t packet_size;
   uint8_t *data;
   uint32_t data_hash; // different offset in data stream
-} RkAiqSocketPacket_t;
-#pragma pack()
+} __attribute__((packed)) RkAiqSocketPacket_t;
 
 typedef enum __MessageType {
   RKAIQ_MESSAGE_UNKNOWN = -1,
@@ -77,8 +75,7 @@ namespace RkMSG {
 
 class MessageParser {
 public:
-  explicit MessageParser();
-  explicit MessageParser(void *ptr) { pri = ptr; };
+  explicit MessageParser(void *ptr);
   ~MessageParser();
 
 public:

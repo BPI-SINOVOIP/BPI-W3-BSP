@@ -24,6 +24,7 @@
 #include "RkAiqCalibDbTypesV2.h"
 #include "RkAiqCalibDbV2Helper.h"
 #include "cJSON.h"
+#include "cJSON_Utils.h"
 
 namespace RkCam {
 
@@ -48,6 +49,20 @@ public:
   static CamCalibDbV2Context_t refToScene(CamCalibDbProj_t *calibproj,
                                            const char *main_scene,
                                            const char *sub_scene);
+
+  static cJSON *findMainScene(cJSON *base_json, const char *name);
+  static cJSON *findSubScene(cJSON *main_json, const char *name);
+  static cJSON *findSubScene(cJSON *json, const char *main_scene,
+                             const char *sub_scene);
+
+  static CamCalibDbV2Context_t* createSceneCalib(CamCalibDbProj_t *calibproj,
+                                                 const char *main_scene,
+                                                 const char *sub_scene);
+
+  static cJSON *mergeSubMultiScene(cJSON *sub_scene_list,
+                                   cJSON* full_param, bool skip);
+  static cJSON *mergeMainMultiScene(cJSON *main_scene_list);
+  static cJSON *mergeMultiSceneIQ(cJSON *base_json);
 
 private:
   static std::map<std::string, AiqScene> sceneMap;

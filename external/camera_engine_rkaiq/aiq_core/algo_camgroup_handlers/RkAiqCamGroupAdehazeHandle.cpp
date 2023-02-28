@@ -73,7 +73,7 @@ XCamReturn RkAiqCamGroupAdhazHandleInt::getAttrib(adehaze_sw_V2_t* att) {
         mCfgMutex.unlock();
     } else {
         if (updateAtt) {
-            memcpy(att, &mNewAtt, sizeof(updateAtt));
+            memcpy(att, &mNewAtt, sizeof(adehaze_sw_V2_t));
             att->sync.done = false;
         } else {
             rk_aiq_uapi_adehaze_GetAttrib(mAlgoCtx, att);

@@ -113,7 +113,7 @@ typedef struct scaned_dev {
 typedef void (*RK_BT_STATE_CALLBACK)(RK_BT_STATE state);
 typedef void (*RK_BT_BOND_CALLBACK)(const char *bd_addr, const char *name, RK_BT_BOND_STATE state);
 typedef void (*RK_BT_DISCOVERY_CALLBACK)(RK_BT_DISCOVERY_STATE state);
-typedef void (*RK_BT_DEV_FOUND_CALLBACK)(const char *address, const char *name, unsigned int bt_class, int rssi);
+typedef void (*RK_BT_DEV_FOUND_CALLBACK)(const char *address, const char *name, unsigned int bt_class, int rssi, int change);
 typedef void (*RK_BT_NAME_CHANGE_CALLBACK)(const char *bd_addr, const char *name);
 typedef void (*RK_BT_MTU_CALLBACK)(const char *bd_addr, unsigned int mtu);
 
@@ -124,6 +124,7 @@ void rk_bt_register_dev_found_callback(RK_BT_DEV_FOUND_CALLBACK cb);
 void rk_bt_register_name_change_callback(RK_BT_NAME_CHANGE_CALLBACK cb);
 int rk_bt_init(RkBtContent *p_bt_content);
 int rk_bt_deinit(void);
+int _rk_bt_deinit(void *p);
 int rk_bt_is_connected(void);
 int rk_bt_set_class(int value);
 int rk_bt_set_sleep_mode(void);

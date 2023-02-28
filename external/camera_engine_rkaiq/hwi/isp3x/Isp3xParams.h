@@ -61,6 +61,7 @@ private:
                                         const rk_aiq_isp_dehaze_v3x_t& dhaze);
     void convertAiqGainToIsp3xParams(struct isp3x_isp_params_cfg& isp_cfg,
                                      rk_aiq_isp_gain_v3x_t& gain);
+    void convertAiqExpIspDgainToIsp3xParams(struct isp3x_isp_params_cfg& isp_cfg, RKAiqAecExpInfo_t& ae_exp);
 };
 
 };

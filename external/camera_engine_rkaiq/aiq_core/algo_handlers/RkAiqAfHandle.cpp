@@ -46,15 +46,13 @@ XCamReturn RkAiqAfHandleInt::updateConfig(bool needSync) {
     XCamReturn ret                              = XCAM_RETURN_NO_ERROR;
     RkAiqCore::RkAiqAlgosComShared_t* sharedCom = &mAiqCore->mAlogsComSharedParams;
 
-    if (sharedCom->snsDes.lens_des.focus_support) {
-        if (needSync) mCfgMutex.lock();
-        // if something changed
-        if (updateAtt) {
-            rk_aiq_uapi_af_SetAttrib(mAlgoCtx, mNewAtt, false);
-            isUpdateAttDone = true;
-        }
-        if (needSync) mCfgMutex.unlock();
+    if (needSync) mCfgMutex.lock();
+    // if something changed
+    if (updateAtt) {
+        rk_aiq_uapi_af_SetAttrib(mAlgoCtx, mNewAtt, false);
+        isUpdateAttDone = true;
     }
+    if (needSync) mCfgMutex.unlock();
 
     EXIT_ANALYZER_FUNCTION();
     return ret;
@@ -66,31 +64,29 @@ XCamReturn RkAiqAfHandleInt::setAttrib(rk_aiq_af_attrib_t* att) {
     XCamReturn ret                              = XCAM_RETURN_NO_ERROR;
     RkAiqCore::RkAiqAlgosComShared_t* sharedCom = &mAiqCore->mAlogsComSharedParams;
 
-    if (sharedCom->snsDes.lens_des.focus_support) {
-        mCfgMutex.lock();
+    mCfgMutex.lock();
 
-        // check if there is different between att & mCurAtt(sync)/mNewAtt(async)
-        // if something changed, set att to mNewAtt, and
-        // the new params will be effective later when updateConfig
-        // called by RkAiqCore
-        bool isChanged = false;
-        if (att->sync.sync_mode == RK_AIQ_UAPI_MODE_ASYNC && \
-            memcmp(&mNewAtt, att, sizeof(*att)))
-            isChanged = true;
-        else if (att->sync.sync_mode != RK_AIQ_UAPI_MODE_ASYNC && \
-                 memcmp(&mCurAtt, att, sizeof(*att)))
-            isChanged = true;
+    // check if there is different between att & mCurAtt(sync)/mNewAtt(async)
+    // if something changed, set att to mNewAtt, and
+    // the new params will be effective later when updateConfig
+    // called by RkAiqCore
+    bool isChanged = false;
+    if (att->sync.sync_mode == RK_AIQ_UAPI_MODE_ASYNC && \
+        memcmp(&mNewAtt, att, sizeof(*att)))
+        isChanged = true;
+    else if (att->sync.sync_mode != RK_AIQ_UAPI_MODE_ASYNC && \
+             memcmp(&mCurAtt, att, sizeof(*att)))
+        isChanged = true;
 
-        // if something changed
-        if (isChanged || (mCurAtt.AfMode == RKAIQ_AF_MODE_AUTO)) {
-            mNewAtt         = *att;
-            updateAtt       = true;
-            isUpdateAttDone = false;
-            waitSignal(att->sync.sync_mode);
-        }
-
-        mCfgMutex.unlock();
+    // if something changed
+    if (isChanged || (mCurAtt.AfMode == RKAIQ_AF_MODE_AUTO)) {
+        mNewAtt         = *att;
+        updateAtt       = true;
+        isUpdateAttDone = false;
+        waitSignal(att->sync.sync_mode);
     }
+
+    mCfgMutex.unlock();
 
     EXIT_ANALYZER_FUNCTION();
     return ret;
@@ -386,6 +382,18 @@ XCamReturn RkAiqAfHandleInt::GetCustomAfRes(rk_tool_customAf_res_t* att) {
     return ret;
 }
 
+XCamReturn RkAiqAfHandleInt::setAeStable(bool ae_stable) {
+    ENTER_ANALYZER_FUNCTION();
+
+    XCamReturn ret = XCAM_RETURN_NO_ERROR;
+    mAeStableMutex.lock();
+    mAeStable = ae_stable;
+    mAeStableMutex.unlock();
+
+    EXIT_ANALYZER_FUNCTION();
+    return ret;
+}
+
 XCamReturn RkAiqAfHandleInt::prepare() {
     ENTER_ANALYZER_FUNCTION();
 
@@ -538,6 +546,9 @@ XCamReturn RkAiqAfHandleInt::processing() {
     af_proc_int->xcam_af_stats  = shared->afStatsBuf;
     af_proc_int->xcam_aec_stats = shared->aecStatsBuf;
     af_proc_int->xcam_pdaf_stats = shared->pdafStatsBuf;
+    mAeStableMutex.lock();
+    af_proc_int->ae_stable = mAeStable;
+    mAeStableMutex.unlock();
 
     RkAiqAlgoDescription* des = (RkAiqAlgoDescription*)mDes;
 #if 0

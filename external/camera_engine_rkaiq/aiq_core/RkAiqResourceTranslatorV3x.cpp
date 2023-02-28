@@ -1102,9 +1102,15 @@ XCamReturn RkAiqResourceTranslatorV3x::translateMultiAwbStats(const SmartPtr<Vid
     if(bls_cfg && bls_cfg->blc1_enable && (bls_cfg->blc1_b > 0 || bls_cfg->blc1_r > 0 || bls_cfg->blc1_gb > 0 || bls_cfg->blc1_gr > 0)) {
 
         for(int i = 0; i < RK_AIQ_AWB_GRID_NUM_TOTAL; i++) {
-            statsInt->awb_stats_v3x.blockResult[i].Rvalue -=  (statsInt->awb_stats_v3x.blockResult[i].WpNo * bls_cfg->blc1_r + 8) >> 4 ;
-            statsInt->awb_stats_v3x.blockResult[i].Gvalue -=  (statsInt->awb_stats_v3x.blockResult[i].WpNo * (bls_cfg->blc1_gr + bls_cfg->blc1_gb) + 16) >> 5 ;
-            statsInt->awb_stats_v3x.blockResult[i].Bvalue -= (statsInt->awb_stats_v3x.blockResult[i].WpNo * bls_cfg->blc1_b + 8) >> 4 ; ;
+            statsInt->awb_stats_v3x.blockResult[i].Rvalue -=
+                (long long)(statsInt->awb_stats_v3x.blockResult[i].WpNo * bls_cfg->blc1_r *
+                statsInt->awb_stats_v3x.awb_cfg_effect_v201.pre_wbgain_inv_r + 2048) >> 12 ;
+            statsInt->awb_stats_v3x.blockResult[i].Gvalue -=
+               (long long)(statsInt->awb_stats_v3x.blockResult[i].WpNo * (bls_cfg->blc1_gr + bls_cfg->blc1_gb) *
+               statsInt->awb_stats_v3x.awb_cfg_effect_v201.pre_wbgain_inv_g+ 4096) >> 13 ;
+            statsInt->awb_stats_v3x.blockResult[i].Bvalue -=
+               (long long)(statsInt->awb_stats_v3x.blockResult[i].WpNo * bls_cfg->blc1_b  *
+               statsInt->awb_stats_v3x.awb_cfg_effect_v201.pre_wbgain_inv_b + 2048)>> 12 ; ;
         }
     }
 
@@ -1193,7 +1199,7 @@ RkAiqResourceTranslatorV3x::translateAecStats (const SmartPtr<VideoBuffer> &from
         LOGE("fail to get stats ,ignore\n");
         return XCAM_RETURN_BYPASS;
     }
-    LOGI_ANALYZER("camId: %d, stats: frame_id: %d,  meas_type; 0x%x",
+    LOGI_ANALYZER("camId: %d, aec stats: frame_id: %d,  meas_type; 0x%x",
                   mCamPhyId, stats->frame_id, stats->meas_type);
 
     SmartPtr<RkAiqIrisParamsProxy> irisParams = buf->get_iris_params();
@@ -1775,7 +1781,7 @@ RkAiqResourceTranslatorV3x::translateAwbStats (const SmartPtr<VideoBuffer> &from
         LOGE("fail to get stats ,ignore\n");
         return XCAM_RETURN_BYPASS;
     }
-    LOGI_ANALYZER("awb stats: camId:%d, frame_id: %d,  meas_type; 0x%x",
+    LOGI_ANALYZER("camId: %d, awb stats: frame_id: %d,  meas_type; 0x%x",
                   mCamPhyId, stats->frame_id, stats->meas_type);
 
     statsInt->awb_stats_valid = stats->meas_type >> 5 & 1;
@@ -1895,9 +1901,15 @@ RkAiqResourceTranslatorV3x::translateAwbStats (const SmartPtr<VideoBuffer> &from
     if(bls_cfg && bls_cfg->blc1_enable && (bls_cfg->blc1_b > 0 || bls_cfg->blc1_r > 0 || bls_cfg->blc1_gb > 0 || bls_cfg->blc1_gr > 0)) {
 
         for(int i = 0; i < RK_AIQ_AWB_GRID_NUM_TOTAL; i++) {
-            statsInt->awb_stats_v3x.blockResult[i].Rvalue -=  (statsInt->awb_stats_v3x.blockResult[i].WpNo * bls_cfg->blc1_r + 8) >> 4 ;
-            statsInt->awb_stats_v3x.blockResult[i].Gvalue -=  (statsInt->awb_stats_v3x.blockResult[i].WpNo * (bls_cfg->blc1_gr + bls_cfg->blc1_gb) + 16) >> 5 ;
-            statsInt->awb_stats_v3x.blockResult[i].Bvalue -= (statsInt->awb_stats_v3x.blockResult[i].WpNo * bls_cfg->blc1_b + 8) >> 4 ; ;
+            statsInt->awb_stats_v3x.blockResult[i].Rvalue -=
+                (long long)(statsInt->awb_stats_v3x.blockResult[i].WpNo * bls_cfg->blc1_r *
+                statsInt->awb_stats_v3x.awb_cfg_effect_v201.pre_wbgain_inv_r + 2048) >> 12 ;
+            statsInt->awb_stats_v3x.blockResult[i].Gvalue -=
+               (long long)(statsInt->awb_stats_v3x.blockResult[i].WpNo * (bls_cfg->blc1_gr + bls_cfg->blc1_gb) *
+               statsInt->awb_stats_v3x.awb_cfg_effect_v201.pre_wbgain_inv_g+ 4096) >> 13 ;
+            statsInt->awb_stats_v3x.blockResult[i].Bvalue -=
+               (long long)(statsInt->awb_stats_v3x.blockResult[i].WpNo * bls_cfg->blc1_b  *
+               statsInt->awb_stats_v3x.awb_cfg_effect_v201.pre_wbgain_inv_b + 2048)>> 12 ; ;
         }
     }
     LOGV_AWBGROUP("mIsGroupMode %d, mCamPhyId %d,mModuleRotation %d", mIsGroupMode, mCamPhyId, mModuleRotation);
@@ -1962,6 +1974,12 @@ RkAiqResourceTranslatorV3x::translateMultiAfStats (const SmartPtr<VideoBuffer> &
         LOGE("fail to get ispParams ,ignore\n");
         return XCAM_RETURN_BYPASS;
     }
+
+    SmartPtr<RkAiqExpParamsProxy> expParams = nullptr;
+    if (buf->getEffectiveExpParams(left_stats->frame_id, expParams) < 0)
+        LOGE("fail to get expParams");
+    if (expParams.ptr())
+        statsInt->aecExpInfo = expParams->data()->aecExpInfo;
 
     statsInt->frame_id = left_stats->frame_id;
 
@@ -2126,8 +2144,8 @@ RkAiqResourceTranslatorV3x::translateMultiAfStats (const SmartPtr<VideoBuffer> &
                                                right_stats->params.rawaf.afm_lum_b * af_split_info.winb_r_ratio;
             statsInt->af_stats_v3x.wndb_sharpness = left_stats->params.rawaf.afm_sum_b * af_split_info.winb_l_ratio +
                                                     right_stats->params.rawaf.afm_sum_b * af_split_info.winb_r_ratio;
-            statsInt->af_stats_v3x.winb_highlit_cnt = left_stats->params.rawaf.highlit_cnt_winb * af_split_info.winb_l_ratio +
-                    right_stats->params.rawaf.highlit_cnt_winb * af_split_info.winb_r_ratio;
+            statsInt->af_stats_v3x.winb_highlit_cnt = left_stats->params.rawaf.highlit_cnt_winb +
+                    right_stats->params.rawaf.highlit_cnt_winb;
         } else if (af_split_info.winb_side_info == LEFT_MODE) {
             statsInt->af_stats_v3x.wndb_luma = left_stats->params.rawaf.afm_lum_b;
             statsInt->af_stats_v3x.wndb_sharpness = left_stats->params.rawaf.afm_sum_b;
@@ -2162,7 +2180,7 @@ RkAiqResourceTranslatorV3x::translateMultiAfStats (const SmartPtr<VideoBuffer> &
                         statsInt->af_stats_v3x.wnda_fv_h2[dst_idx] =
                             left_stats->params.rawaf.ramdata[l_idx].h2 + left_stats->params.rawaf.ramdata[l_idx + 1].h2;
                         statsInt->af_stats_v3x.wnda_luma[dst_idx] =
-                            left_stats->params.rawae3.data[l_idx].channelg_xy + left_stats->params.rawae3.data[l_idx + 1].channelg_xy;
+                            (left_stats->params.rawae3.data[l_idx].channelg_xy + left_stats->params.rawae3.data[l_idx + 1].channelg_xy) >> 1;
                         lht0 = ((left_stats->params.rawae3.data[l_idx].channelr_xy & 0x3F) << 10) | left_stats->params.rawae3.data[l_idx].channelb_xy;
                         lht1 = ((left_stats->params.rawae3.data[l_idx + 1].channelr_xy & 0x3F) << 10) | left_stats->params.rawae3.data[l_idx + 1].channelb_xy;
                         statsInt->af_stats_v3x.wina_highlit_cnt[dst_idx] = lht0 + lht1;
@@ -2177,7 +2195,7 @@ RkAiqResourceTranslatorV3x::translateMultiAfStats (const SmartPtr<VideoBuffer> &
                         statsInt->af_stats_v3x.wnda_fv_h2[dst_idx] =
                             right_stats->params.rawaf.ramdata[r_idx].h2 + right_stats->params.rawaf.ramdata[r_idx + 1].h2;
                         statsInt->af_stats_v3x.wnda_luma[dst_idx] =
-                            right_stats->params.rawae3.data[r_idx].channelg_xy + right_stats->params.rawae3.data[r_idx + 1].channelg_xy;
+                            (right_stats->params.rawae3.data[r_idx].channelg_xy + right_stats->params.rawae3.data[r_idx + 1].channelg_xy) >> 1;
                         lht0 = ((right_stats->params.rawae3.data[r_idx].channelr_xy & 0x3F) << 10) | right_stats->params.rawae3.data[r_idx].channelb_xy;
                         lht1 = ((right_stats->params.rawae3.data[r_idx + 1].channelr_xy & 0x3F) << 10) | right_stats->params.rawae3.data[r_idx + 1].channelb_xy;
                         statsInt->af_stats_v3x.wina_highlit_cnt[dst_idx] = lht0 + lht1;
@@ -2240,8 +2258,7 @@ RkAiqResourceTranslatorV3x::translateMultiAfStats (const SmartPtr<VideoBuffer> &
                         right_stats->params.rawae3.data[r_idx].channelg_xy * af_split_info.wina_r_ratio;
                     l_lht = ((left_stats->params.rawae3.data[l_idx].channelr_xy & 0x3F) << 10) | left_stats->params.rawae3.data[l_idx].channelb_xy;
                     r_lht = ((right_stats->params.rawae3.data[r_idx].channelr_xy & 0x3F) << 10) | right_stats->params.rawae3.data[r_idx].channelb_xy;
-                    statsInt->af_stats_v3x.wina_highlit_cnt[dst_idx] =
-                        l_lht * af_split_info.wina_l_ratio + r_lht * af_split_info.wina_r_ratio;
+                    statsInt->af_stats_v3x.wina_highlit_cnt[dst_idx] = l_lht + r_lht;
                 }
             }
         } else if (af_split_info.wina_side_info == LEFT_MODE) {
@@ -2310,13 +2327,19 @@ RkAiqResourceTranslatorV3x::translateAfStats (const SmartPtr<VideoBuffer> &from,
         LOGE("fail to get stats ,ignore\n");
         return XCAM_RETURN_BYPASS;
     }
-    LOGI_ANALYZER("stats: frame_id: %d,  meas_type; 0x%x",
-                  stats->frame_id, stats->meas_type);
+    LOGI_ANALYZER("camId: %d, af stats: frame_id: %d,  meas_type; 0x%x",
+                  mCamPhyId, stats->frame_id, stats->meas_type);
 
     SmartPtr<RkAiqAfInfoProxy> afParams = buf->get_af_params();
 
     memset(&statsInt->af_stats_v3x, 0, sizeof(rk_aiq_isp_af_stats_v3x_t));
     statsInt->frame_id = stats->frame_id;
+
+    SmartPtr<RkAiqExpParamsProxy> expParams = nullptr;
+    if (buf->getEffectiveExpParams(stats->frame_id, expParams) < 0)
+        LOGE("fail to get expParams");
+    if (expParams.ptr())
+        statsInt->aecExpInfo = expParams->data()->aecExpInfo;
 
     //af
     {
@@ -2375,8 +2398,8 @@ RkAiqResourceTranslatorV3x::translateAdehazeStats (const SmartPtr<VideoBuffer> &
         LOGE("fail to get stats ,ignore\n");
         return XCAM_RETURN_BYPASS;
     }
-    LOGI_ANALYZER("stats: frame_id: %d,  meas_type; 0x%x",
-                  stats->frame_id, stats->meas_type);
+    LOGI_ANALYZER("camId: %d, dehaze stats: frame_id: %d,  meas_type; 0x%x",
+                  mCamPhyId, stats->frame_id, stats->meas_type);
     //dehaze
     statsInt->adehaze_stats_valid = stats->meas_type >> 17 & 1;
     statsInt->adehaze_stats.dehaze_stats_v30.dhaz_adp_air_base = stats->params.dhaz.dhaz_adp_air_base;

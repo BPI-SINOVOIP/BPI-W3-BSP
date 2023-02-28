@@ -14,12 +14,15 @@
  * limitations under the License.
  *
  */
+#include <fstream>
+#include <sys/stat.h>
 
 #include "RkAiqCalibDbV2.h"
 #include "cJSON_Utils.h"
 #include "j2s.h"
 #include "RkAiqCalibDbV2Helper.h"
 #include <fstream>
+#include "scene/scene_manager.h"
 
 #ifndef __ANDROID__
 #define IQ_DEBUG
@@ -185,15 +188,81 @@ CamCalibDbV2Context_t *RkAiqCalibDbV2::json2calib(const char *jsfile) {
 
 CamCalibDbProj_t *RkAiqCalibDbV2::json2calibproj(const char *jsfile) {
     j2s_ctx ctx;
+    char* json_buff = NULL;
+    size_t json_size = 0;
+    cJSON* base_json = NULL;
     int ret = -1;
+
+    json_buff = (char*)j2s_read_file(jsfile, &json_size);
+    if (!json_buff) {
+      return nullptr;
+    }
+
+    base_json = cJSON_Parse(json_buff);
+    if (!base_json) {
+      free(json_buff);
+      return nullptr;
+    }
 
     j2s_init(&ctx);
     ctx.format_json = false;
     ctx.manage_data = false;
 
+    if (!RkAiqSceneManager::mergeMultiSceneIQ(base_json)) {
+      cJSON_Delete(base_json);
+      j2s_deinit(&ctx);
+      free(json_buff);
+      return nullptr;
+    }
+
     CamCalibDbProj_t *calibproj = CamCalibDbProjAlloc();
 
-    ret = j2s_json_file_to_root_struct(&ctx, jsfile, calibproj);
+    ret = j2s_json_to_struct(&ctx, base_json, NULL, calibproj);
+    cJSON_Delete(base_json);
+    j2s_deinit(&ctx);
+
+    if (ret) {
+        CamCalibDbProjFree(calibproj);
+        free(json_buff);
+        return nullptr;
+    }
+
+#ifdef IQ_DEBUG
+    calibproj2json("/tmp/iq_dump.json", calibproj);
+#endif
+
+    free(json_buff);
+    return calibproj;
+}
+
+CamCalibDbProj_t *RkAiqCalibDbV2::json2calibproj(const char *jstr, size_t len) {
+    j2s_ctx ctx;
+    cJSON* base_json = NULL;
+    int ret = -1;
+
+    if (!jstr || !len) {
+      return nullptr;
+    }
+
+    base_json = cJSON_Parse(jstr);
+    if (!base_json) {
+      return nullptr;
+    }
+
+    j2s_init(&ctx);
+    ctx.format_json = false;
+    ctx.manage_data = false;
+
+    if (!RkAiqSceneManager::mergeMultiSceneIQ(base_json)) {
+      cJSON_Delete(base_json);
+      j2s_deinit(&ctx);
+      return nullptr;
+    }
+
+    CamCalibDbProj_t *calibproj = CamCalibDbProjAlloc();
+
+    ret = j2s_json_to_struct(&ctx, base_json, NULL, calibproj);
+    cJSON_Delete(base_json);
     j2s_deinit(&ctx);
 
     if (ret) {
@@ -204,6 +273,44 @@ CamCalibDbProj_t *RkAiqCalibDbV2::json2calibproj(const char *jsfile) {
 #ifdef IQ_DEBUG
     calibproj2json("/tmp/iq_dump.json", calibproj);
 #endif
+
+    return calibproj;
+}
+
+CamCalibDbProj_t *RkAiqCalibDbV2::bin2calibproj(const char *binfile) {
+    CamCalibDbProj_t *calibproj = NULL;
+    char* bin_buff = NULL;
+    size_t bin_size = 0;
+    int ret = -1;
+
+    bin_buff = (char*)loadWholeFile(binfile, &bin_size);
+    if (!bin_buff) {
+        return NULL;
+    }
+
+    ret = parseBinStructMap((uint8_t*)bin_buff, bin_size);
+    if (ret) {
+        return NULL;
+    }
+
+    calibproj = (CamCalibDbProj_t*) bin_buff;
+
+    return calibproj;
+}
+
+CamCalibDbProj_t *RkAiqCalibDbV2::bin2calibproj(const void *bin_buff, size_t len) {
+    CamCalibDbProj_t *calibproj = NULL;
+    int ret = -1;
+
+    if (!bin_buff || !len)
+        return NULL;
+
+    ret = parseBinStructMap((uint8_t*)bin_buff, len);
+    if (ret) {
+        return NULL;
+    }
+
+    calibproj = (CamCalibDbProj_t*) bin_buff;
 
     return calibproj;
 }
@@ -342,6 +449,7 @@ cJSON *RkAiqCalibDbV2::calib2cjson(const CamCalibDbV2Context_t *calib) {
 
 CamCalibDbProj_t *RkAiqCalibDbV2::createCalibDbProj(const char *jsfile) {
     std::map<std::string, CamCalibDbProj_t *>::iterator it;
+    CamCalibDbProj_t *calibproj = NULL;
     std::string str(jsfile);
     const std::lock_guard<std::mutex> lock(RkAiqCalibDbV2::calib_mutex);
 
@@ -350,12 +458,15 @@ CamCalibDbProj_t *RkAiqCalibDbV2::createCalibDbProj(const char *jsfile) {
         XCAM_LOG_INFO("use cached calibdb for %s!", jsfile);
         return it->second;
     } else {
-        if (0 != access(jsfile, F_OK)) {
-            XCAM_LOG_ERROR("access %s failed!", jsfile);
+        std::string binfile = str.substr(0, str.find_last_of(".")) + ".bin";
+        if (0 == access(jsfile, F_OK)) {
+            calibproj = json2calibproj(jsfile);
+        } else if (0 == access(binfile.c_str(), F_OK)) {
+            calibproj = bin2calibproj(binfile.c_str());
+        } else {
+            XCAM_LOG_ERROR("access %s && %s failed!", jsfile, binfile.c_str());
             return nullptr;
         }
-
-        CamCalibDbProj_t *calibproj = json2calibproj(jsfile);
 
         if (calibproj) {
             mCalibDbsMap[str] = calibproj;
@@ -366,6 +477,22 @@ CamCalibDbProj_t *RkAiqCalibDbV2::createCalibDbProj(const char *jsfile) {
             return nullptr;
         }
     }
+}
+
+CamCalibDbProj_t *RkAiqCalibDbV2::createCalibDbProj(const void *bin_buff,
+                                                    size_t len) {
+  CamCalibDbProj_t *calibproj = NULL;
+  const std::lock_guard<std::mutex> lock(RkAiqCalibDbV2::calib_mutex);
+
+  calibproj = bin2calibproj(bin_buff, len);
+
+  if (calibproj) {
+    XCAM_LOG_INFO("create calibdb from buffer success.");
+    return calibproj;
+  }
+
+  XCAM_LOG_ERROR("parse binary iq buffer failed.");
+  return nullptr;
 }
 
 void RkAiqCalibDbV2::releaseCalibDbProj() {
@@ -441,6 +568,7 @@ RkAiqCalibDbV2::applyPatch2(const CamCalibDbV2Context_t *calib, cJSON *patch) {
     ctx.format_json = true;
     int change_sum = 0;
     int ret = -1;
+    const std::lock_guard<std::mutex> lock(RkAiqCalibDbV2::calib_mutex);
 
     if (!calib || !patch) {
         XCAM_LOG_ERROR("%s input invalied!", __func__);
@@ -514,7 +642,7 @@ patch_failed:
     j2s_deinit(&ctx);
 
     if (base_json)
-        cJSON_free(base_json);
+        cJSON_Delete(base_json);
 
     return new_calib;
 }
@@ -564,13 +692,13 @@ RkAiqAlgoType_t RkAiqCalibDbV2::string2algostype(const char *str) {
         {"adehaze_calib_v30", RK_AIQ_ALGO_TYPE_ADHAZ},
         {"lut3d_calib", RK_AIQ_ALGO_TYPE_A3DLUT},
         {"aldch", RK_AIQ_ALGO_TYPE_ALDCH},
-        {"acsm_calib", RK_AIQ_ALGO_TYPE_ACSM},
+        {"csm", RK_AIQ_ALGO_TYPE_ACSM},
         {"cproc", RK_AIQ_ALGO_TYPE_ACP},
         {"ie", RK_AIQ_ALGO_TYPE_AIE},
         {"sharp_v1", RK_AIQ_ALGO_TYPE_ASHARP},
         {"edgefilter_v1", RK_AIQ_ALGO_TYPE_ASHARP},
         {"aorb_calib", RK_AIQ_ALGO_TYPE_AORB},
-        {"acgc_calib", RK_AIQ_ALGO_TYPE_ACGC},
+        {"cgc", RK_AIQ_ALGO_TYPE_ACGC},
         {"asd_calib", RK_AIQ_ALGO_TYPE_ASD},
         {"adrc_calib", RK_AIQ_ALGO_TYPE_ADRC},
         {"adrc_calib_V2", RK_AIQ_ALGO_TYPE_ADRC},
@@ -659,7 +787,7 @@ RkAiqCalibDbV2::analyzTuningCalib(const CamCalibDbV2Context_t *calib,
     tuning_calib.calib = applyPatch2(calib, patch);
 
     if (patch)
-        cJSON_free(patch);
+        cJSON_Delete(patch);
 
     return tuning_calib;
 }
@@ -677,6 +805,7 @@ RkAiqCalibDbV2::analyzTuningCalib(const CamCalibDbV2Context_t *calib,
 cJSON *RkAiqCalibDbV2::readIQNode(const CamCalibDbV2Context_t *calib,
                                   const char *node_path) {
     cJSON *base_json = NULL;
+    cJSON *ret_json = NULL;
     auto path_str = std::string(node_path);
     auto headless = path_str.substr(path_str.find_first_not_of("/"),
                                     path_str.find_last_not_of("/"));
@@ -705,12 +834,13 @@ cJSON *RkAiqCalibDbV2::readIQNode(const CamCalibDbV2Context_t *calib,
     }
 
     cJSON *node_json = cJSONUtils_GetPointer(base_json, node_path);
-    if (node_json)
-        cJSON_DetachItemViaPointer(base_json, node_json);
+    if (node_json) {
+        ret_json = cJSON_Duplicate(node_json, 1);
+    }
 
-    cJSON_free(base_json);
+    cJSON_Delete(base_json);
 
-    return node_json;
+    return ret_json;
 }
 
 /**
@@ -729,7 +859,7 @@ char* RkAiqCalibDbV2::readIQNodeStr(const CamCalibDbV2Context_t* calib,
         return nullptr;
     }
 
-    return cJSON_PrintUnformatted(node_json);
+    return cJSON_Print(node_json);
 }
 
 char* RkAiqCalibDbV2::readIQNodeStrFromJstr(const CamCalibDbV2Context_t* calib,
@@ -766,10 +896,10 @@ char* RkAiqCalibDbV2::readIQNodeStrFromJstr(const CamCalibDbV2Context_t* calib,
         arr_item = arr_item->next;
     }
 
-    ret_str = cJSON_PrintUnformatted(ret_json);
+    ret_str = cJSON_Print(ret_json);
 
-    cJSON_free(ret_json);
-    cJSON_free(request_json);
+    cJSON_Delete(ret_json);
+    cJSON_Delete(request_json);
 
     return ret_str;
 }
@@ -1128,8 +1258,7 @@ int RkAiqCalibDbV2::CamCalibDbFreeDehazeV21Ctx(CalibDbV2_dehaze_V21_t* dehaze)
     Dehaze_Setting_V21_t* dehaze_setting = &DehazeTuningPara->dehaze_setting;
     DehazeDataV21_t* DehazeData = &dehaze_setting->DehazeData;
 
-    if (DehazeData->EnvLv)
-        calib_free(DehazeData->EnvLv);
+    if (DehazeData->CtrlData) calib_free(DehazeData->CtrlData);
     if (DehazeData->dc_min_th)
         calib_free(DehazeData->dc_min_th);
     if (DehazeData->dc_max_th)
@@ -1176,8 +1305,7 @@ int RkAiqCalibDbV2::CamCalibDbFreeDehazeV21Ctx(CalibDbV2_dehaze_V21_t* dehaze)
     Enhance_Setting_V21_t* enhance_setting = &DehazeTuningPara->enhance_setting;
     EnhanceDataV21_t* EnhanceData = &enhance_setting->EnhanceData;
 
-    if (EnhanceData->EnvLv)
-        calib_free(EnhanceData->EnvLv);
+    if (EnhanceData->CtrlData) calib_free(EnhanceData->CtrlData);
     if (EnhanceData->enhance_value)
         calib_free(EnhanceData->enhance_value);
     if (EnhanceData->enhance_chroma)
@@ -1185,8 +1313,7 @@ int RkAiqCalibDbV2::CamCalibDbFreeDehazeV21Ctx(CalibDbV2_dehaze_V21_t* dehaze)
 
     Hist_setting_V21_t* hist_setting = &DehazeTuningPara->hist_setting;
     HistDataV21_t* HistData = &hist_setting->HistData;
-    if (HistData->EnvLv)
-        calib_free(HistData->EnvLv);
+    if (HistData->CtrlData) calib_free(HistData->CtrlData);
     if (HistData->hist_gratio)
         calib_free(HistData->hist_gratio);
     if (HistData->hist_th_off)
@@ -1203,15 +1330,13 @@ int RkAiqCalibDbV2::CamCalibDbFreeDehazeV21Ctx(CalibDbV2_dehaze_V21_t* dehaze)
     return 0;
 }
 
-int RkAiqCalibDbV2::CamCalibDbFreeDehazeV30Ctx(CalibDbV2_dehaze_V30_t* dehaze)
-{
+int RkAiqCalibDbV2::CamCalibDbFreeDehazeV30Ctx(CalibDbV2_dehaze_V21_t* dehaze) {
     CalibDbDehazeV21_t* DehazeTuningPara = &dehaze->DehazeTuningPara;
 
     Dehaze_Setting_V21_t* dehaze_setting = &DehazeTuningPara->dehaze_setting;
     DehazeDataV21_t* DehazeData = &dehaze_setting->DehazeData;
 
-    if (DehazeData->EnvLv)
-        calib_free(DehazeData->EnvLv);
+    if (DehazeData->CtrlData) calib_free(DehazeData->CtrlData);
     if (DehazeData->dc_min_th)
         calib_free(DehazeData->dc_min_th);
     if (DehazeData->dc_max_th)
@@ -1258,8 +1383,7 @@ int RkAiqCalibDbV2::CamCalibDbFreeDehazeV30Ctx(CalibDbV2_dehaze_V30_t* dehaze)
     Enhance_Setting_V21_t* enhance_setting = &DehazeTuningPara->enhance_setting;
     EnhanceDataV21_t* EnhanceData = &enhance_setting->EnhanceData;
 
-    if (EnhanceData->EnvLv)
-        calib_free(EnhanceData->EnvLv);
+    if (EnhanceData->CtrlData) calib_free(EnhanceData->CtrlData);
     if (EnhanceData->enhance_value)
         calib_free(EnhanceData->enhance_value);
     if (EnhanceData->enhance_chroma)
@@ -1267,8 +1391,7 @@ int RkAiqCalibDbV2::CamCalibDbFreeDehazeV30Ctx(CalibDbV2_dehaze_V30_t* dehaze)
 
     Hist_setting_V21_t* hist_setting = &DehazeTuningPara->hist_setting;
     HistDataV21_t* HistData = &hist_setting->HistData;
-    if (HistData->EnvLv)
-        calib_free(HistData->EnvLv);
+    if (HistData->CtrlData) calib_free(HistData->CtrlData);
     if (HistData->hist_gratio)
         calib_free(HistData->hist_gratio);
     if (HistData->hist_th_off)
@@ -1316,8 +1439,7 @@ int RkAiqCalibDbV2::CamCalibDbFreeMergeCtx(CalibDbV2_merge_t* merge)
 {
     MergeV20_t* MergeTuningPara = &merge->MergeTuningPara;
     MergeOECurveV20_t* OECurve = &MergeTuningPara->OECurve;
-    if (OECurve->EnvLv)
-        calib_free(OECurve->EnvLv);
+    if (OECurve->CtrlData) calib_free(OECurve->CtrlData);
     if (OECurve->Smooth)
         calib_free(OECurve->Smooth);
     if (OECurve->Offset)
@@ -1342,8 +1464,7 @@ int RkAiqCalibDbV2::CamCalibDbFreeMergeV2Ctx(CalibDbV2_merge_V2_t* merge)
 {
     MergeV21_t* MergeTuningPara = &merge->MergeTuningPara;
     MergeOECurveV20_t* OECurveLong = &MergeTuningPara->LongFrmModeData.OECurve;
-    if (OECurveLong->EnvLv)
-        calib_free(OECurveLong->EnvLv);
+    if (OECurveLong->CtrlData) calib_free(OECurveLong->CtrlData);
     if (OECurveLong->Smooth)
         calib_free(OECurveLong->Smooth);
     if (OECurveLong->Offset)
@@ -1362,8 +1483,7 @@ int RkAiqCalibDbV2::CamCalibDbFreeMergeV2Ctx(CalibDbV2_merge_V2_t* merge)
         calib_free(MDCurveLong->MS_offset);
 
     MergeOECurveV20_t* OECurveShort = &MergeTuningPara->ShortFrmModeData.OECurve;
-    if (OECurveShort->EnvLv)
-        calib_free(OECurveShort->EnvLv);
+    if (OECurveShort->CtrlData) calib_free(OECurveShort->CtrlData);
     if (OECurveShort->Smooth)
         calib_free(OECurveShort->Smooth);
     if (OECurveShort->Offset)
@@ -1386,8 +1506,7 @@ int RkAiqCalibDbV2::CamCalibDbFreeDrcCtx(CalibDbV2_drc_t* drc)
 {
     CalibDbV2_Adrc_t* DrcTuningPara = &drc->DrcTuningPara;
     AdrcGain_t* DrcGain = &DrcTuningPara->DrcGain;
-    if (DrcGain->EnvLv)
-        calib_free(DrcGain->EnvLv);
+    if (DrcGain->CtrlData) calib_free(DrcGain->CtrlData);
     if (DrcGain->DrcGain)
         calib_free(DrcGain->DrcGain);
     if (DrcGain->Alpha)
@@ -1396,15 +1515,13 @@ int RkAiqCalibDbV2::CamCalibDbFreeDrcCtx(CalibDbV2_drc_t* drc)
         calib_free(DrcGain->Clip);
 
     HighLight_t* HiLight = &DrcTuningPara->HiLight;
-    if (HiLight->EnvLv)
-        calib_free(HiLight->EnvLv);
+    if (HiLight->CtrlData) calib_free(HiLight->CtrlData);
     if (HiLight->Strength)
         calib_free(HiLight->Strength);
 
     local_t* LocalTMOSetting = &DrcTuningPara->LocalTMOSetting;
     LocalData_t* LocalTMOData = &LocalTMOSetting->LocalTMOData;
-    if (LocalTMOData->EnvLv)
-        calib_free(LocalTMOData->EnvLv);
+    if (LocalTMOData->CtrlData) calib_free(LocalTMOData->CtrlData);
     if (LocalTMOData->LocalWeit)
         calib_free(LocalTMOData->LocalWeit);
     if (LocalTMOData->GlobalContrast)
@@ -1419,8 +1536,7 @@ int RkAiqCalibDbV2::CamCalibDbFreeDrcV2Ctx(CalibDbV2_drc_V2_t* drc)
 {
     CalibDbV2_Adrc_V2_t* DrcTuningPara = &drc->DrcTuningPara;
     AdrcGain_t* DrcGain = &DrcTuningPara->DrcGain;
-    if (DrcGain->EnvLv)
-        calib_free(DrcGain->EnvLv);
+    if (DrcGain->CtrlData) calib_free(DrcGain->CtrlData);
     if (DrcGain->DrcGain)
         calib_free(DrcGain->DrcGain);
     if (DrcGain->Alpha)
@@ -1429,15 +1545,13 @@ int RkAiqCalibDbV2::CamCalibDbFreeDrcV2Ctx(CalibDbV2_drc_V2_t* drc)
         calib_free(DrcGain->Clip);
 
     HighLight_t* HiLight = &DrcTuningPara->HiLight;
-    if (HiLight->EnvLv)
-        calib_free(HiLight->EnvLv);
+    if (HiLight->CtrlData) calib_free(HiLight->CtrlData);
     if (HiLight->Strength)
         calib_free(HiLight->Strength);
 
     localV2_t* LocalSetting = &DrcTuningPara->LocalSetting;
     LocalDataV2_t* LocalData = &LocalSetting->LocalData;
-    if (LocalData->EnvLv)
-        calib_free(LocalData->EnvLv);
+    if (LocalData->CtrlData) calib_free(LocalData->CtrlData);
     if (LocalData->LocalWeit)
         calib_free(LocalData->LocalWeit);
     if (LocalData->LocalAutoEnable)
@@ -1601,8 +1715,6 @@ int RkAiqCalibDbV2::CamCalibDbFreeAfV2xCtx(CalibDbV2_AF_t* af)
     if (zoomfocus_tbl->ZoomInfoDir)
         calib_free(zoomfocus_tbl->ZoomInfoDir);
 
-    if (TuningPara->contrast_af.FullRangeTbl)
-        calib_free(TuningPara->contrast_af.FullRangeTbl);
     if (TuningPara->contrast_af.AdaptRangeTbl)
         calib_free(TuningPara->contrast_af.AdaptRangeTbl);
     if (TuningPara->contrast_af.TrigThers)
@@ -1623,8 +1735,6 @@ int RkAiqCalibDbV2::CamCalibDbFreeAfV2xCtx(CalibDbV2_AF_t* af)
     if (TuningPara->contrast_af.ZoomCfg.StopStep)
         calib_free(TuningPara->contrast_af.ZoomCfg.StopStep);
 
-    if (TuningPara->video_contrast_af.FullRangeTbl)
-        calib_free(TuningPara->video_contrast_af.FullRangeTbl);
     if (TuningPara->video_contrast_af.AdaptRangeTbl)
         calib_free(TuningPara->video_contrast_af.AdaptRangeTbl);
     if (TuningPara->video_contrast_af.TrigThers)
@@ -1677,8 +1787,6 @@ int RkAiqCalibDbV2::CamCalibDbFreeAfV30Ctx(CalibDbV2_AFV30_t* af)
     if (zoomfocus_tbl->ZoomInfoDir)
         calib_free(zoomfocus_tbl->ZoomInfoDir);
 
-    if (TuningPara->contrast_af.FullRangeTbl)
-        calib_free(TuningPara->contrast_af.FullRangeTbl);
     if (TuningPara->contrast_af.AdaptRangeTbl)
         calib_free(TuningPara->contrast_af.AdaptRangeTbl);
     if (TuningPara->contrast_af.TrigThers)
@@ -1699,8 +1807,6 @@ int RkAiqCalibDbV2::CamCalibDbFreeAfV30Ctx(CalibDbV2_AFV30_t* af)
     if (TuningPara->contrast_af.ZoomCfg.StopStep)
         calib_free(TuningPara->contrast_af.ZoomCfg.StopStep);
 
-    if (TuningPara->video_contrast_af.FullRangeTbl)
-        calib_free(TuningPara->video_contrast_af.FullRangeTbl);
     if (TuningPara->video_contrast_af.AdaptRangeTbl)
         calib_free(TuningPara->video_contrast_af.AdaptRangeTbl);
     if (TuningPara->video_contrast_af.TrigThers)
@@ -1727,8 +1833,10 @@ int RkAiqCalibDbV2::CamCalibDbFreeAfV30Ctx(CalibDbV2_AFV30_t* af)
         calib_free(TuningPara->meascfg_tbl);
 
     if (TuningPara->pdaf.pdIsoPara) {
-        if (TuningPara->pdaf.pdIsoPara->fineSearchTbl)
-            calib_free(TuningPara->pdaf.pdIsoPara->fineSearchTbl);
+        for (int i = 0; i < TuningPara->pdaf.pdIsoPara_len; i++) {
+            if (TuningPara->pdaf.pdIsoPara[i].fineSearchTbl)
+                calib_free(TuningPara->pdaf.pdIsoPara[i].fineSearchTbl);
+        }
         calib_free(TuningPara->pdaf.pdIsoPara);
     }
 
@@ -2064,6 +2172,24 @@ int RkAiqCalibDbV2::CamCalibDbFreeCacCtx(CalibDbV2_Cac_t* cac_calib) {
     return 0;
 }
 
+int RkAiqCalibDbV2::FreeCalibByJ2S(void* ctx) {
+    const std::lock_guard<std::mutex> lock(RkAiqCalibDbV2::calib_mutex);
+    if (!ctx) {
+        return -1;
+    }
+    j2s_ctx temp_ctx;
+    CamCalibDbV2Tuning_t tuning_base;
+
+    j2s_init(&temp_ctx);
+    memset(&tuning_base, 0, sizeof(CamCalibDbV2Tuning_t));
+    calibdbV2_to_tuningdb(&tuning_base, (CamCalibDbV2Context_t*)ctx);
+    j2s_struct_free(&temp_ctx, "CamCalibDbV2Tuning_t", &tuning_base);
+    j2s_deinit(&temp_ctx);
+    calibdbV2_ctx_delete((CamCalibDbV2Context_t*)ctx);
+
+    return 0;
+}
+
 int RkAiqCalibDbV2::CamCalibDbFreeSceneCtx(void* scene_ctx) {
     CamCalibDbV2Context_t ctx_temp;
     ctx_temp.calib_scene = (char*)scene_ctx;
@@ -2111,8 +2237,8 @@ int RkAiqCalibDbV2::CamCalibDbFreeSceneCtx(void* scene_ctx) {
             CamCalibDbFreeGicV21Ctx(agic_calib_v21);
 
         if (CHECK_ISP_HW_V30()) {
-            CalibDbV2_dehaze_V30_t *adehaze_calib_v30 =
-                (CalibDbV2_dehaze_V30_t*)(CALIBDBV2_GET_MODULE_PTR((void*)ctx, adehaze_calib_v30));
+            CalibDbV2_dehaze_V21_t* adehaze_calib_v30 =
+                (CalibDbV2_dehaze_V21_t*)(CALIBDBV2_GET_MODULE_PTR((void*)ctx, adehaze_calib_v30));
             if (adehaze_calib_v30)
                 CamCalibDbFreeDehazeV30Ctx(adehaze_calib_v30);
         } else {
@@ -2272,6 +2398,62 @@ int RkAiqCalibDbV2::CamCalibDbFreeSceneCtx(void* scene_ctx) {
     } else {
         XCAM_LOG_ERROR("%s unsupported isp plateform !", __func__);
     }
+    return 0;
+}
+
+void* RkAiqCalibDbV2::loadWholeFile(const char *fpath, size_t *fsize)
+{
+    struct stat st;
+    void* buf;
+    int fd;
+
+    if (!fpath || (0 != ::stat(fpath, &st))) {
+        LOGE("load bin file error!\n");
+        return NULL;
+    }
+
+    fd = open(fpath, O_RDONLY);
+    if (fd < 0) {
+        LOGE("failed to open: '%s'\n", fpath);
+        return NULL;
+    }
+
+    buf = malloc(st.st_size);
+    if (!buf) {
+        LOGE("read file oom!\n");
+        close(fd);
+        return NULL;
+    }
+
+    if (read(fd, buf, st.st_size) != st.st_size) {
+        LOGE("failed to read: '%s'\n", fpath);
+        free(buf);
+        close(fd);
+        return NULL;
+    }
+
+    *fsize = st.st_size;
+
+    close(fd);
+
+    return buf;
+}
+
+int RkAiqCalibDbV2::parseBinStructMap(uint8_t *data, size_t len)
+{
+    size_t map_len = *(size_t *)(data + (len - sizeof(size_t)));
+    size_t map_offset = *(size_t *)(data + (len - sizeof(size_t) * 2));
+    size_t map_index = 0;
+    map_index_t *map_addr = NULL;
+
+    map_addr = (map_index_t *)(data + map_offset);
+
+    for (map_index = 0; map_index < map_len; map_index++) {
+      map_index_t tmap = (map_addr[map_index]);
+      void** dst_obj_addr = (void**)(data + (size_t)tmap.dst_offset);
+      *dst_obj_addr = data + (uintptr_t)tmap.ptr_offset;
+    }
+
     return 0;
 }
 

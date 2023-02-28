@@ -123,7 +123,8 @@ static XCamReturn groupAgainPrepare(RkAiqAlgoCom* params)
 
     if(g_again_hw_ver == AGAIN_HARDWARE_V2) {
         Again_Context_V2_t * again_contex_v2 = again_group_contex->again_contex_v2;
-        if(!!(params->u.prepare.conf_type & RK_AIQ_ALGO_CONFTYPE_UPDATECALIB )) {
+		again_contex_v2->prepare_type = params->u.prepare.conf_type;
+		if(!!(params->u.prepare.conf_type & RK_AIQ_ALGO_CONFTYPE_UPDATECALIB )) {
 #if AGAIN_USE_JSON_FILE_V2
 #if 1
             void *pCalibDbV2 = (void*)(para->s_calibv2);
@@ -197,7 +198,7 @@ static XCamReturn groupAgainProcessing(const RkAiqAlgoCom* inparams, RkAiqAlgoRe
         if((rk_aiq_working_mode_t)procParaGroup->working_mode == RK_AIQ_WORKING_MODE_NORMAL) {
             stExpInfoV2.hdr_mode = 0;
             stExpInfoV2.arAGain[0] = pCurExp->LinearExp.exp_real_params.analog_gain;
-            stExpInfoV2.arDGain[0] = pCurExp->LinearExp.exp_real_params.digital_gain;
+            stExpInfoV2.arDGain[0] = pCurExp->LinearExp.exp_real_params.digital_gain * pCurExp->LinearExp.exp_real_params.isp_dgain;
             stExpInfoV2.arTime[0] = pCurExp->LinearExp.exp_real_params.integration_time;
             stExpInfoV2.arIso[0] = stExpInfoV2.arAGain[0] * stExpInfoV2.arDGain[0] * 50;
 

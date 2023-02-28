@@ -182,6 +182,42 @@ RkAiqHandle::sendSignal(rk_aiq_uapi_mode_sync_e sync_mode)
         mUpdateCond.signal();
 }
 
+XCamReturn
+RkAiqHandle::SharingAlgosResult(const void *result)
+{
+    if (!result) {
+        LOGE("input params error\n");
+        return XCAM_RETURN_ERROR_PARAM;
+    }
 
+    XCamReturn ret = XCAM_RETURN_NO_ERROR;
+    RkAiqCore::RkAiqAlgosGroupShared_t* shared =
+        (RkAiqCore::RkAiqAlgosGroupShared_t*)(getGroupShared());
+
+    if (!shared) {
+        LOGE("the RkAiqAlgosGroupShared is NULL\n");
+        return XCAM_RETURN_ERROR_FAILED;
+    }
+
+    switch (getAlgoType()) {
+        case RK_AIQ_ALGO_TYPE_AYNR: {
+            RkAiqAlgoProcResAynrV3* ynrRes = (RkAiqAlgoProcResAynrV3*)result;
+            memcpy(shared->res_comb.ynrV3_proc_res.sigma,
+                   ynrRes->stAynrProcResult.stSelect.sigma,
+                   sizeof(ynrRes->stAynrProcResult.stSelect.sigma));
+            LOG1("ynr sigma: %f, %f, %f, %f",
+                    shared->res_comb.ynrV3_proc_res.sigma[0],
+                    shared->res_comb.ynrV3_proc_res.sigma[1],
+                    shared->res_comb.ynrV3_proc_res.sigma[2],
+                    shared->res_comb.ynrV3_proc_res.sigma[3]);
+        }
+        break;
+        defalut:
+            break;
+    }
+
+    return ret;
+}
 
 };  // namespace RkCam
+

@@ -146,10 +146,12 @@ static const OptionInfoRec Options[] = {
     {OPTION_ZAPHOD_HEADS, "ZaphodHeads", OPTV_STRING, {0}, FALSE},
     {OPTION_DOUBLE_SHADOW, "DoubleShadow", OPTV_BOOLEAN, {0}, FALSE},
     {OPTION_ATOMIC, "Atomic", OPTV_BOOLEAN, {0}, FALSE},
+    {OPTION_USE_GAMMA_LUT, "UseGammaLUT", OPTV_BOOLEAN, {0}, FALSE},
     {OPTION_FLIP_FB, "FlipFB", OPTV_STRING, {0}, FALSE},
     {OPTION_FLIP_FB_RATE, "MaxFlipRate", OPTV_INTEGER, {0}, 0},
     {OPTION_NO_EDID, "NoEDID", OPTV_BOOLEAN, {0}, FALSE},
     {OPTION_HOTPLUG_RESET, "HotplugReset", OPTV_BOOLEAN, {0}, TRUE},
+    {OPTION_WARM_UP, "WarmUp", OPTV_BOOLEAN, {0}, TRUE},
     {-1, NULL, OPTV_NONE, {0}, FALSE}
 };
 
@@ -709,7 +711,7 @@ ms_dirty_get_ent(ScreenPtr screen, PixmapPtr slave_dst)
     return NULL;
 }
 
-static void
+static Bool
 msBlockHandler(ScreenPtr pScreen, void *timeout)
 {
     modesettingPtr ms = modesettingPTR(xf86ScreenToScrn(pScreen));
@@ -717,10 +719,22 @@ msBlockHandler(ScreenPtr pScreen, void *timeout)
     xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
     int c;
 
+    /* HACK: Ignore the first request */
+    if (ms->warm_up) {
+        ms->warm_up = FALSE;
+        *((int *)timeout) = 16;
+        return FALSE;
+    }
+
+    if (!access(getenv("XSERVER_FREEZE_DISPLAY") ? : "", F_OK)) {
+        *((int *)timeout) = 16;
+        return FALSE;
+    }
+
     pScreen->BlockHandler = ms->BlockHandler;
     pScreen->BlockHandler(pScreen, timeout);
     ms->BlockHandler = pScreen->BlockHandler;
-    pScreen->BlockHandler = msBlockHandler;
+    pScreen->BlockHandler = (void *)msBlockHandler;
     if (pScreen->isGPU && !ms->drmmode.reverse_prime_offload_mode)
         dispatch_slave_dirty(pScreen);
     else {
@@ -741,6 +755,7 @@ msBlockHandler(ScreenPtr pScreen, void *timeout)
     }
 
     ms_dirty_update(pScreen, timeout);
+    return TRUE;
 }
 
 static void
@@ -749,7 +764,8 @@ msBlockHandler_oneshot(ScreenPtr pScreen, void *pTimeout)
     ScrnInfoPtr pScrn = xf86ScreenToScrn(pScreen);
     modesettingPtr ms = modesettingPTR(pScrn);
 
-    msBlockHandler(pScreen, pTimeout);
+    if (!msBlockHandler(pScreen, pTimeout))
+        return;
 
     drmmode_set_desired_modes(pScrn, &ms->drmmode, TRUE, FALSE);
 }
@@ -1091,6 +1107,9 @@ PreInit(ScrnInfoPtr pScrn, int flags)
     ms->drmmode.hotplug_reset =
         xf86ReturnOptValBool(ms->drmmode.Options, OPTION_HOTPLUG_RESET, TRUE);
 
+    ms->warm_up =
+        xf86ReturnOptValBool(ms->drmmode.Options, OPTION_WARM_UP, TRUE);
+
     str_value = xf86GetOptValString(ms->drmmode.Options, OPTION_FLIP_FB);
     if (!str_value || !strcmp(str_value, "transformed"))
         ms->drmmode.fb_flip_mode = DRMMODE_FB_FLIP_TRANSFORMED;
@@ -1135,6 +1154,9 @@ PreInit(ScrnInfoPtr pScrn, int flags)
         ms->atomic_modeset = FALSE;
     }
 
+    /* HACK: Force disabling atomic APIs */
+    ms->atomic_modeset = 0;
+
     /* Try to enable atomic cap, but not doing atomic modeset */
     drmSetClientCap(ms->fd, DRM_CLIENT_CAP_ATOMIC, 2);
 
@@ -1144,6 +1166,9 @@ PreInit(ScrnInfoPtr pScrn, int flags)
     ret = drmGetCap(ms->fd, DRM_CAP_ASYNC_PAGE_FLIP, &value);
     if (ret == 0 && value == 1)
         ms->async_pageflip = TRUE;
+
+    /* HACK: The Rockchip BSP kernel might wrongly enable it */
+    ms->async_pageflip = FALSE;
 
     ms->kms_has_modifiers = FALSE;
     ret = drmGetCap(ms->fd, DRM_CAP_ADDFB2_MODIFIERS, &value);

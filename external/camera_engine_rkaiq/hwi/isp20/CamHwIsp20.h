@@ -67,6 +67,23 @@ class IspParamsSplitter;
 
 #define MAX_PARAMS_QUEUE_SIZE           5
 #define ISP_PARAMS_EFFECT_DELAY_CNT     2
+#define CAM_INDEX_FOR_1608              8
+
+// FIXME: share 1608 data ptr(aiq/rawdata)
+typedef struct sensor_info_share_s {
+    RawStreamProcUnit*          raw_proc_unit[CAM_INDEX_FOR_1608];  // bind rx by camId
+    SmartPtr<RawStreamCapUnit>  raw_cap_unit;                       // save 1st tx obj addr
+    char                        reference_name[64];                 // save vicap name(for 1608)
+    rk_aiq_cif_info_t*          reference_mipi_cif;                 // vicap inf (for 1608)
+    // us: union_stream
+    int                         us_open_cnt;                        // for hwi open(1608)
+    int                         us_prepare_cnt;                     // for rawCap buffer manage(1608).
+    int                         us_stream_cnt;                      // mark cnt. on: ++, off: --
+    int                         us_stop_cnt;                        // last sensor stop
+    // tracking opened sensor num
+    int                         en_sns_num;                         // Record the number of open sensors
+    int                         first_en[CAM_INDEX_FOR_1608];       // set/get fmt for 1608 sensor
+} sensor_info_share_t;
 
 class CamHwIsp20
     : public CamHwBase, virtual public Isp20Params, public V4l2Device
@@ -151,6 +168,12 @@ public:
             return RK_ISP_STREAM_MODE_OFFLNIE;
     }
     void notify_isp_stream_status(bool on);
+    XCamReturn setAllReadyIspParams(uint32_t triggeredId);
+    XCamReturn reset_hardware();
+
+    // FIXME: Set struct to static.
+    static sensor_info_share_t rk1608_share_inf;
+
 private:
     XCamReturn handlePpReslut(SmartPtr<cam3aResult> &result);
     XCamReturn setPpConfig(SmartPtr<cam3aResult> &result);
@@ -166,7 +189,7 @@ private:
     XCamReturn get_sensor_pdafinfo(rk_sensor_full_info_t *sensor_info, rk_sensor_pdaf_info_t *pdaf_info);
 protected:
     XCAM_DEAD_COPY(CamHwIsp20);
-    virtual XCamReturn setIspConfig();
+    virtual XCamReturn setIspConfig(uint32_t triggeredId = 0);
     virtual XCamReturn poll_buffer_ready (SmartPtr<VideoBuffer> &buf);
     enum cam_hw_state_e {
         CAM_HW_STATE_INVALID,
@@ -210,10 +233,12 @@ protected:
     int _state;
     volatile bool _is_exit;
     bool _linked_to_isp;
+    bool _linked_to_1608;
     struct isp2x_isp_params_cfg _full_active_isp_params;
     struct rkispp_params_cfg _full_active_ispp_params;
     uint32_t _ispp_module_init_ens;
     SmartPtr<V4l2SubDevice> _ispp_sd;
+    uint64_t _module_cfg_update_frome_drv;
     SmartPtr<V4l2SubDevice> _cif_csi2_sd;
     char sns_name[32];
     static std::map<std::string, SmartPtr<rk_aiq_static_info_t>> mCamHwInfos;
@@ -222,6 +247,9 @@ protected:
     static std::map<std::string, SmartPtr<rk_sensor_full_info_t>> mSensorHwInfos;
     static bool mIsMultiIspMode;
     static uint16_t mMultiIspExtendedPixel;
+    // TODO: Sync 1608 sensor start streaming
+    static XCam::Mutex  _sync_1608_mutex;
+    static bool         _sync_1608_done;
     void gen_full_isp_params(const struct isp2x_isp_params_cfg* update_params,
                              struct isp2x_isp_params_cfg* full_params,
                                 uint64_t* module_en_update_partial,
@@ -302,7 +330,7 @@ protected:
     SmartPtr<SPStreamProcUnit> mSpStreamUnit;
     SmartPtr<RkStreamEventPollThread> mIspStremEvtTh;
 
-    SmartPtr<RawStreamCapUnit> mRawCapUnit;
+    SmartPtr<RawStreamCapUnit>  mRawCapUnit;
     SmartPtr<RawStreamProcUnit> mRawProcUnit;
 
     SmartPtr<PdafStreamProcUnit> mPdafStreamUnit;
@@ -329,6 +357,11 @@ protected:
 
     rk_sensor_pdaf_info_t mPdafInfo;
     Mutex     _stop_cond_mutex;
+
+    // TODO: Sync(1608 sensor) sdk hwEvt cb
+    XCam::Cond      _sync_done_cond;
+    XCamReturn      waitLastSensorDone();
+    XCamReturn pixFmt2Bpp(uint32_t pixFmt, int8_t& bpp);
 };
 
 };

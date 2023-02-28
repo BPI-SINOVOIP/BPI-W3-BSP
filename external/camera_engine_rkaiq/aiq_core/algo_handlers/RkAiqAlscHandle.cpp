@@ -122,6 +122,41 @@ XCamReturn RkAiqAlscHandleInt::queryLscInfo(rk_aiq_lsc_querry_info_t* lsc_querry
     return ret;
 }
 
+RkAiqBayerPattern_t
+RkAiqAlscHandleInt::getBayerPattern(uint32_t pixelformat)
+{
+    ENTER_ANALYZER_FUNCTION();
+    RkAiqBayerPattern_t bayerPattern = RK_AIQ_BAYER_INVALID;
+
+    switch (pixelformat) {
+    case V4L2_PIX_FMT_SRGGB8:
+    case V4L2_PIX_FMT_SRGGB10:
+    case V4L2_PIX_FMT_SRGGB12:
+        bayerPattern = RK_AIQ_BAYER_RGGB;
+        break;
+    case V4L2_PIX_FMT_SBGGR8:
+    case V4L2_PIX_FMT_SBGGR10:
+    case V4L2_PIX_FMT_SBGGR12:
+        bayerPattern = RK_AIQ_BAYER_BGGR;
+        break;
+    case V4L2_PIX_FMT_SGBRG8:
+    case V4L2_PIX_FMT_SGBRG10:
+    case V4L2_PIX_FMT_SGBRG12:
+        bayerPattern = RK_AIQ_BAYER_GBRG;
+        break;
+    case V4L2_PIX_FMT_SGRBG8:
+    case V4L2_PIX_FMT_SGRBG10:
+    case V4L2_PIX_FMT_SGRBG12:
+        bayerPattern = RK_AIQ_BAYER_GRBG;
+        break;
+    default:
+        LOGD_ALSC("%s no support pixelformat:0x%x\n", __func__, pixelformat);
+    }
+
+    EXIT_ANALYZER_FUNCTION();
+    return bayerPattern;
+}
+
 XCamReturn RkAiqAlscHandleInt::prepare() {
     ENTER_ANALYZER_FUNCTION();
 
@@ -133,6 +168,23 @@ XCamReturn RkAiqAlscHandleInt::prepare() {
     RkAiqAlgoConfigAlsc* alsc_config_int = (RkAiqAlgoConfigAlsc*)mConfig;
     RkAiqCore::RkAiqAlgosGroupShared_t* shared =
         (RkAiqCore::RkAiqAlgosGroupShared_t*)(getGroupShared());
+    RkAiqCore::RkAiqAlgosComShared_t* sharedCom = &mAiqCore->mAlogsComSharedParams;
+
+    alsc_config_int->alsc_sw_info.bayerPattern= getBayerPattern(sharedCom->snsDes.sensor_pixelformat);
+    alsc_config_int->alsc_sw_info.ispAcqWidth = sharedCom->snsDes.isp_acq_width;
+    alsc_config_int->alsc_sw_info.ispAcqHeight = sharedCom->snsDes.isp_acq_height;
+    if (sharedCom->snsDes.otp_lsc && sharedCom->snsDes.otp_lsc->flag) {
+        alsc_config_int->alsc_sw_info.otpInfo.flag = sharedCom->snsDes.otp_lsc->flag;
+        alsc_config_int->alsc_sw_info.otpInfo.width = sharedCom->snsDes.otp_lsc->width;
+        alsc_config_int->alsc_sw_info.otpInfo.height = sharedCom->snsDes.otp_lsc->height;
+        alsc_config_int->alsc_sw_info.otpInfo.table_size = sharedCom->snsDes.otp_lsc->table_size;
+        alsc_config_int->alsc_sw_info.otpInfo.lsc_r = sharedCom->snsDes.otp_lsc->lsc_r;
+        alsc_config_int->alsc_sw_info.otpInfo.lsc_b = sharedCom->snsDes.otp_lsc->lsc_b;
+        alsc_config_int->alsc_sw_info.otpInfo.lsc_gr = sharedCom->snsDes.otp_lsc->lsc_gr;
+        alsc_config_int->alsc_sw_info.otpInfo.lsc_gb = sharedCom->snsDes.otp_lsc->lsc_gb;
+    } else {
+        alsc_config_int->alsc_sw_info.otpInfo.flag = 0;
+    }
 
     RkAiqAlgoDescription* des = (RkAiqAlgoDescription*)mDes;
     ret                       = des->prepare(mConfig);

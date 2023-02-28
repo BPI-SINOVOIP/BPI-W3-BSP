@@ -105,6 +105,21 @@ rk_aiq_uapi_abayer2dnrV2_GetStrength(const RkAiqAlgoContext *ctx,
     return XCAM_RETURN_NO_ERROR;
 }
 
+XCamReturn
+rk_aiq_uapi_abayer2dnrV2_GetInfo(const RkAiqAlgoContext *ctx,
+                                 rk_aiq_bayer2dnr_info_v2_t *pInfo)
+{
+    Abayer2dnr_Context_V2_t* pCtx = (Abayer2dnr_Context_V2_t*)ctx;
+
+    pInfo->iso = pCtx->stExpInfo.arIso[pCtx->stExpInfo.hdr_mode];
+
+    pInfo->expo_info = pCtx->stExpInfo;
+
+    return XCAM_RETURN_NO_ERROR;
+}
+
+
+
 
 
 #endif

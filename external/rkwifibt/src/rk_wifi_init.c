@@ -95,6 +95,7 @@ static wifi_device supported_wifi_devices[] = {
 	{"AP6398S",		"02d0:4359"},
 	{"AP6335",		"02d0:4335"},
 	{"AP6255",      "02d0:a9bf"},
+	{"AP6256",      "02d0:a9bf"},
 	{"AP6212A",     "02d0:a9a6"},
 	{"AP6275S",     "02d0:aae8"},
 	{"AP6275P",     "14e4:449d"},
@@ -104,23 +105,22 @@ static wifi_device supported_wifi_devices[] = {
 
 // TODO: use new ANDROID_SOCKET mechanism, once support for multiple
 // sockets is in
-#define RTL8188EU_DRIVER_MODULE_PATH "/system/lib/modules/8188eu.ko"
-#define RTL8723BU_DRIVER_MODULE_PATH "/system/lib/modules/8723bu.ko"
-#define RTL8723BS_DRIVER_MODULE_PATH "/system/lib/modules/8723bs.ko"
-#define RTL8723BS_VQ0_DRIVER_MODULE_PATH "/system/lib/modules/8723bs-vq0.ko"
-#define RTL8723CS_DRIVER_MODULE_PATH "/system/lib/modules/8723cs.ko"
-#define RTL8723DS_DRIVER_MODULE_PATH "/system/lib/modules/8723ds.ko"
-#define RTL8188FU_DRIVER_MODULE_PATH "/system/lib/modules/8188fu.ko"
-#define RTL8822BU_DRIVER_MODULE_PATH "/system/lib/modules/8822bu.ko"
-#define RTL8822BS_DRIVER_MODULE_PATH "/system/lib/modules/8822bs.ko"
-#define RTL8189ES_DRIVER_MODULE_PATH "/system/lib/modules/8189es.ko"
-#define RTL8189FS_DRIVER_MODULE_PATH "/system/lib/modules/8189fs.ko"
-#define RTL8192DU_DRIVER_MODULE_PATH "/system/lib/modules/8192du.ko"
-#define RTL8812AU_DRIVER_MODULE_PATH "/system/lib/modules/8812au.ko"
-#define RTL8822BE_DRIVER_MODULE_PATH "/system/lib/modules/8822be.ko"
-#define RTL8822CE_DRIVER_MODULE_PATH "/system/lib/modules/8822ce.ko"
+#define RTL8188EU_DRIVER_MODULE_PATH "/system/lib/modules/RTL8188EU.ko"
+#define RTL8723BU_DRIVER_MODULE_PATH "/system/lib/modules/RTL8723BU.ko"
+#define RTL8723BS_DRIVER_MODULE_PATH "/system/lib/modules/RTL8723BS.ko"
+#define RTL8723CS_DRIVER_MODULE_PATH "/system/lib/modules/RTL8723CS.ko"
+#define RTL8723DS_DRIVER_MODULE_PATH "/system/lib/modules/RTL8723DS.ko"
+#define RTL8188FU_DRIVER_MODULE_PATH "/system/lib/modules/RTL8188FU.ko"
+#define RTL8822BU_DRIVER_MODULE_PATH "/system/lib/modules/RTL8822BU.ko"
+#define RTL8822BS_DRIVER_MODULE_PATH "/system/lib/modules/RTL8822BS.ko"
+#define RTL8189ES_DRIVER_MODULE_PATH "/system/lib/modules/RTL8189ES.ko"
+#define RTL8189FS_DRIVER_MODULE_PATH "/system/lib/modules/RTL8189FS.ko"
+#define RTL8192DU_DRIVER_MODULE_PATH "/system/lib/modules/RTL8192DU.ko"
+#define RTL8812AU_DRIVER_MODULE_PATH "/system/lib/modules/RTL8812AU.ko"
+#define RTL8822BE_DRIVER_MODULE_PATH "/system/lib/modules/RTL8822BE.ko"
+#define RTL8822CE_DRIVER_MODULE_PATH "/system/lib/modules/RTL8822CE.ko"
 #define BCM_DRIVER_MODULE_PATH       "/system/lib/modules/bcmdhd.ko"
-#define BCM_PCIE_DRIVER_MODULE_PATH   "/system/lib/modules/bcmdhd.ko"
+#define BCM_PCIE_DRIVER_MODULE_PATH   "/system/lib/modules/bcmdhd_pcie.ko"
 #define DRIVER_MODULE_PATH_UNKNOW    ""
 
 #define RTL8822BS_DRIVER_MODULE_NAME "8822bs"
@@ -143,6 +143,7 @@ static wifi_device supported_wifi_devices[] = {
 #define AP6212A_BT_FIRMWARE_MODULE_PATH "/system/etc/firmware/bcm43438a1.hcd"
 #define AP6335_BT_FIRMWARE_MODULE_PATH "/system/etc/firmware/bcm4339a0.hcd"
 #define AP6255_BT_FIRMWARE_MODULE_PATH "/system/etc/firmware/BCM4345C0.hcd"
+#define AP6256_BT_FIRMWARE_MODULE_PATH "/system/etc/firmware/BCM4345C5.hcd"
 #define AP6354_BT_FIRMWARE_MODULE_PATH "/system/etc/firmware/bcm4354a1.hcd"
 #define AP6356_BT_FIRMWARE_MODULE_PATH "/system/etc/firmware/BCM4356A2.hcd"
 #define AP6398s_BT_FIRMWARE_MODULE_PATH "/system/etc/firmware/BCM4359C0.hcd"
@@ -171,6 +172,7 @@ wifi_ko_file_name module_list[] =
 	{"AP6354",          BCM_DRIVER_MODULE_PATH, UNKKOWN_DRIVER_MODULE_ARG, AP6354_BT_FIRMWARE_MODULE_PATH},
 	{"AP6356S",         BCM_DRIVER_MODULE_PATH, UNKKOWN_DRIVER_MODULE_ARG, AP6356_BT_FIRMWARE_MODULE_PATH},
 	{"AP6255",          BCM_DRIVER_MODULE_PATH, UNKKOWN_DRIVER_MODULE_ARG, AP6255_BT_FIRMWARE_MODULE_PATH},
+	{"AP6256",          BCM_DRIVER_MODULE_PATH, UNKKOWN_DRIVER_MODULE_ARG, AP6256_BT_FIRMWARE_MODULE_PATH},
 	{"AP6212",          BCM_DRIVER_MODULE_PATH, UNKKOWN_DRIVER_MODULE_ARG, AP6212_BT_FIRMWARE_MODULE_PATH},
 	{"AP6212A",         BCM_DRIVER_MODULE_PATH, UNKKOWN_DRIVER_MODULE_ARG, AP_BT_FIRMWARE_MODULE_PATH},
 	{"AP6356",          BCM_DRIVER_MODULE_PATH, UNKKOWN_DRIVER_MODULE_ARG, AP6356_BT_FIRMWARE_MODULE_PATH},
@@ -351,9 +353,12 @@ static int create_bt_test_file_for_brcm(void)
 	fp = fopen(BT_TEST_FILE, "wt+");
 
 	if (fp != 0) {
+		fputs("killall brcm_patchram_plus1\n", fp);
 		fputs("echo 0 > /sys/class/rfkill/rfkill0/state\n", fp);
+		fputs("echo 0 > /proc/bluetooth/sleep/btwrite\n", fp);
 		fputs("sleep 1\n", fp);
 		fputs("echo 1 > /sys/class/rfkill/rfkill0/state\n", fp);
+		fputs("echo 1 > /proc/bluetooth/sleep/btwrite\n", fp);
 		fputs("sleep 1\n", fp);
 		sprintf(cmdline, "brcm_patchram_plus1 --enable_hci --no2bytes --use_baudrate_for_download  --tosleep  200000 --baudrate 1500000 --patchram  %s %s &\n", AP_BT_FIRMWARE_MODULE_PATH, bt_tty_dev);
 		fputs(cmdline, fp);
@@ -361,6 +366,7 @@ static int create_bt_test_file_for_brcm(void)
 		fclose(fp);
 		system("chmod 777 /userdata/bt_pcba_test");
 		system("mount --bind /userdata/bt_pcba_test /usr/bin/bt_pcba_test");
+		system("mount --bind /userdata/bt_pcba_test /usr/bin/bt_init.sh");
 		return 0;
 	}
 	return -1;
@@ -382,8 +388,10 @@ static int create_bt_test_file_for_rtl(void)
 
 	if (fp != 0) {
 		fputs("echo 0 > /sys/class/rfkill/rfkill0/state\n", fp);
+		fputs("echo 0 > /proc/bluetooth/sleep/btwrite\n", fp);
 		fputs("sleep 0.5\n", fp);
 		fputs("echo 1 > /sys/class/rfkill/rfkill0/state\n", fp);
+		fputs("echo 1 > /proc/bluetooth/sleep/btwrite\n", fp);
 		fputs("sleep 0.5\n", fp);
 
 		fputs("insmod /usr/lib/modules/hci_uart.ko\n", fp);
@@ -440,6 +448,12 @@ int wifibt_load_driver(void)
 		return -1;
 	}
 
+	if (strstr(recoginze_wifi_chip , "AP")) {
+		if (access("/system/lib/modules/dhd_static_buf.ko", F_OK) == 0)
+			system("insmod /system/lib/modules/dhd_static_buf.ko");
+	}
+
+	usleep(500 * 1000);
 	sprintf(temp, "insmod %s %s", wifi_ko_path, wifi_ko_arg);
 	pr_info("%s %s\n", __func__, temp);
 	if (system(temp)) {
@@ -456,10 +470,13 @@ int wifibt_load_driver(void)
 	//bt init
 	if (strstr(recoginze_wifi_chip , "AP")) {
 		create_bt_test_file_for_brcm();
+		system("killall brcm_patchram_plus1");
 		memset(temp, 0, 256);
 		system("echo 0 > /sys/class/rfkill/rfkill0/state");
+		system("echo 0 > /proc/bluetooth/sleep/btwrite");
 		usleep(5000);
 		system("echo 1 > /sys/class/rfkill/rfkill0/state");
+		system("echo 1 > /proc/bluetooth/sleep/btwrite");
 		usleep(5000);
 
 		sprintf(temp, "brcm_patchram_plus1 --enable_hci --no2bytes --use_baudrate_for_download  --tosleep  200000 --baudrate 1500000 --patchram  %s %s &", AP_BT_FIRMWARE_MODULE_PATH, bt_tty_dev);
@@ -475,8 +492,10 @@ int wifibt_load_driver(void)
 			system("insmod /system/lib/modules/rtk_btusb.ko");
 		} else {
 			system("echo 0 > /sys/class/rfkill/rfkill0/state");
+			system("echo 0 > /proc/bluetooth/sleep/btwrite");
 			usleep(5000);
 			system("echo 1 > /sys/class/rfkill/rfkill0/state");
+			system("echo 1 > /proc/bluetooth/sleep/btwrite");
 			usleep(5000);
 
 			system("insmod /usr/lib/modules/hci_uart.ko");
@@ -494,7 +513,7 @@ int wifibt_load_driver(void)
 
 int main(int argc, char *argv[])
 {
-	pr_info("Rockchip Linux WifiBt init (ver 1.0)\n");
+	pr_info("Rockchip Linux WifiBt init (ver 2.0)\n");
 
 	strncpy(bt_tty_dev, argv[1], 10);
 	pr_info("BT TTY: %s \n", bt_tty_dev);

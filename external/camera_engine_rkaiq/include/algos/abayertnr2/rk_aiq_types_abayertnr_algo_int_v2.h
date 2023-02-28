@@ -73,14 +73,6 @@ typedef enum Abayertnr_ParamMode_V2_e {
     ABAYERTNRV2_PARAM_MODE_MAX                                      /**< max */
 } Abayertnr_ParamMode_V2_t;
 
-typedef struct Abayertnr_ExpInfo_V2_s {
-    int hdr_mode;
-    float arTime[3];
-    float arAGain[3];
-    float arDGain[3];
-    int   arIso[3];
-    int   snr_mode;
-} Abayertnr_ExpInfo_V2_t;
 
 
 

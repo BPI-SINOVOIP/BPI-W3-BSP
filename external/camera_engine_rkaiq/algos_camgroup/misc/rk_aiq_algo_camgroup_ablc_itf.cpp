@@ -87,6 +87,12 @@ prepare(RkAiqAlgoCom* params)
         pAblcCtx->isReCalculate |= 1;
     }
 
+	if(pAblcCtx->isUpdateParam) {
+        AblcParamsUpdate(pAblcCtx, &pAblcCtx->stBlcCalib);
+        pAblcCtx->isReCalculate |= 1;
+        pAblcCtx->isUpdateParam = false;
+    }
+
     LOGI_ABLC("%s: (exit)\n", __FUNCTION__ );
     return result;
 }
@@ -135,7 +141,7 @@ processing(const RkAiqAlgoCom* inparams, RkAiqAlgoResCom* outparams)
         RKAiqAecExpInfo_t* pAERes = &scam_3a_res->aec._effAecExpInfo;
         if(procParaGroup->working_mode == RK_AIQ_WORKING_MODE_NORMAL) {
             stExpInfo.arAGain[0] = pAERes->LinearExp.exp_real_params.analog_gain;
-            stExpInfo.arDGain[0] = pAERes->LinearExp.exp_real_params.digital_gain;
+            stExpInfo.arDGain[0] = pAERes->LinearExp.exp_real_params.digital_gain * pAERes->LinearExp.exp_real_params.isp_dgain;
             stExpInfo.arTime[0] = pAERes->LinearExp.exp_real_params.integration_time;
             stExpInfo.arIso[0] = stExpInfo.arAGain[0] * stExpInfo.arDGain[0] * 50;
         } else {

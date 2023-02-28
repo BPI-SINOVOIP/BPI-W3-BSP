@@ -1,5 +1,0 @@
-#!/bin/sh
-
-set -e
-
-echo /usr/lib/*/libdrm-cursor.so.1 >> /etc/ld.so.preload

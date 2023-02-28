@@ -580,8 +580,9 @@ static RK_S32 read_colorspace_details(Vp9CodecContext *ctx)
             s->ss_v = mpp_get_bit1(&s->gb);
             vp9d_dbg(VP9D_DBG_HEADER, "subsampling_y %d", s->ss_v);
             s->extra_plane = 0;
-            if ((res = pix_fmt_for_ss[bits][s->ss_v][s->ss_h]) == MPP_FMT_YUV420SP) {
-                mpp_err("YUV 4:2:0 not supported in profile %d\n", ctx->profile);
+            res = pix_fmt_for_ss[bits][s->ss_v][s->ss_h];
+            if (res == MPP_FMT_YUV420SP || res < 0) {
+                mpp_err("YUV FMT %d not supported in profile %d\n", res, ctx->profile);
                 return MPP_ERR_STREAM;
             } else if (mpp_get_bit1(&s->gb)) {
                 s->extra_plane = 1;
@@ -762,6 +763,10 @@ static RK_S32 decode_parser_header(Vp9CodecContext *ctx,
                 vp9d_dbg(VP9D_DBG_HEADER, "frame_size_width %d", w);
                 h = mpp_get_bits(&s->gb, 16) + 1;
                 vp9d_dbg(VP9D_DBG_HEADER, "frame_size_height %d", h);
+            }
+            if (w == 0 || h == 0) {
+                mpp_err("ref frame w:%d h:%d\n", w, h);
+                return -1;
             }
             // Note that in this code, "CUR_FRAME" is actually before we
             // have formally allocated a frame, and thus actually represents

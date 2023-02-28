@@ -1181,20 +1181,20 @@
 								"debayer_en":	1,
 								"debayer_filter1":	[2, -6, 0, 6, -2],
 								"debayer_filter2":	[2, -4, 4, -4, 2],
-								"debayer_gain_offset":	4,
-								"debayer_offset":	1,
-								"debayer_clip_en":	1,
-								"debayer_filter_g_en":	1,
-								"debayer_filter_c_en":	1,
-								"debayer_thed0":	3,
-								"debayer_thed1":	6,
-								"debayer_dist_scale":	8,
-								"debayer_cnr_strength":	5,
-								"debayer_shift_num":	2,
-								"array":	{
-									"ISO":	[50, 100, 200, 400, 800, 1600, 3200, 6400, 12800],
-									"sharp_strength":	[4, 4, 4, 4, 4, 4, 4, 4, 4],
-									"debayer_hf_offset":	[1, 1, 1, 1, 1, 1, 1, 1, 1]
+								"debayer_auto":	{
+									"ISO":	[50, 100, 200, 400, 800, 1600, 3200, 6400, 12800, 25600, 51200, 102400, 204800],
+									"debayer_gain_offset":	[4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4],
+									"debayer_offset":	[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+									"debayer_clip_en":	[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+									"debayer_filter_g_en":	[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+									"debayer_filter_c_en":	[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+									"debayer_thed0":	[3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3],
+									"debayer_thed1":	[6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6],
+									"debayer_dist_scale":	[8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8],
+									"debayer_cnr_strength":	[5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5],
+									"debayer_shift_num":	[2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2],
+									"debayer_sharp_strength":	[4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4],
+									"debayer_hf_offset":	[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
 								}
 							}
 						},
@@ -1829,7 +1829,6 @@
 						"ccm_calib":	{
 							"control":	{
 								"enable":	1,
-								"mode":	"CALIB_CCM_MODE_AUTO",
 								"wbgain_tolerance":	0.1,
 								"gain_tolerance":	0.2
 							},
@@ -1841,10 +1840,6 @@
 									"gain":	[1, 2, 4, 8, 16, 32, 64, 128, 256],
 									"scale":	[1, 1, 0.8, 0.6, 0.4, 0.1, 0.1, 0.1, 0.1]
 								}
-							},
-							"manualPara":	{
-								"ccMatrix":	[1, 0, 0, 0, 1, 0, 0, 0, 1],
-								"ccOffsets":	[0, 0, 0]
 							},
 							"TuningPara":	{
 								"damp_enable":	1,
@@ -2018,16 +2013,8 @@
 						"lut3d_calib":	{
 							"common":	{
 								"enable":	0,
-								"mode":	"CALIB_Lut3D_MODE_AUTO",
 								"gain_tolerance":	0.1,
 								"wbgain_tolerance":	1
-							},
-							"MLut3D":	{
-								"Table":	{
-									"look_up_table_r":	[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-									"look_up_table_g":	[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-									"look_up_table_b":	[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-								}
 							},
 							"ALut3D":	{
 								"damp_en":	1,
@@ -2050,6 +2037,7 @@
 						"adehaze_calib_v30":	{
 							"DehazeTuningPara":	{
 								"Enable":	1,
+								"CtrlDataType": "CTRLDATATYPE_ENVLV",
 								"cfg_alpha":	0,
 								"ByPassThr":	0,
 								"dehaze_setting":	{
@@ -2062,8 +2050,8 @@
 									"tmax_sigma":	0.01,
 									"pre_wet":	0.01,
 									"DehazeData":	{
-										"EnvLv":	[0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.7, 0.9, 1],
-										"EnvLv_len":	9,
+										"CtrlData":	[0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.7, 0.9, 1],
+										"CtrlData_len":	9,
 										"dc_min_th":	[64, 64, 64, 64, 64, 64, 64, 64, 64],
 										"dc_min_th_len":	9,
 										"dc_max_th":	[192, 192, 192, 192, 192, 192, 192, 192, 192],
@@ -2112,8 +2100,8 @@
 									"en":	1,
 									"enhance_curve":	[0, 64, 128, 192, 256, 320, 384, 448, 512, 576, 640, 704, 768, 832, 896, 960, 1023],
 									"EnhanceData":	{
-										"EnvLv":	[0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.7, 0.9, 1],
-										"EnvLv_len":	9,
+										"CtrlData":	[0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.7, 0.9, 1],
+										"CtrlData_len":	9,
 										"enhance_value":	[1.25, 1.25, 1.25, 1.2, 1.2, 1.2, 1.1, 1.1, 1],
 										"enhance_value_len":	9,
 										"enhance_chroma":	[1.3, 1.3, 1.2, 1.1, 1, 1, 1, 1, 1],
@@ -2124,8 +2112,8 @@
 									"en":	0,
 									"hist_para_en":	1,
 									"HistData":	{
-										"EnvLv":	[0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.7, 0.9, 1],
-										"EnvLv_len":	9,
+										"CtrlData":	[0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.7, 0.9, 1],
+										"CtrlData_len":	9,
 										"hist_gratio":	[2, 2, 2, 2, 2, 2, 2, 2, 2],
 										"hist_gratio_len":	9,
 										"hist_th_off":	[64, 64, 64, 64, 64, 64, 64, 64, 64],
@@ -2145,9 +2133,10 @@
 						"adrc_calib_V2":	{
 							"DrcTuningPara":	{
 								"Enable":	0,
+								"CtrlDataType": "CTRLDATATYPE_ENVLV",
 								"DrcGain":	{
-									"EnvLv":	[0, 0.005, 0.01, 0.05, 0.1, 0.15, 0.2, 0.3, 0.4, 0.5, 0.6, 0.8, 1],
-									"EnvLv_len":	13,
+									"CtrlData":	[0, 0.005, 0.01, 0.05, 0.1, 0.15, 0.2, 0.3, 0.4, 0.5, 0.6, 0.8, 1],
+									"CtrlData_len":	13,
 									"DrcGain":	[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
 									"DrcGain_len":	13,
 									"Alpha":	[0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2],
@@ -2156,15 +2145,15 @@
 									"Clip_len":	13
 								},
 								"HiLight":	{
-									"EnvLv":	[0, 0.005, 0.01, 0.05, 0.1, 0.15, 0.2, 0.3, 0.4, 0.5, 0.6, 0.8, 1],
-									"EnvLv_len":	13,
+									"CtrlData":	[0, 0.005, 0.01, 0.05, 0.1, 0.15, 0.2, 0.3, 0.4, 0.5, 0.6, 0.8, 1],
+									"CtrlData_len":	13,
 									"Strength":	[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
 									"Strength_len":	13
 								},
 								"LocalSetting":	{
 									"LocalData":	{
-										"EnvLv":	[0, 0.005, 0.01, 0.05, 0.1, 0.15, 0.2, 0.3, 0.4, 0.5, 0.6, 0.8, 1],
-										"EnvLv_len":	13,
+										"CtrlData":	[0, 0.005, 0.01, 0.05, 0.1, 0.15, 0.2, 0.3, 0.4, 0.5, 0.6, 0.8, 1],
+										"CtrlData_len":	13,
 										"LocalWeit":	[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
 										"LocalWeit_len":	13,
 										"LocalAutoEnable":	[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
@@ -2221,17 +2210,20 @@
 									"enable":	1,
 									"Afss":	"CalibDbV2_CAM_AFM_FSS_ADAPTIVE_RANGE",
 									"FullDir":	"CalibDbV2_CAM_AFM_ADAPTIVE_SEARCH",
-									"FullRangeTbl":	[0, 8, 16, 24, 32, 40, 48, 56, 64],
-									"FullRangeTbl_len":	9,
+									"FullRangeTbl":	[0, 4, 64],
 									"AdaptiveDir":	"CalibDbV2_CAM_AFM_ADAPTIVE_SEARCH",
 									"AdaptRangeTbl":	[0, 8, 16, 24, 32, 40, 48, 56, 64],
 									"AdaptRangeTbl_len":	9,
+									"FineSearchStep":	[4, 4, 4, 4, 4, 4, 4, 4, 4],
+									"FineSearchStep_len":	9,
+									"SkipCurveFitGain":	1,
 									"TrigThers":	[0.075],
 									"TrigThers_len":	1,
 									"TrigThersFv":	[0],
 									"TrigThersFv_len":	1,
-									"LumaTrigThers":	1,
-									"ExpTrigThers":	1,
+									"LumaTrigThers":	0.05,
+									"ExpTrigThers":	0.03,
+									"ChangedFrames":	10,
 									"StableThers":	0.02,
 									"StableFrames":	3,
 									"StableTime":	200,
@@ -2245,15 +2237,15 @@
 									"OutFocusPos":	64,
 									"WeightEnable":	0,
 									"Weight":	[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-									"SearchPauseLumaEnable":	0,
-									"SearchPauseLumaThers":	0,
-									"SearchLumaStableFrames":	0,
-									"SearchLumaStableThers":	0,
+									"SearchPauseLumaEnable":	1,
+									"SearchPauseLumaThers":	0.05,
+									"SearchLumaStableFrames":	3,
+									"SearchLumaStableThers":	0.02,
 									"Stage1QuickFoundThers":	0.04,
 									"Stage2QuickFoundThers":	0.2,
 									"FlatValue":	0,
-									"PointLightLumaTh":	3000,
-									"PointLightCntTh":	300,
+									"PointLightLumaTh":	912,
+									"PointLightCntTh":	20,
 									"ZoomCfg":	{
 										"QuickFoundThersZoomIdx":	[0],
 										"QuickFoundThersZoomIdx_len":	1,
@@ -2275,17 +2267,20 @@
 									"enable":	1,
 									"Afss":	"CalibDbV2_CAM_AFM_FSS_ADAPTIVE_RANGE",
 									"FullDir":	"CalibDbV2_CAM_AFM_ADAPTIVE_SEARCH",
-									"FullRangeTbl":	[0, 8, 16, 24, 32, 40, 48, 56, 64],
-									"FullRangeTbl_len":	9,
+									"FullRangeTbl":	[0, 4, 64],
 									"AdaptiveDir":	"CalibDbV2_CAM_AFM_ADAPTIVE_SEARCH",
 									"AdaptRangeTbl":	[0, 8, 16, 24, 32, 40, 48, 56, 64],
 									"AdaptRangeTbl_len":	9,
+									"FineSearchStep":	[4, 4, 4, 4, 4, 4, 4, 4, 4],
+									"FineSearchStep_len":	9,
+									"SkipCurveFitGain":	1,
 									"TrigThers":	[0.15],
 									"TrigThers_len":	1,
 									"TrigThersFv":	[0],
 									"TrigThersFv_len":	1,
-									"LumaTrigThers":	1,
-									"ExpTrigThers":	1,
+									"LumaTrigThers":	0.05,
+									"ExpTrigThers":	0.03,
+									"ChangedFrames":	10,
 									"StableThers":	0.02,
 									"StableFrames":	20,
 									"StableTime":	200,
@@ -2299,15 +2294,15 @@
 									"OutFocusPos":	64,
 									"WeightEnable":	0,
 									"Weight":	[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-									"SearchPauseLumaEnable":	0,
-									"SearchPauseLumaThers":	0,
-									"SearchLumaStableFrames":	0,
-									"SearchLumaStableThers":	0,
+									"SearchPauseLumaEnable":	1,
+									"SearchPauseLumaThers":	0.05,
+									"SearchLumaStableFrames":	3,
+									"SearchLumaStableThers":	0.02,
 									"Stage1QuickFoundThers":	0.04,
 									"Stage2QuickFoundThers":	0.2,
 									"FlatValue":	0,
-									"PointLightLumaTh":	3000,
-									"PointLightCntTh":	300,
+									"PointLightLumaTh":	912,
+									"PointLightCntTh":	20,
 									"ZoomCfg":	{
 										"QuickFoundThersZoomIdx":	[0],
 										"QuickFoundThersZoomIdx_len":	1,
@@ -2334,32 +2329,60 @@
 									"enable":	0,
 									"pdVsCdDebug":	0,
 									"pdDumpDebug":	0,
+									"pdDumpMaxFrm":	300,
 									"pdDataBit":	10,
 									"pdBlkLevel":	64,
 									"pdSearchRadius":	3,
 									"pdMirrorInCalib":	1,
-									"pdVsImgoutMirror":	1,
+									"pdVsImgoutMirror":	0,
+									"pdLRInDiffLine":	0,
 									"pdWidth":	508,
 									"pdHeight":	760,
+									"pdVerBinning":	0,
+									"pdFrmInValid":	1,
+									"pdDgainValid":	0,
+									"pdGainMapNormEn":	0,
+									"pdConfdMode":	0,
+									"pdNoiseSn":	0.207,
+									"pdNoiseRn":	[0.14, 2.8],
+									"pdNoisePn":	0.25,
+									"pdSatValRatio":	0.92,
+									"pdSatCntRatio":	0.06,
+									"pdDiscardRegionEn":	0,
+									"pdLessTextureRatio":	0.25,
+									"pdCalibInf": {
+										"pdGainMapW":	32,
+										"pdGainMapH":	32,
+										"pdDccMapW":	64,
+										"pdDccMapH":	64
+									},
 									"pdConfdMwinFactor":	3,
+									"pdCenterMinFv":	0,
+									"pdCenterMinRatio":	0,
+									"pdHighlightRatio":	0.5,
 									"pdStepRatio":	[1.0, 1.0, 1.0, 0.9, 0.8, 0.7, 0.7],
 									"pdStepDefocus":	[32, 64, 96, 128, 160, 192, 224],
-									"pdIsoPara": 
+									"pdIsoPara":
 									[
 										{
-											"iso": 1600,
-											"pdNoiseFactor":	0.315,
+											"iso": 6400,
+											"pdConfdRatio0":	1,
 											"pdConfdRatio1":	1,
 											"pdConfdRatio2":	1,
-											"pdNoiseBias":		1.3,
+											"pdConfdRatio3":	1,
 											"pdConfdThresh":	0.4,
-											"defocusPdThresh":	12,
+											"convergedInfPdThresh":	12,
+											"convergedMacPdThresh":	12,
+											"defocusInfPdThresh":	12,
+											"defocusMacPdThresh":	12,
 											"stablePdRatio":	0.125,
 											"stablePdOffset":	8,
 											"stableCntRatio":	1.5,
 											"noconfCntThresh":	4,
+											"roiBlkCntW":		3,
+											"roiBlkCntH":		3,
 											"fineSearchTbl":	[{
-												"confidence":	200,
+												"confidence":	0.5,
 												"range":	0,
 												"stepPos":	1
 											}, {
@@ -2371,24 +2394,29 @@
 										},
 										{
 											"iso": 204800,
-											"pdNoiseFactor":	0.315,
+											"pdConfdRatio0":	1,
 											"pdConfdRatio1":	1,
 											"pdConfdRatio2":	1,
-											"pdNoiseBias":		1.3,
+											"pdConfdRatio3":	1,
 											"pdConfdThresh":	0.4,
-											"defocusPdThresh":	12,
+											"convergedInfPdThresh":	12,
+											"convergedMacPdThresh":	12,
+											"defocusInfPdThresh":	12,
+											"defocusMacPdThresh":	12,
 											"stablePdRatio":	0.125,
 											"stablePdOffset":	8,
 											"stableCntRatio":	1.5,
 											"noconfCntThresh":	4,
+											"roiBlkCntW":		1,
+											"roiBlkCntH":		1,
 											"fineSearchTbl":	[{
-												"confidence":	200,
+												"confidence":	0.5,
 												"range":	8,
 												"stepPos":	2
 											}, {
 												"confidence":	0,
 												"range":	16,
-												"stepPos":	2
+												"stepPos":	4
 											}],
 											"fineSearchTbl_len":	2
 										}
@@ -2396,11 +2424,12 @@
 									"pdIsoPara_len":	2
 								},
 								"vcmcfg":	{
+									"max_logical_pos":	64,
 									"start_current":	-1,
 									"rated_current":	-1,
 									"step_mode":	-1,
-									"extra_delay":	0,
-									"posture_diff":	0.1
+									"extra_delay":	-20,
+									"posture_diff":	0.2
 								},
 								"zoomfocus_tbl":	{
 									"widemod_deviate":	10,
@@ -2435,61 +2464,62 @@
 									"searchEmax":	100,
 									"searchEavg":	100,
 									"IsZoomFocusRec":	0,
-									"ZoomInfoDir":	"/userdata"
+									"ZoomInfoDir":	"/userdata",
+									"ZoomInitIndex":	1
 								},
 								"zoom_meas":	[{
 										"zoom_idx":	0,
 										"measiso":	[{
 												"iso":	50,
-												"idx":	0,
-												"spotlt_scene_idx":	0
+												"idx":	1,
+												"spotlt_scene_idx":	1
 											}, {
 												"iso":	100,
-												"idx":	0,
-												"spotlt_scene_idx":	0
+												"idx":	1,
+												"spotlt_scene_idx":	1
 											}, {
 												"iso":	200,
-												"idx":	0,
-												"spotlt_scene_idx":	0
+												"idx":	1,
+												"spotlt_scene_idx":	1
 											}, {
 												"iso":	400,
-												"idx":	0,
-												"spotlt_scene_idx":	0
+												"idx":	1,
+												"spotlt_scene_idx":	1
 											}, {
 												"iso":	800,
-												"idx":	0,
-												"spotlt_scene_idx":	0
+												"idx":	1,
+												"spotlt_scene_idx":	1
 											}, {
 												"iso":	1600,
-												"idx":	1,
+												"idx":	2,
 												"spotlt_scene_idx":	1
 											}, {
 												"iso":	3200,
-												"idx":	1,
+												"idx":	2,
 												"spotlt_scene_idx":	1
 											}, {
 												"iso":	6400,
-												"idx":	1,
+												"idx":	2,
 												"spotlt_scene_idx":	1
 											}, {
 												"iso":	12800,
-												"idx":	1,
+												"idx":	2,
 												"spotlt_scene_idx":	1
 											}, {
 												"iso":	25600,
-												"idx":	1,
+												"idx":	2,
 												"spotlt_scene_idx":	1
 											}, {
 												"iso":	51200,
-												"idx":	1,
+												"idx":	2,
 												"spotlt_scene_idx":	1
 											}, {
 												"iso":	102400,
-												"idx":	1,
+												"idx":	2,
 												"spotlt_scene_idx":	1
 											}, {
 												"iso":	204800,
-												"idx":	1,
+												"idx":	2,
 												"spotlt_scene_idx":	1
 											}]
 									}],
@@ -2499,14 +2529,18 @@
 										"afmThres":	4,
 										"gammaY":	[0, 45, 108, 179, 245, 344, 409, 459, 500, 567, 622, 676, 759, 833, 896, 962, 1023],
 										"v1_fir_sel":	1,
-										"v1_iir_coe":	[0, 503, 0, 0, 8, 0, 0, 9, 0],
-										"v1_fir_coe":	[-1997, 0, 1997],
-										"v2_iir_coe":	[476, 33, 34],
-										"v2_fir_coe":	[-985, 0, 985],
+										"v1_band":	[0.042, 0.14],
+										"v1_iir_coe":	[0, 483, 0, 0, 28, 0, 0, 28, 0],
+										"v1_fir_coe":	[-1186, 0, 1186],
+										"v2_band":	[0.042, 0.14],
+										"v2_iir_coe":	[483, 28, 28],
+										"v2_fir_coe":	[-1186, 0, 1186],
+										"h1_band":	[0.042, 0.14],
 										"h1_iir1_coe":	[512, 557, -276, 460, 0, -460],
-										"h1_iir2_coe":	[512, 870, -399, 37, 0, -37],
+										"h1_iir2_coe":	[100, 870, -399, 191, 0, -191],
+										"h2_band":	[0.042, 0.14],
 										"h2_iir1_coe":	[512, 557, -276, 460, 0, -460],
-										"h2_iir2_coe":	[512, 870, -399, 37, 0, -37],
+										"h2_iir2_coe":	[100, 870, -399, 191, 0, -191],
 										"ldg_en":	0,
 										"ve_ldg_lumth_l":	64,
 										"ve_ldg_gain_l":	28,
@@ -2529,15 +2563,53 @@
 										"afmThres":	4,
 										"gammaY":	[0, 45, 108, 179, 245, 344, 409, 459, 500, 567, 622, 676, 759, 833, 896, 962, 1023],
 										"v1_fir_sel":	1,
+										"v1_band":	[0.06, 0.15],
+										"v1_iir_coe":	[0, 473, 0, 0, 37, 0, 0, 37, 0],
+										"v1_fir_coe":	[-896, 0, 896],
+										"v2_band":	[0.06, 0.15],
+										"v2_iir_coe":	[473, 37, 37],
+										"v2_fir_coe":	[-896, 0, 896],
+										"h1_band":	[0.06, 0.15],
+										"h1_iir1_coe":	[512, 538, -305, 404, 0, -404],
+										"h1_iir2_coe":	[133, 821, -388, 141, 0, -141],
+										"h2_band":	[0.06, 0.15],
+										"h2_iir1_coe":	[512, 538, -305, 404, 0, -404],
+										"h2_iir2_coe":	[133, 821, -388, 141, 0, -141],
+										"ldg_en":	1,
+										"ve_ldg_lumth_l":	64,
+										"ve_ldg_gain_l":	28,
+										"ve_ldg_gslp_l":	1286,
+										"ve_ldg_lumth_h":	185,
+										"ve_ldg_gain_h":	8,
+										"ve_ldg_gslp_h":	1400,
+										"ho_ldg_lumth_l":	64,
+										"ho_ldg_gain_l":	28,
+										"ho_ldg_gslp_l":	1286,
+										"ho_ldg_lumth_h":	185,
+										"ho_ldg_gain_h":	8,
+										"ho_ldg_gslp_h":	1400,
+										"v_fv_thresh":	4,
+										"h_fv_thresh":	4,
+										"highlit_thresh":	912
+									},
+									{
+										"tbl_idx":	2,
+										"afmThres":	4,
+										"gammaY":	[0, 45, 108, 179, 245, 344, 409, 459, 500, 567, 622, 676, 759, 833, 896, 962, 1023],
+										"v1_fir_sel":	1,
+										"v1_band":	[0.010, 0.040],
 										"v1_iir_coe":	[0, 503, 0, 0, 8, 0, 0, 9, 0],
-										"v1_fir_coe":	[-1997, 0, 1997],
-										"v2_iir_coe":	[476, 33, 34],
-										"v2_fir_coe":	[-985, 0, 985],
-										"h1_iir1_coe":	[512, 811, -375, 266, 0, -266],
-										"h1_iir2_coe":	[250, 945, -448, 41, 0, -41],
-										"h2_iir1_coe":	[512, 557, -276, 460, 0, -460],
-										"h2_iir2_coe":	[512, 870, -399, 37, 0, -37],
-										"ldg_en":	0,
+										"v1_fir_coe":	[-1997,   0,  1997],
+										"v2_band":	[0.010, 0.040],
+										"v2_iir_coe":	[503,     8,     9],
+										"v2_fir_coe":	[-1997,   0,  1997],
+										"h1_band":	[0.010, 0.040],
+										"h1_iir1_coe":	[71,   908,  -419,   511,     0,  -511],
+										"h1_iir2_coe":	[19,   989,  -480,   779,     0,  -779],
+										"h2_band":	[0.010, 0.040],
+										"h2_iir1_coe":	[71,   908,  -419,   511,     0,  -511],
+										"h2_iir2_coe":	[19,   989,  -480,   779,     0,  -779],
+										"ldg_en":	1,
 										"ve_ldg_lumth_l":	64,
 										"ve_ldg_gain_l":	28,
 										"ve_ldg_gslp_l":	1286,
@@ -2554,17 +2626,18 @@
 										"h_fv_thresh":	4,
 										"highlit_thresh":	912
 									}],
-								"meascfg_tbl_len":	2
+								"meascfg_tbl_len":	3
 							}
 						},
 						"amerge_calib_V2":	{
 							"MergeTuningPara":	{
 								"BaseFrm":	"BASEFRAME_LONG",
+								"CtrlDataType": "CTRLDATATYPE_ENVLV",
 								"ByPassThr":	0,
 								"LongFrmModeData":	{
 									"OECurve":	{
-										"EnvLv":	[0, 0.005, 0.01, 0.05, 0.1, 0.15, 0.2, 0.3, 0.4, 0.5, 0.6, 0.8, 1],
-										"EnvLv_len":	13,
+										"CtrlData":	[0, 0.005, 0.01, 0.05, 0.1, 0.15, 0.2, 0.3, 0.4, 0.5, 0.6, 0.8, 1],
+										"CtrlData_len":	13,
 										"Smooth":	[0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4],
 										"Smooth_len":	13,
 										"Offset":	[210, 210, 210, 210, 210, 210, 210, 210, 210, 210, 210, 210, 210],
@@ -2588,8 +2661,8 @@
 								},
 								"ShortFrmModeData":	{
 									"OECurve":	{
-										"EnvLv":	[0, 0.005, 0.01, 0.05, 0.1, 0.15, 0.2, 0.3, 0.4, 0.5, 0.6, 0.8, 1],
-										"EnvLv_len":	13,
+										"CtrlData":	[0, 0.005, 0.01, 0.05, 0.1, 0.15, 0.2, 0.3, 0.4, 0.5, 0.6, 0.8, 1],
+										"CtrlData_len":	13,
 										"Smooth":	[0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4],
 										"Smooth_len":	13,
 										"Offset":	[210, 210, 210, 210, 210, 210, 210, 210, 210, 210, 210, 210, 210],
@@ -6116,6 +6189,22 @@
 										"Tuning_ISO_len":	13
 									}],
 								"Setting_len":	2
+							}
+						},
+						"csm":	{
+							"TuningPara":	{
+								"op_mode":	"RK_AIQ_OP_MODE_AUTO",
+								"full_range":	1,
+								"y_offset":	0,
+								"c_offset":	0,
+								"coeff":	[0.299, 0.587, 0.114, -0.169, -0.331, 0.5, 0.5, -0.419, -0.081]
+							}
+						},
+						"cgc":	{
+							"TuningPara":	{
+								"op_mode":	"RK_AIQ_OP_MODE_AUTO",
+								"cgc_ratio_en":	0,
+								"cgc_yuv_limit":	0
 							}
 						}
 					}

@@ -1,0 +1,2 @@
+/media/jack/data2/3588_linux/3588_linux5.10_v1.0.5/external/rkwifibt/drivers/bluetooth_uart_driver/hci_ldisc.o /media/jack/data2/3588_linux/3588_linux5.10_v1.0.5/external/rkwifibt/drivers/bluetooth_uart_driver/hci_h4.o /media/jack/data2/3588_linux/3588_linux5.10_v1.0.5/external/rkwifibt/drivers/bluetooth_uart_driver/hci_rtk_h5.o /media/jack/data2/3588_linux/3588_linux5.10_v1.0.5/external/rkwifibt/drivers/bluetooth_uart_driver/rtk_coex.o
+

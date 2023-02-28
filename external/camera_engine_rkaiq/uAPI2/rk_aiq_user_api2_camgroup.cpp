@@ -45,9 +45,29 @@ _cam_group_bind(rk_aiq_camgroup_ctx_t* camgroup_ctx, rk_aiq_sys_ctx_t* aiq_ctx)
     // bind group to aiq
     aiq_ctx->_camGroupManager = camgroup_ctx->cam_group_manager.ptr();
     aiq_ctx->_analyzer->setCamGroupManager(aiq_ctx->_camGroupManager);
+
+#if 0
     // set first one as main cam
     aiq_ctx->_rkAiqManager->setCamGroupManager(aiq_ctx->_camGroupManager,
                                                camgroup_ctx->cam_ctxs_num == 0 ? true : false);
+#else
+    if (aiq_ctx->_is_1608_sensor) {
+        // 1608 sensor.
+        aiq_ctx->_rkAiqManager->setCamGroupManager(aiq_ctx->_camGroupManager, false);
+        camgroup_ctx->cam_1608_num++;
+        LOGD("  >>>>====<<<< sensor name: %s, 1608-sensor(%d), sync mode(isMain): %d. \n", aiq_ctx->_sensor_entity_name,
+                                                                                           aiq_ctx->_is_1608_sensor,
+                                                                                           false);
+    } else {
+        // normal sensor.
+        aiq_ctx->_rkAiqManager->setCamGroupManager(aiq_ctx->_camGroupManager,
+                                                   camgroup_ctx->cam_ctxs_num == camgroup_ctx->cam_1608_num ? true : false);
+        LOGD("  >>>>====<<<< sensor name: %s, 1608-sensor(%d), sync mode(isMain): %d. \n", aiq_ctx->_sensor_entity_name,
+                                                                                           aiq_ctx->_is_1608_sensor,
+                                                                                           camgroup_ctx->cam_ctxs_num == \
+                                                                                           camgroup_ctx->cam_1608_num ? true : false);
+    }
+#endif
 
     camgroup_ctx->cam_ctxs_num++;
     camgroup_ctx->cam_ctxs_array[aiq_ctx->_camPhyId] = aiq_ctx;
@@ -120,6 +140,7 @@ rk_aiq_uapi2_camgroup_create(rk_aiq_camgroup_instance_cfg_t* cfg)
 
     camgroup_ctx->cam_type = RK_AIQ_CAM_TYPE_GROUP;
     camgroup_ctx->cam_ctxs_num = 0;
+    camgroup_ctx->cam_1608_num = 0;
     memset(camgroup_ctx->cam_ctxs_array, 0, sizeof(camgroup_ctx->cam_ctxs_array));
     camgroup_ctx->_srcOverlapMap_s = NULL;
     camgroup_ctx->_camgroup_calib = NULL;
@@ -153,6 +174,12 @@ rk_aiq_uapi2_camgroup_create(rk_aiq_camgroup_instance_cfg_t* cfg)
     }
 
     for (int i = 0; i < cfg->sns_num; i++) {
+        // TODO: fix 1608 psy-sensor, "m0x_b_RK1608-dphy RK1608-dphy0"
+        if (strstr(cfg->sns_ent_nm_array[i], "1608")) {
+            // LOGE("  >>>>====<<<<  sensor_name: %s.", cfg->sns_ent_nm_array[i]);
+            continue;
+        }
+
         if (single_iq_file.length())
             rk_aiq_uapi_sysctl_preInit(cfg->sns_ent_nm_array[i],
                                        RK_AIQ_WORKING_MODE_NORMAL, /* nonsense */
@@ -186,6 +213,10 @@ rk_aiq_uapi2_camgroup_create(rk_aiq_camgroup_instance_cfg_t* cfg)
                  __func__, aiq_ctx->_sensor_entity_name, aiq_ctx);
             goto error;
         }
+    }
+    if (camgroup_ctx->cam_1608_num == camgroup_ctx->cam_ctxs_num) {
+        LOGE("%s: >>>>====<<<<  ERROR, Only slave(master-slave)-sensor work is not supported in group mode!", __func__);
+        goto error;
     }
 
     if (camgroup_iq_file.length())
@@ -536,3 +567,34 @@ rk_aiq_uapi2_camgroup_getCamInfos(rk_aiq_camgroup_ctx_t* camgroup_ctx, rk_aiq_ca
 
     return XCAM_RETURN_NO_ERROR;
 }
+
+XCamReturn
+rk_aiq_uapi2_camgroup_resetCam(rk_aiq_camgroup_ctx_t* camgroup_ctx, int camId)
+{
+#ifdef RKAIQ_ENABLE_CAMGROUP
+    ENTER_XCORE_FUNCTION();
+    XCamReturn ret = XCAM_RETURN_NO_ERROR;
+
+    if (!camgroup_ctx)
+        return XCAM_RETURN_ERROR_PARAM;
+
+    for (auto camCtx : camgroup_ctx->cam_ctxs_array) {
+        if (!camCtx)
+            continue;
+
+        if (camCtx->_camPhyId == camId) {
+            LOGD("cam: %d, reset...", camId);
+            ret = camCtx->_camHw->reset_hardware();
+            if (ret) {
+                LOGE("failed to reset hardware\n");
+                return XCAM_RETURN_ERROR_IOCTL;
+            }
+        }
+    }
+
+    EXIT_XCORE_FUNCTION();
+#endif
+
+    return XCAM_RETURN_NO_ERROR;
+}
+

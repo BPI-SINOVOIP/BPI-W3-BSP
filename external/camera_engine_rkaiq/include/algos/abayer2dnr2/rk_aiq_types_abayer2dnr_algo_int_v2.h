@@ -32,7 +32,7 @@
 
 //RKAIQ_BEGIN_DECLARE
 
-#define RK_BAYER2DNR_V2_MAX_ISO_NUM  CALIBDB_MAX_ISO_LEVEL
+//#define RK_BAYER2DNR_V2_MAX_ISO_NUM  CALIBDB_MAX_ISO_LEVEL
 #define ABAYER2DNRV2_RECALCULATE_DELTA_ISO (10)
 
 typedef enum Abayer2dnr_result_V2_e {
@@ -74,17 +74,10 @@ typedef enum Abayer2dnr_ParamMode_V2_e {
     ABAYER2DNR_PARAM_MODE_MAX                                      /**< max */
 } Abayer2dnr_ParamMode_V2_t;
 
-typedef struct Abayer2dnr_ExpInfo_V2_s {
-    int hdr_mode;
-    float arTime[3];
-    float arAGain[3];
-    float arDGain[3];
-    int   arIso[3];
-    int   snr_mode;
-    int gray_mode;
-} Abayer2dnr_ExpInfo_V2_t;
 
 
+
+#if 0
 
 typedef struct RK_Bayer2dnr_Params_V2_s
 {
@@ -113,7 +106,7 @@ typedef struct RK_Bayer2dnr_Params_V2_s
 
 } RK_Bayer2dnr_Params_V2_t;
 
-#if 0
+
 typedef struct RK_Bayer2dnr_Params_V2_Select_s
 {
     // v2 version register // edge filter params

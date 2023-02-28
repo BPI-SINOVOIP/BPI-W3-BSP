@@ -57,7 +57,8 @@ void
 CamHwIsp3x::gen_full_isp_params(const struct isp3x_isp_params_cfg* update_params,
                                 struct isp3x_isp_params_cfg* full_params,
                                 uint64_t* module_en_update_partial,
-                                uint64_t* module_cfg_update_partial)
+                                uint64_t* module_cfg_update_partial,
+                                uint32_t triggeredId)
 {
     XCAM_ASSERT (update_params);
     XCAM_ASSERT (full_params);
@@ -80,7 +81,9 @@ CamHwIsp3x::gen_full_isp_params(const struct isp3x_isp_params_cfg* update_params
         if (update_params->module_cfg_update & (1LL << i)) {
 
 #define CHECK_UPDATE_PARAMS(dst, src) \
-            if (memcmp(&dst, &src, sizeof(dst)) == 0) { \
+            if (memcmp(&dst, &src, sizeof(dst)) == 0 || \
+                (update_params->frame_id > 0 && \
+                 !mNoReadBack && triggeredId > update_params->frame_id)) { \
                 continue; \
             } \
             *module_cfg_update_partial |= 1LL << i; \
@@ -202,6 +205,9 @@ CamHwIsp3x::gen_full_isp_params(const struct isp3x_isp_params_cfg* update_params
             case Rk_ISP2x_CSM_ID:
                 CHECK_UPDATE_PARAMS(full_params->others.csm_cfg, update_params->others.csm_cfg);
                 break;
+            case Rk_ISP2x_CGC_ID:
+                CHECK_UPDATE_PARAMS(full_params->others.cgc_cfg, update_params->others.cgc_cfg);
+                break;
             default:
                 break;
             }
@@ -211,7 +217,7 @@ CamHwIsp3x::gen_full_isp_params(const struct isp3x_isp_params_cfg* update_params
 }
 
 XCamReturn
-CamHwIsp3x::setIspConfig()
+CamHwIsp3x::setIspConfig(uint32_t triggeredId)
 {
     XCamReturn ret = XCAM_RETURN_NO_ERROR;
 
@@ -222,7 +228,7 @@ CamHwIsp3x::setIspConfig()
 
     {
         SmartLock locker (_isp_params_cfg_mutex);
-        while (_effecting_ispparam_map.size() > 4)
+        while (_effecting_ispparam_map.size() > 8)
             _effecting_ispparam_map.erase(_effecting_ispparam_map.begin());
     }
     if (mIspParamsDev.ptr()) {
@@ -238,6 +244,15 @@ CamHwIsp3x::setIspConfig()
     ret = mParamsAssembler->deQueOne(ready_results, frameId);
     if (ret != XCAM_RETURN_NO_ERROR) {
         LOGI_CAMHW_SUBM(ISP20HW_SUBM, "deque isp ready parameter failed\n");
+        mIspParamsDev->return_buffer_to_pool (v4l2buf);
+        return XCAM_RETURN_ERROR_PARAM;
+    }
+
+    int64_t framdIdInt64 = frameId;
+    int64_t tgIdInt64 = triggeredId;
+    if ((!mNoReadBack && std::abs(framdIdInt64 - tgIdInt64) > 10) || (frameId == (uint32_t)(-1))) {
+        LOGE_CAMHW_SUBM(ISP20HW_SUBM, "camId: %d, params id err: %d, tgId: %d",
+                        mCamPhyId, frameId, triggeredId);
         mIspParamsDev->return_buffer_to_pool (v4l2buf);
         return XCAM_RETURN_ERROR_PARAM;
     }
@@ -308,6 +323,19 @@ CamHwIsp3x::setIspConfig()
 
     }
 
+    // add isp dgain results to ready results
+    SmartPtr<SensorHw> mSensorSubdev = mSensorDev.dynamic_cast_ptr<SensorHw>();
+    if (mSensorSubdev.ptr()) {
+        SmartPtr<RkAiqExpParamsProxy> expParam;
+
+        if (mSensorSubdev->getEffectiveExpParams(expParam, frameId) < 0) {
+            LOGE_CAMHW_SUBM(ISP20HW_SUBM, "frame_id(%d), get exposure failed!!!\n", frameId);
+        } else {
+            expParam->setType(RESULT_TYPE_EXPOSURE_PARAM);
+            ready_results.push_back(expParam);
+        }
+    }
+
     // TODO: merge_isp_results would cause the compile warning: reference to merge_isp_results is ambiguous
     // now use Isp21Params::merge_isp_results instead
     if (Isp3xParams::merge_isp_results(ready_results, update_params) != XCAM_RETURN_NO_ERROR)
@@ -317,8 +345,10 @@ CamHwIsp3x::setIspConfig()
     }
     uint64_t module_en_update_partial = 0;
     uint64_t module_cfg_update_partial = 0;
+    update_params->frame_id = frameId;
     gen_full_isp_params(update_params, &_full_active_isp3x_params,
-                        &module_en_update_partial, &module_cfg_update_partial);
+                        &module_en_update_partial, &module_cfg_update_partial,
+                        triggeredId);
 
     if (_state == CAM_HW_STATE_STOPPED)
         LOGD_CAMHW_SUBM(ISP20HW_SUBM, "ispparam ens 0x%llx, en_up 0x%llx, cfg_up 0x%llx",
@@ -332,7 +362,6 @@ CamHwIsp3x::setIspConfig()
     module_en_update_partial = _full_active_isp3x_params.module_en_update;
     module_cfg_update_partial = _full_active_isp3x_params.module_cfg_update;
 #endif
-
 
     if (v4l2buf.ptr()) {
         struct isp3x_isp_params_cfg* isp_params;
@@ -405,7 +434,11 @@ CamHwIsp3x::setIspConfig()
                     _effecting_ispparam_map[frameId].isp_params_v3x[2] = isp_params[1];
                 }
             }
+            // update the lost params by ISP driver again
+            isp_params->module_cfg_update |= _module_cfg_update_frome_drv;
+            _module_cfg_update_frome_drv = 0;
         }
+
         if (mIspParamsDev->queue_buffer (v4l2buf) != 0) {
             LOGE_CAMHW_SUBM(ISP20HW_SUBM, "RKISP1: failed to ioctl VIDIOC_QBUF for index %d, %d %s.\n",
                             buf_index, errno, strerror(errno));
@@ -414,7 +447,7 @@ CamHwIsp3x::setIspConfig()
         }
 
         ispModuleEns = _full_active_isp3x_params.module_ens;
-        LOGD_CAMHW_SUBM(ISP20HW_SUBM, "camId:%d, frameId:%d, ispparam ens 0x%llx, en_up 0x%llx, cfg_up 0x%llx",
+        LOGD_CAMHW_SUBM(ISP20HW_SUBM, "camId: %d, frameId:%d, ispparam ens 0x%llx, en_up 0x%llx, cfg_up 0x%llx",
                          mCamPhyId, frameId,
                         _full_active_isp3x_params.module_ens,
                         isp_params->module_en_update,

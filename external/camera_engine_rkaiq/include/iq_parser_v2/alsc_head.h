@@ -22,12 +22,9 @@
 
 #include "rk_aiq_comm.h"
 #include "alsc/rk_aiq_types_alsc_hw.h"
+#include "alsc/rk_aiq_types_alsc_common.h"
 
 RKAIQ_BEGIN_DECLARE
-
-#ifndef LSC_NAME
-#define LSC_NAME        ( 32U )
-#endif
 
 #ifndef CIFISP_LSC_SIZE_TBL_SIZE
 #define CIFISP_LSC_SIZE_TBL_SIZE    8
@@ -35,11 +32,6 @@ RKAIQ_BEGIN_DECLARE
 #ifndef LSC_PROFILES_NUM_MAX
 #define LSC_PROFILES_NUM_MAX        5
 #endif
-
-typedef struct lsc_name_s {
-    // M4_STRING_DESC("name", M4_SIZE(1,1), M4_RANGE(0, 32), "default", M4_DYNAMIC(0))
-    char name[LSC_NAME];
-} lsc_name_t;
 
 typedef struct resolution_s {
     char name[LSC_NAME];
@@ -108,27 +100,6 @@ typedef struct CalibDbV2_AlscCof_s {
     CalibDbV2_AlscCof_ill_t*        illAll;
     int                             illAll_len;
 } CalibDbV2_AlscCof_t;
-
-//represent a cell of tableAll in xml/json
-typedef struct CalibDbV2_LscTableProfile_s {
-    // M4_STRING_DESC("name", M4_SIZE(1,1), M4_RANGE(0, 32), "default", M4_DYNAMIC(0))
-    char        name[LSC_NAME];
-    // M4_STRING_DESC("resolution", M4_SIZE(1,1), M4_RANGE(0, 32), "default", M4_DYNAMIC(0))
-    char        resolution[LSC_NAME];
-    // M4_STRING_DESC("illumination", M4_SIZE(1,1), M4_RANGE(0, 32), "default", M4_DYNAMIC(0))
-    char        illumination[LSC_NAME];
-    // M4_NUMBER_DESC("vignetting", "f32", M4_RANGE(0,100), "100", M4_DIGIT(0))
-    float       vignetting;
-
-    // M4_STRUCT_DESC("lsc_samples_red", "normal_ui_style")
-    Cam17x17UShortMatrix_t  lsc_samples_red;
-    // M4_STRUCT_DESC("lsc_samples_greenR", "normal_ui_style")
-    Cam17x17UShortMatrix_t  lsc_samples_greenR;
-    // M4_STRUCT_DESC("lsc_samples_greenB", "normal_ui_style")
-    Cam17x17UShortMatrix_t  lsc_samples_greenB;
-    // M4_STRUCT_DESC("lsc_samples_blue", "normal_ui_style")
-    Cam17x17UShortMatrix_t  lsc_samples_blue;
-} CalibDbV2_LscTableProfile_t;
 
 typedef struct CalibDbV2_LscTable {
     // M4_STRUCT_LIST_DESC("tableAll", M4_SIZE_DYNAMIC, "normal_ui_style")

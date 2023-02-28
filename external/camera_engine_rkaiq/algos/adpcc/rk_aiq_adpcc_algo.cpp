@@ -563,40 +563,40 @@ AdpccResult_t dpcc_expert_mode_basic_params_init(Adpcc_basic_params_t *pBasic, C
 
 
         //line_thresh_3 0x0040
-        pBasic->arBasic[i].sw_mindis3_rb = pCalib->DpccTuningPara.Expert_Mode.set2.RK.rb_sw_mindis[i];
-        pBasic->arBasic[i].sw_mindis3_g = pCalib->DpccTuningPara.Expert_Mode.set2.RK.g_sw_mindis[i];
-        pBasic->arBasic[i].line_thr_3_rb = pCalib->DpccTuningPara.Expert_Mode.set2.LC.rb_line_thr[i];
-        pBasic->arBasic[i].line_thr_3_g = pCalib->DpccTuningPara.Expert_Mode.set2.LC.g_line_thr[i];
+        pBasic->arBasic[i].sw_mindis3_rb = pCalib->DpccTuningPara.Expert_Mode.set3.RK.rb_sw_mindis[i];
+        pBasic->arBasic[i].sw_mindis3_g = pCalib->DpccTuningPara.Expert_Mode.set3.RK.g_sw_mindis[i];
+        pBasic->arBasic[i].line_thr_3_rb = pCalib->DpccTuningPara.Expert_Mode.set3.LC.rb_line_thr[i];
+        pBasic->arBasic[i].line_thr_3_g = pCalib->DpccTuningPara.Expert_Mode.set3.LC.g_line_thr[i];
 
         //line_mad_fac_3 0x0044
-        pBasic->arBasic[i].sw_dis_scale_min3 = pCalib->DpccTuningPara.Expert_Mode.set2.RK.sw_dis_scale_min[i];
-        pBasic->arBasic[i].sw_dis_scale_max3 = pCalib->DpccTuningPara.Expert_Mode.set2.RK.sw_dis_scale_max[i];
-        pBasic->arBasic[i].line_mad_fac_3_rb = pCalib->DpccTuningPara.Expert_Mode.set2.LC.rb_line_mad_fac[i];
-        pBasic->arBasic[i].line_mad_fac_3_g = pCalib->DpccTuningPara.Expert_Mode.set2.LC.g_line_mad_fac[i];
+        pBasic->arBasic[i].sw_dis_scale_min3 = pCalib->DpccTuningPara.Expert_Mode.set3.RK.sw_dis_scale_min[i];
+        pBasic->arBasic[i].sw_dis_scale_max3 = pCalib->DpccTuningPara.Expert_Mode.set3.RK.sw_dis_scale_max[i];
+        pBasic->arBasic[i].line_mad_fac_3_rb = pCalib->DpccTuningPara.Expert_Mode.set3.LC.rb_line_mad_fac[i];
+        pBasic->arBasic[i].line_mad_fac_3_g = pCalib->DpccTuningPara.Expert_Mode.set3.LC.g_line_mad_fac[i];
 
         //pg_fac_3 0x0048
-        pBasic->arBasic[i].pg_fac_3_rb = pCalib->DpccTuningPara.Expert_Mode.set2.PG.rb_pg_fac[i];
-        pBasic->arBasic[i].pg_fac_3_g = pCalib->DpccTuningPara.Expert_Mode.set2.PG.g_pg_fac[i];
+        pBasic->arBasic[i].pg_fac_3_rb = pCalib->DpccTuningPara.Expert_Mode.set3.PG.rb_pg_fac[i];
+        pBasic->arBasic[i].pg_fac_3_g = pCalib->DpccTuningPara.Expert_Mode.set3.PG.g_pg_fac[i];
 
         //rnd_thresh_3 0x004c
-        pBasic->arBasic[i].rnd_thr_3_rb = pCalib->DpccTuningPara.Expert_Mode.set2.RND.rb_rnd_thr[i];
-        pBasic->arBasic[i].rnd_thr_3_g = pCalib->DpccTuningPara.Expert_Mode.set2.RND.g_rnd_thr[i];
+        pBasic->arBasic[i].rnd_thr_3_rb = pCalib->DpccTuningPara.Expert_Mode.set3.RND.rb_rnd_thr[i];
+        pBasic->arBasic[i].rnd_thr_3_g = pCalib->DpccTuningPara.Expert_Mode.set3.RND.g_rnd_thr[i];
 
         //rg_fac_3 0x0050
-        pBasic->arBasic[i].rg_fac_3_rb = pCalib->DpccTuningPara.Expert_Mode.set2.RG.rb_rg_fac[i];
-        pBasic->arBasic[i].rg_fac_3_g = pCalib->DpccTuningPara.Expert_Mode.set2.RG.g_rg_fac[i];
+        pBasic->arBasic[i].rg_fac_3_rb = pCalib->DpccTuningPara.Expert_Mode.set3.RG.rb_rg_fac[i];
+        pBasic->arBasic[i].rg_fac_3_g = pCalib->DpccTuningPara.Expert_Mode.set3.RG.g_rg_fac[i];
 
         //ro_limits 0x0054
-        pBasic->arBasic[i].ro_lim_3_rb = pCalib->DpccTuningPara.Expert_Mode.set2.RO.rb_ro_lim[i];
-        pBasic->arBasic[i].ro_lim_3_g = pCalib->DpccTuningPara.Expert_Mode.set2.RO.g_ro_lim[i];
+        pBasic->arBasic[i].ro_lim_3_rb = pCalib->DpccTuningPara.Expert_Mode.set3.RO.rb_ro_lim[i];
+        pBasic->arBasic[i].ro_lim_3_g = pCalib->DpccTuningPara.Expert_Mode.set3.RO.g_ro_lim[i];
         pBasic->arBasic[i].ro_lim_2_rb = pCalib->DpccTuningPara.Expert_Mode.set2.RO.rb_ro_lim[i];
         pBasic->arBasic[i].ro_lim_2_g = pCalib->DpccTuningPara.Expert_Mode.set2.RO.g_ro_lim[i];
         pBasic->arBasic[i].ro_lim_1_rb = pCalib->DpccTuningPara.Expert_Mode.set1.RO.rb_ro_lim[i];
         pBasic->arBasic[i].ro_lim_1_g = pCalib->DpccTuningPara.Expert_Mode.set1.RO.g_ro_lim[i];
 
         //rnd_offs 0x0058
-        pBasic->arBasic[i].rnd_offs_3_rb = pCalib->DpccTuningPara.Expert_Mode.set2.RND.rb_rnd_offs[i];
-        pBasic->arBasic[i].rnd_offs_3_g = pCalib->DpccTuningPara.Expert_Mode.set2.RND.g_rnd_offs[i];
+        pBasic->arBasic[i].rnd_offs_3_rb = pCalib->DpccTuningPara.Expert_Mode.set3.RND.rb_rnd_offs[i];
+        pBasic->arBasic[i].rnd_offs_3_g = pCalib->DpccTuningPara.Expert_Mode.set3.RND.g_rnd_offs[i];
         pBasic->arBasic[i].rnd_offs_2_rb = pCalib->DpccTuningPara.Expert_Mode.set2.RND.rb_rnd_offs[i];
         pBasic->arBasic[i].rnd_offs_2_g = pCalib->DpccTuningPara.Expert_Mode.set2.RND.g_rnd_offs[i];
         pBasic->arBasic[i].rnd_offs_1_rb = pCalib->DpccTuningPara.Expert_Mode.set1.RND.rb_rnd_offs[i];

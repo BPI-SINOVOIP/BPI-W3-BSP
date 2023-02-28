@@ -27,8 +27,18 @@
 #include "xcam_common.h"
 #include "list.h"
 #include "RkAiqCalibDbV2Helper.h"
+#include "rk_aiq_alsc_convert_otp.h"
 
 RKAIQ_BEGIN_DECLARE
+
+typedef enum AlscState_e {
+    ALSC_STATE_INVALID           = 0,                   /**< initialization value */
+    ALSC_STATE_INITIALIZED       = 1,                   /**< instance is created, but not initialized */
+    ALSC_STATE_STOPPED           = 2,                   /**< instance is confiured (ready to start) or stopped */
+    ALSC_STATE_RUNNING           = 3,                   /**< instance is running (processes frames) */
+    ALSC_STATE_MAX                                      /**< max */
+} AlscState_t;
+
 typedef const CalibDbV2_LscTableProfile_t* pLscTableProfile_t;
 
 typedef struct lsc_matrix
@@ -89,6 +99,7 @@ typedef struct alsc_grad_s
 
 typedef struct alsc_context_s {
     const CalibDbV2_LSC_t   *calibLscV2;
+    CalibDbV2_LSC_t   fixed_calib;
 
     alsc_illu_case_t        *illu_case;
     uint32_t                illu_case_count;
@@ -111,6 +122,7 @@ typedef struct alsc_context_s {
 
     //in some cases, the scene does not change, so it doesn't need to calculate in every frame;
     bool auto_mode_need_run_algo;
+    AlscState_t eState;
 } alsc_context_t ;
 
 typedef alsc_context_t* alsc_handle_t ;

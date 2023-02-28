@@ -30,6 +30,11 @@ XCamReturn  rk_aiq_user_api2_acsm_SetAttrib(const rk_aiq_sys_ctx_t* sys_ctx, rk_
     CHECK_USER_API_ENABLE(RK_AIQ_ALGO_TYPE_ACSM);
     RKAIQ_API_SMART_LOCK(sys_ctx);
 
+    if (!attr.param.full_range) {
+        LOGE_ACSM("Limit range is not supported!\n");
+        return XCAM_RETURN_ERROR_PARAM;
+    }
+
     if (sys_ctx->cam_type == RK_AIQ_CAM_TYPE_GROUP) {
 #ifdef RKAIQ_ENABLE_CAMGROUP
 

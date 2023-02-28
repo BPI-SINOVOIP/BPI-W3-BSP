@@ -926,6 +926,8 @@ MPP_RET hal_jpegd_vdpu1_start(void *hal, HalTaskInfo *task)
             break;
         }
 
+        reg_size = sizeof(((JpegdIocRegInfo *)0)->regs);
+
         rd_cfg.reg = regs;
         rd_cfg.size = reg_size;
         rd_cfg.offset = 0;

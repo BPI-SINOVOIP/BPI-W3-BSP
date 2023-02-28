@@ -46,6 +46,9 @@ protected:
     template<class T>
     void convertAiqCsmToIsp21Params(T& isp_cfg,
                                    const rk_aiq_acsm_params_t& csm_cfg);
+    template<class T>
+    void convertAiqCgcToIsp21Params(T& isp_cfg,
+                                    const rk_aiq_acgc_params_t& cgc_param);
 private:
     XCAM_DEAD_COPY(Isp21Params);
     void convertAiqAdehazeToIsp21Params(struct isp21_isp_params_cfg& isp_cfg,
@@ -65,6 +68,7 @@ private:
                                         rk_aiq_isp_sharp_v21_t& sharp);
     void convertAiqDrcToIsp21Params(struct isp21_isp_params_cfg& isp_cfg,
                                     rk_aiq_isp_drc_v21_t& adrc_data);
+    void convertAiqExpIspDgainToIsp21Params(struct isp21_isp_params_cfg& isp_cfg, RKAiqAecExpInfo_t& ae_exp);
 };
 
 };

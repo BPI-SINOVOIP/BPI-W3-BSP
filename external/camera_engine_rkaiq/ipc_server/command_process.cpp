@@ -396,6 +396,20 @@ int ProcessCommand(rk_aiq_sys_ctx_t* ctx, RkAiqSocketPacket *dataRecv, RkAiqSock
         dataReply->dataSize = 0;
         break;
     }
+    case ENUM_ID_AIQ_UAPI_SYSCTL_GET3ASTATS:
+    {
+        dataReply->dataSize = sizeof(rk_aiq_isp_stats_t);
+        dataReply->data = (char*)malloc(dataReply->dataSize);
+        dataReply->commandResult = get3AStats(ctx, dataReply->data);
+        break;
+    }
+    case ENUM_ID_AIQ_UAPI_SYSCTL_GET3ASTATSBLK:
+    {
+        dataReply->dataSize = sizeof(rk_aiq_isp_stats_t);
+        dataReply->data = (char*)malloc(dataReply->dataSize);
+        dataReply->commandResult = get3AStatsBlk(ctx, dataReply->data);
+        break;
+    }
     default:
         LOGE("AIQ IPC UNKNOWN CMD: %d\n", dataRecv->commandID);
         return -1;

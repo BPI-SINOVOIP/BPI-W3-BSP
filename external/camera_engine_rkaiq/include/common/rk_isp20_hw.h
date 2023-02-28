@@ -75,6 +75,7 @@ enum RK_ISP_HW_MODULE_ID_e {
     Rk_ISP21_DRC_ID,
     Rk_ISP3x_CAC_ID,
     Rk_ISP2x_CSM_ID,
+    Rk_ISP2x_CGC_ID,
     RK_ISP2X_MAX_ID,
     RK_ISP2X_PP_TNR_ID,
     RK_ISP2X_PP_NR_ID,

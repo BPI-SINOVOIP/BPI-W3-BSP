@@ -86,4 +86,21 @@ rk_aiq_user_api_acnrV2_GetStrength(const rk_aiq_sys_ctx_t* sys_ctx, rk_aiq_cnr_s
     return ret;
 }
 
+XCamReturn
+rk_aiq_user_api_acnrV2_GetInfo(const rk_aiq_sys_ctx_t* sys_ctx, rk_aiq_cnr_info_v2_t *pInfo)
+{
+    XCamReturn ret = XCAM_RETURN_NO_ERROR;
+    RKAIQ_API_SMART_LOCK(sys_ctx);
+
+
+    RkAiqAcnrV2HandleInt* algo_handle =
+        algoHandle<RkAiqAcnrV2HandleInt>(sys_ctx, RK_AIQ_ALGO_TYPE_ACNR);
+    if (algo_handle) {
+        ret = algo_handle->getInfo(pInfo);
+    }
+
+
+    return ret;
+}
+
 RKAIQ_END_DECLARE

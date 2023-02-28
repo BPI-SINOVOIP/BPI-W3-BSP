@@ -640,6 +640,9 @@ XCamReturn RkAiqAwbHandleInt::processing() {
     }
 #endif
 
+    // for otp awb
+    awb_proc_int->awb_otp = &sharedCom->snsDes.otp_awb;
+
     ret = RkAiqHandle::processing();
     if (ret) {
         RKAIQCORE_CHECK_RET(ret, "awb handle processing failed");

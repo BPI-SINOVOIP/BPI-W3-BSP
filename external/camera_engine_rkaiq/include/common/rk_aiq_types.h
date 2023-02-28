@@ -65,6 +65,7 @@
 #include "auvnr/rk_aiq_types_auvnr_algo_v1.h"
 #include "again/rk_aiq_types_again_algo.h"
 #include "acsm/rk_aiq_types_acsm_algo.h"
+#include "acgc/rk_aiq_types_acgc_algo.h"
 
 #ifdef RK_SIMULATOR_HW
 #include "simulator/isp20_hw_simulator.h"
@@ -316,6 +317,7 @@ typedef struct {
     bool fl_strth_adj_sup;
     bool has_irc; /*< has ircutter */
     bool fl_ir_strth_adj_sup;
+    bool _is_1608_sensor;       /*< for sensor sync mode verify. */
     uint8_t is_multi_isp_mode;
     uint16_t multi_isp_extended_pixel;
     uint8_t reserved[13];
@@ -528,9 +530,7 @@ typedef struct {
     int32_t frame_id;
 } rk_aiq_isp_fec_t;
 
-typedef struct {
-    int UNKNOWN;
-} rk_aiq_isp_cgc_t;
+typedef rk_aiq_acgc_params_t rk_aiq_isp_cgc_t;
 
 typedef struct {
     sint32_t frame_id;

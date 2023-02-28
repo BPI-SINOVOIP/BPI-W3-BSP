@@ -165,6 +165,7 @@ XCamReturn RkAiqAdhazHandleInt::processing() {
     RkAiqCore::RkAiqAlgosComShared_t* sharedCom = &mAiqCore->mAlogsComSharedParams;
 
     adhaz_proc_int->hdr_mode = sharedCom->working_mode;
+    adhaz_proc_int->ynrV3_proc_res = shared->res_comb.ynrV3_proc_res;
 
     ret = RkAiqHandle::processing();
     if (ret) {
@@ -273,7 +274,7 @@ XCamReturn RkAiqAdhazHandleInt::getSwAttrib(adehaze_sw_V2_t* att) {
         mCfgMutex.unlock();
     } else {
         if (updateAtt) {
-            memcpy(att, &mNewAtt, sizeof(updateAtt));
+            memcpy(att, &mNewAtt, sizeof(adehaze_sw_V2_t));
             att->sync.done = false;
         } else {
             rk_aiq_uapi_adehaze_GetAttrib(mAlgoCtx, att);

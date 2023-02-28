@@ -34,6 +34,7 @@ struct rk_aiq_sys_ctx_s {
     CamCalibDbContext_t *_calibDb;
 #endif
     int _isp_hw_ver;
+    bool _is_1608_sensor;  /*< for sensor sync mode verify. */
 
     SocketServer *  _socket;
     SmartPtr<Mutex> _apiMutex;
@@ -65,6 +66,7 @@ typedef struct rk_aiq_camgroup_ctx_s {
     rk_aiq_sys_ctx_t* cam_ctxs_array[RK_AIQ_CAM_GROUP_MAX_CAMS];
     int sns_ids_array[RK_AIQ_CAM_GROUP_MAX_CAMS];
     int cam_ctxs_num;
+    int cam_1608_num;
     SmartPtr<RkAiqCamGroupManager> cam_group_manager;
     SmartPtr<Mutex> _apiMutex;
     CamCalibDbCamgroup_t* _camgroup_calib;

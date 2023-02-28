@@ -27,12 +27,13 @@
 #include "rk_aiq_types_adehaze_stat.h"
 
 
-
 RKAIQ_BEGIN_DECLARE
 
 void AdehazeGetStats(AdehazeHandle_t* pAdehazeCtx, rkisp_adehaze_stats_t* ROData);
+void Calib2stAuto(AdehazeHandle_t* pAdehazeCtx);
 void AdehazeGetCurrData(AdehazeHandle_t* pAdehazeCtx, RkAiqAlgoProcAdhaz* procPara);
-void AdehazeGetCurrDataGroup(AdehazeHandle_t* pAdehazeCtx, RKAiqAecExpInfo_t* pAeEffExpo, XCamVideoBuffer* pAePreRes);
+void AdehazeGetCurrDataGroup(AdehazeHandle_t* pAdehazeCtx, RKAiqAecExpInfo_t* pAeEffExpo,
+                             XCamVideoBuffer* pAePreRes, float* simga);
 XCamReturn AdehazeInit(AdehazeHandle_t** para, CamCalibDbV2Context_t* calib);
 XCamReturn AdehazeRelease(AdehazeHandle_t* para);
 XCamReturn AdehazeProcess(AdehazeHandle_t* para, AdehazeVersion_t version);

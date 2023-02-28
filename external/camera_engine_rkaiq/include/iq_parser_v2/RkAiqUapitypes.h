@@ -119,42 +119,195 @@ typedef struct __aiq_measure_info {
     uapi_wb_log_t wb_log;
 } aiq_measure_info_t;
 
-typedef struct __ablc_uapi_v30 {
+
+typedef struct __ablc_uapi_manual {
+    // M4_ENUM_DESC("OPMode", "RKAiqOPMode_uapi_t","RK_AIQ_OP_MODE_AUTO")
+    RKAiqOPMode_t AblcOpMode;
+
+#if defined(ISP_HW_V30)
     // M4_STRUCT_DESC("bls0", "normal_ui_style")
     AblcSelect_t bls0;
     // M4_STRUCT_DESC("bls1", "normal_ui_style")
     AblcSelect_t bls1;
-} ablc_uapi_v30_t;
+#endif
+} ablc_uapi_manual_t;
 
-typedef struct __abayer2dnr_uapi_v30 {
-    // M4_STRUCT_DESC("manual", "normal_ui_style")
-    RK_Bayer2dnr_Params_V2_Select_t manual;
-} abayer2dnr_uapi_v30_t;
+typedef struct __ablc_uapi_info {
+    // M4_NUMBER_DESC("iso", "u32", M4_RANGE(0, 204800), "50", M4_DIGIT(0), "0", "0")
+    int iso;
+#if defined(ISP_HW_V30)
+    // M4_ARRAY_TABLE_DESC("expo_info", "normal_ui_style", "none", "0", "0")
+    AblcExpInfo_t expo_info;
+#endif
+} ablc_uapi_info_t;
 
-typedef struct __abayertnr_uapi_v30 {
+typedef struct __ablc_uapi {
     // M4_STRUCT_DESC("manual", "normal_ui_style")
-    RK_Bayertnr_Params_V2_Select_t manual;
-} abayertnr_uapi_v30_t;
+    ablc_uapi_manual_t manual;
+    // M4_STRUCT_DESC("info", "normal_ui_style")
+    ablc_uapi_info_t info;
+} ablc_uapi_t;
 
-typedef struct __aynr_uapi_v30 {
-    // M4_STRUCT_DESC("manual", "normal_ui_style")
-    RK_YNR_Params_V3_Select_t manual;
-} aynr_uapi_v30_t;
 
-typedef struct __acnr_uapi_v30 {
-    // M4_STRUCT_DESC("manual", "normal_ui_style")
-    RK_CNR_Params_V2_Select_t manual;
-} acnr_uapi_v30_t;
+typedef struct __abayertnr_uapi_manual {
+    // M4_ENUM_DESC("OPMode", "RKAiqOPMode_uapi_t","RK_AIQ_OP_MODE_AUTO")
+    RKAiqOPMode_t AbayertnrOpMode;
 
-typedef struct __asharp_uapi_v30 {
-    // M4_STRUCT_DESC("manual", "normal_ui_style")
-    RK_SHARP_Params_V4_Select_t manual;
-} asharp_uapi_v30_t;
+#if defined(ISP_HW_V30)
+    // M4_STRUCT_DESC("manual_v2", "normal_ui_style")
+    RK_Bayertnr_Params_V2_Select_t manual_v2;
+#endif
+} abayertnr_uapi_manual_t;
 
-typedef struct __again_uapi_v30 {
+typedef struct __abayertnr_uapi_info {
+    // M4_NUMBER_DESC("iso", "u32", M4_RANGE(0, 204800), "50", M4_DIGIT(0), "0", "0")
+    int iso;
+#if defined(ISP_HW_V30)
+    // M4_ARRAY_TABLE_DESC("expo_info", "normal_ui_style", "none", "0", "0")
+    Abayertnr_ExpInfo_V2_t expo_info;
+#endif
+} abayertnr_uapi_info_t;
+
+typedef struct __abayertnr_uapi {
     // M4_STRUCT_DESC("manual", "normal_ui_style")
-    RK_GAIN_Select_V2_t manual;
-} again_uapi_v30_t;
+    abayertnr_uapi_manual_t manual;
+    // M4_STRUCT_DESC("info", "normal_ui_style")
+    abayertnr_uapi_info_t info;
+} abayertnr_uapi_t;
+
+typedef struct __abayer2dnr_uapi_manual {
+    // M4_ENUM_DESC("OPMode", "RKAiqOPMode_uapi_t","RK_AIQ_OP_MODE_AUTO")
+    RKAiqOPMode_t Abayer2dnrOpMode;
+
+#if defined(ISP_HW_V30)
+    // M4_STRUCT_DESC("manual_v2", "normal_ui_style")
+    RK_Bayer2dnr_Params_V2_Select_t manual_v2;
+#endif
+
+} abayer2dnr_uapi_manual_t;
+
+typedef struct __abayer2dnr_uapi_info {
+    // M4_NUMBER_DESC("iso", "u32", M4_RANGE(0, 204800), "50", M4_DIGIT(0), "0", "0")
+    int iso;
+#if defined(ISP_HW_V30)
+    // M4_ARRAY_TABLE_DESC("expo_info", "normal_ui_style", "none", "0", "0")
+    Abayer2dnr_ExpInfo_V2_t expo_info;
+#endif
+} abayer2dnr_uapi_info_t;
+
+
+typedef struct __abayer2dnr_uapi {
+    // M4_STRUCT_DESC("manual", "normal_ui_style")
+    abayer2dnr_uapi_manual_t manual;
+    // M4_STRUCT_DESC("info", "normal_ui_style")
+    abayer2dnr_uapi_info_t info;
+} abayer2dnr_uapi_t;
+
+typedef struct __aynr_uapi_manual {
+    // M4_ENUM_DESC("OPMode", "RKAiqOPMode_uapi_t","RK_AIQ_OP_MODE_AUTO")
+    RKAiqOPMode_t AynrOpMode;
+
+#if defined(ISP_HW_V30)
+    // M4_STRUCT_DESC("manual_v3", "normal_ui_style")
+    RK_YNR_Params_V3_Select_t manual_v3;
+#endif
+} aynr_uapi_manual_t;
+
+typedef struct __aynr_uapi_info {
+    // M4_NUMBER_DESC("iso", "u32", M4_RANGE(0, 204800), "50", M4_DIGIT(0), "0", "0")
+    int iso;
+#if defined(ISP_HW_V30)
+    // M4_ARRAY_TABLE_DESC("expo_info", "normal_ui_style", "none", "0", "0")
+    Aynr_ExpInfo_V3_t expo_info;
+#endif
+} aynr_uapi_info_t;
+
+typedef struct __aynr_uapi {
+    // M4_STRUCT_DESC("manual", "normal_ui_style")
+    aynr_uapi_manual_t manual;
+    // M4_STRUCT_DESC("info", "normal_ui_style")
+    aynr_uapi_info_t info;
+} aynr_uapi_t;
+
+typedef struct __acnr_uapi_manual {
+    // M4_ENUM_DESC("OPMode", "RKAiqOPMode_uapi_t","RK_AIQ_OP_MODE_AUTO")
+    RKAiqOPMode_t AcnrOpMode;
+
+#if defined(ISP_HW_V30)
+    // M4_STRUCT_DESC("manual_v2", "normal_ui_style")
+    RK_CNR_Params_V2_Select_t manual_v2;
+#endif
+} acnr_uapi_manual_t;
+
+typedef struct __acnr_uapi_info {
+    // M4_NUMBER_DESC("iso", "u32", M4_RANGE(0, 204800), "50", M4_DIGIT(0), "0", "0")
+    int iso;
+#if defined(ISP_HW_V30)
+    // M4_ARRAY_TABLE_DESC("expo_info", "normal_ui_style", "none", "0", "0")
+    AcnrV2_ExpInfo_t expo_info;
+#endif
+} acnr_uapi_info_t;
+
+
+typedef struct __acnr_uapi {
+    // M4_STRUCT_DESC("manual", "normal_ui_style")
+    acnr_uapi_manual_t manual;
+    // M4_STRUCT_DESC("info", "normal_ui_style")
+    acnr_uapi_info_t info;
+} acnr_uapi_t;
+
+typedef struct __asharp_uapi_manual {
+    // M4_ENUM_DESC("OPMode", "RKAiqOPMode_uapi_t","RK_AIQ_OP_MODE_AUTO")
+    RKAiqOPMode_t AsharpOpMode;
+
+#if defined(ISP_HW_V30)
+    // M4_STRUCT_DESC("manual_v4", "normal_ui_style")
+    RK_SHARP_Params_V4_Select_t manual_v4;
+#endif
+} asharp_uapi_manual_t;
+
+typedef struct __asharp_uapi_info {
+    // M4_NUMBER_DESC("iso", "u32", M4_RANGE(0, 204800), "50", M4_DIGIT(0), "0", "0")
+    int iso;
+#if defined(ISP_HW_V30)
+    // M4_ARRAY_TABLE_DESC("expo_info", "normal_ui_style", "none", "0", "0")
+    Asharp4_ExpInfo_t expo_info;
+#endif
+} asharp_uapi_info_t;
+
+typedef struct __asharp_uapi {
+    // M4_STRUCT_DESC("manual", "normal_ui_style")
+    asharp_uapi_manual_t manual;
+    // M4_STRUCT_DESC("info", "normal_ui_style")
+    asharp_uapi_info_t info;
+} asharp_uapi_t;
+
+typedef struct __again_uapi_manual {
+    // M4_ENUM_DESC("OPMode", "RKAiqOPMode_uapi_t","RK_AIQ_OP_MODE_AUTO")
+    RKAiqOPMode_t AgainOpMode;
+
+#if defined(ISP_HW_V30)
+    // M4_STRUCT_DESC("manual_v2", "normal_ui_style")
+    RK_GAIN_Select_V2_t manual_v2;
+#endif
+} again_uapi_manual_t;
+
+typedef struct __again_uapi_info {
+    // M4_NUMBER_DESC("iso", "u32", M4_RANGE(0, 204800), "50", M4_DIGIT(0), "0", "0")
+    int iso;
+#if defined(ISP_HW_V30)
+    // M4_ARRAY_TABLE_DESC("expo_info", "normal_ui_style", "none", "0", "0")
+    Again_ExpInfo_V2_t expo_info;
+#endif
+} again_uapi_info_t;
+
+
+typedef struct __again_uapi {
+    // M4_STRUCT_DESC("manual", "normal_ui_style")
+    again_uapi_manual_t manual;
+    // M4_STRUCT_DESC("info", "normal_ui_style")
+    again_uapi_info_t info;
+} again_uapi_t;
 
 typedef struct __custom_af_uapi {
     // M4_STRUCT_DESC("custom_af_res", "normal_ui_style")
@@ -166,13 +319,17 @@ typedef struct __adebayer_uapi {
 } adebayer_uapi_t;
 
 typedef struct __accm_uapi_v30 {
+    // M4_STRUCT_DESC("mode", "normal_ui_style")
+    uapi_wb_mode_t mode;
     // M4_STRUCT_DESC("manual", "normal_ui_style")
     rk_aiq_ccm_mccm_attrib_t manual;
 } accm_uapi_v30_t;
 
 typedef struct __a3dlut_uapi {
+    // M4_STRUCT_DESC("mode", "normal_ui_style")
+    uapi_wb_mode_t mode;
     // M4_STRUCT_DESC("manual", "normal_ui_style")
-    rk_aiq_lut3d_attrib_t manual;
+    rk_aiq_lut3d_mlut3d_attrib_t manual;
 } a3dlut_uapi_t;
 
 typedef struct __agicv2_uapi {
@@ -237,20 +394,6 @@ typedef struct __aiq_uapi_t {
     // M4_STRUCT_DESC("alsc_uapi", "normal_ui_style")
     alsc_uapi_t alsc_uapi;
 #if defined(ISP_HW_V30)
-    // M4_STRUCT_DESC("ablc_v30_uapi", "normal_ui_style")
-    ablc_uapi_v30_t ablc_v30_uapi;
-    // M4_STRUCT_DESC("abayer2dnr_v2_uapi", "normal_ui_style")
-    abayer2dnr_uapi_v30_t abayer2dnr_v2_uapi;
-    // M4_STRUCT_DESC("abayertnr_v2_uapi", "normal_ui_style")
-    abayertnr_uapi_v30_t abayertnr_v2_uapi;
-    // M4_STRUCT_DESC("aynr_v3_uapi", "normal_ui_style")
-    aynr_uapi_v30_t aynr_v3_uapi;
-    // M4_STRUCT_DESC("acnr_v2_uapi", "normal_ui_style")
-    acnr_uapi_v30_t acnr_v2_uapi;
-    // M4_STRUCT_DESC("asharp_v4_uapi", "normal_ui_style")
-    asharp_uapi_v30_t asharp_v4_uapi;
-    // M4_STRUCT_DESC("again_v2_uapi", "normal_ui_style")
-    again_uapi_v30_t again_v2_uapi;
     // M4_STRUCT_DESC("custom_af_uapi", "normal_ui_style")
     custom_af_uapi_t custom_af_uapi;
     // M4_STRUCT_DESC("accm_uapi", "normal_ui_style")
@@ -258,8 +401,23 @@ typedef struct __aiq_uapi_t {
     // M4_STRUCT_DESC("camgroup_uapi", "normal_ui_style", M4_HIDE(1))
     camgroup_uapi_t camgroup_uapi;
 #endif
+    // M4_STRUCT_DESC("ablc_uapi", "normal_ui_style")
+    ablc_uapi_t ablc_uapi;
     // M4_STRUCT_DESC("adebayer_uapi", "normal_ui_style")
     adebayer_uapi_t   adebayer_uapi;
+    // M4_STRUCT_DESC("abayertnr_uapi", "normal_ui_style")
+    abayertnr_uapi_t abayertnr_uapi;
+    // M4_STRUCT_DESC("abayer2dnr_uapi", "normal_ui_style")
+    abayer2dnr_uapi_t abayer2dnr_uapi;
+    // M4_STRUCT_DESC("aynr_uapi", "normal_ui_style")
+    aynr_uapi_t aynr_uapi;
+    // M4_STRUCT_DESC("acnr_uapi", "normal_ui_style")
+    acnr_uapi_t acnr_uapi;
+    // M4_STRUCT_DESC("asharp_uapi", "normal_ui_style")
+    asharp_uapi_t asharp_uapi;
+    // M4_STRUCT_DESC("again_uapi", "normal_ui_style")
+    again_uapi_t again_uapi;
+
 } RkaiqUapi_t;
 
 #ifdef __cplusplus

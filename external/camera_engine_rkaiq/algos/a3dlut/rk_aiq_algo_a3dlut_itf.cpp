@@ -28,6 +28,8 @@ RKAIQ_BEGIN_DECLARE
 static XCamReturn
 create_context(RkAiqAlgoContext **context, const AlgoCtxInstanceCfg* cfg)
 {
+    XCamReturn ret = XCAM_RETURN_NO_ERROR;
+
     LOG1_A3DLUT( "%s: (enter)\n", __FUNCTION__);
     RkAiqAlgoContext *ctx = new RkAiqAlgoContext();
     if (ctx == NULL) {
@@ -35,12 +37,12 @@ create_context(RkAiqAlgoContext **context, const AlgoCtxInstanceCfg* cfg)
         return XCAM_RETURN_ERROR_MEM;
     }
 
-    Alut3dInit(&ctx->a3dlut_para, cfg->calibv2);
+    ret = Alut3dInit(&ctx->a3dlut_para, cfg->calibv2);
 
     *context = ctx;
 
     LOG1_A3DLUT( "%s: (exit)\n", __FUNCTION__);
-    return XCAM_RETURN_NO_ERROR;
+    return ret;
 }
 
 static XCamReturn

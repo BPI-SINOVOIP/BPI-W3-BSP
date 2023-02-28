@@ -1,0 +1,7 @@
+0x00000000	rtkm_kzalloc	/media/jack/data2/3588_linux/3588_linux5.10_v1.0.5/external/rkwifibt/drivers/rtl8852be/rtkm	EXPORT_SYMBOL	
+0x00000000	rtkm_kmalloc	/media/jack/data2/3588_linux/3588_linux5.10_v1.0.5/external/rkwifibt/drivers/rtl8852be/rtkm	EXPORT_SYMBOL	
+0x00000000	rtkm_prealloc_destroy	/media/jack/data2/3588_linux/3588_linux5.10_v1.0.5/external/rkwifibt/drivers/rtl8852be/rtkm	EXPORT_SYMBOL	
+0x00000000	rtkm_dump_mstatus	/media/jack/data2/3588_linux/3588_linux5.10_v1.0.5/external/rkwifibt/drivers/rtl8852be/rtkm	EXPORT_SYMBOL	
+0x00000000	rtkm_kfree	/media/jack/data2/3588_linux/3588_linux5.10_v1.0.5/external/rkwifibt/drivers/rtl8852be/rtkm	EXPORT_SYMBOL	
+0x00000000	rtkm_prealloc_init	/media/jack/data2/3588_linux/3588_linux5.10_v1.0.5/external/rkwifibt/drivers/rtl8852be/rtkm	EXPORT_SYMBOL	
+0x00000000	rtkm_set_trace	/media/jack/data2/3588_linux/3588_linux5.10_v1.0.5/external/rkwifibt/drivers/rtl8852be/rtkm	EXPORT_SYMBOL	

@@ -22,23 +22,14 @@ static void sample_adehaze_usage()
     printf("Usage : \n");
     printf("\t 0) ADEHAZE:         test test rk_aiq_user_api2_adehaze_setSwAttrib DEHAZE_API_MANUAL Sync.\n");
     printf("\t 1) ADEHAZE:         test test rk_aiq_user_api2_adehaze_setSwAttrib DEHAZE_API_MANUAL Async.\n");
-    printf("\t 2) ADEHAZE:         test rk_aiq_user_api2_adehaze_setSwAttrib DEHAZE_API_DEHAZE_AUTO Sync.\n");
-    printf("\t 3) ADEHAZE:         test rk_aiq_user_api2_adehaze_setSwAttrib DEHAZE_API_DEHAZE_AUTO Async.\n");
-    printf("\t 4) ADEHAZE:         test rk_aiq_user_api2_adehaze_setSwAttrib DEHAZE_API_DEHAZE_MANUAL Sync.\n");
-    printf("\t 5) ADEHAZE:         test rk_aiq_user_api2_adehaze_setSwAttrib DEHAZE_API_DEHAZE_MANUAL Async.\n");
-    printf("\t 6) ADEHAZE:         test rk_aiq_user_api2_adehaze_setSwAttrib DEHAZE_API_DEHAZE_OFF Sync.\n");
-    printf("\t 7) ADEHAZE:         test rk_aiq_user_api2_adehaze_setSwAttrib DEHAZE_API_DEHAZE_OFF Async.\n");
-    printf("\t 8) ADEHAZE:         test rk_aiq_user_api2_adehaze_setSwAttrib DEHAZE_API_ENHANCE_MANUAL Sync.\n");
-    printf("\t 9) ADEHAZE:         test rk_aiq_user_api2_adehaze_setSwAttrib DEHAZE_API_ENHANCE_MANUAL Async.\n");
-    printf("\t a) ADEHAZE:         test rk_aiq_user_api2_adehaze_setSwAttrib DEHAZE_API_ENHANCE_AUTO Sync.\n");
-    printf("\t b) ADEHAZE:         test rk_aiq_user_api2_adehaze_setSwAttrib DEHAZE_API_ENHANCE_AUTO Async.\n");
-    printf("\t c) ADEHAZE:         test rk_aiq_user_api2_adehaze_setSwAttrib DEHAZE_API_ENHANCE_OFF Sync.\n");
-    printf("\t d) ADEHAZE:         test rk_aiq_user_api2_adehaze_setSwAttrib DEHAZE_API_ENHANCE_OFF Async.\n");
-    printf("\t e) ADEHAZE:         test rk_aiq_user_api2_adehaze_getSwAttrib.\n");
-    printf("\t f) ADEHAZE:         test rk_aiq_uapi2_getMDehazeStrth.\n");
-    printf("\t g) ADEHAZE:         test rk_aiq_uapi2_setMDehazeStrth.\n");
-    printf("\t h) ADEHAZE:         test rk_aiq_uapi2_getMEnhanceStrth.\n");
-    printf("\t i) ADEHAZE:         test rk_aiq_uapi2_setMEnhanceStrth.\n");
+    printf("\t 2) ADEHAZE:         test rk_aiq_user_api2_adehaze_getSwAttrib.\n");
+    printf("\t 3) ADEHAZE:         test rk_aiq_uapi2_setDehazeModuleEnable.\n");
+    printf("\t 4) ADEHAZE:         test rk_aiq_uapi2_setDehazeEnable.\n");
+    printf("\t 5) ADEHAZE:         test rk_aiq_uapi2_getMDehazeStrth.\n");
+    printf("\t 6) ADEHAZE:         test rk_aiq_uapi2_setMDehazeStrth.\n");
+    printf("\t 7) ADEHAZE:         test rk_aiq_uapi2_setEnhanceEnable.\n");
+    printf("\t 8) ADEHAZE:         test rk_aiq_uapi2_getMEnhanceStrth.\n");
+    printf("\t 9) ADEHAZE:         test rk_aiq_uapi2_setMEnhanceStrth.\n");
     printf("\t q) ADEHAZE:         return to main sample screen.\n");
 
     printf("\n");
@@ -58,6 +49,7 @@ XCamReturn sample_adehaze_module(const void *arg)
     CLEAR();
 
     adehaze_sw_V2_t attr;
+    memset(&attr, 0, sizeof(attr));
     const demo_context_t *demo_ctx = (demo_context_t *)arg;
     const rk_aiq_sys_ctx_t* ctx ;
     if (demo_ctx->camGroup) {
@@ -83,7 +75,7 @@ XCamReturn sample_adehaze_module(const void *arg)
             attr.sync.done = false;
             attr.mode = DEHAZE_API_MANUAL;
             attr.stManual.Enable = true;
-            attr.stManual.cfg_alpha = 1.0;
+            attr.stManual.cfg_alpha                                 = 0.0;
             attr.stManual.dehaze_setting.en = false;
             attr.stManual.dehaze_setting.air_lc_en = true;
             attr.stManual.dehaze_setting.stab_fnum = 8;
@@ -115,8 +107,8 @@ XCamReturn sample_adehaze_module(const void *arg)
             attr.stManual.dehaze_setting.DehazeData.space_sigma_cur = 0.14;
 
             attr.stManual.enhance_setting.en = true;
-            attr.stManual.enhance_setting.EnhanceData.enhance_value = 1.0;
-            attr.stManual.enhance_setting.EnhanceData.enhance_chroma = 1.0;
+            attr.stManual.enhance_setting.EnhanceData.enhance_value  = 2.0;
+            attr.stManual.enhance_setting.EnhanceData.enhance_chroma = 2.0;
             attr.stManual.enhance_setting.enhance_curve[0] = 0;
             attr.stManual.enhance_setting.enhance_curve[1] = 64;
             attr.stManual.enhance_setting.enhance_curve[2] = 128;
@@ -143,12 +135,6 @@ XCamReturn sample_adehaze_module(const void *arg)
             attr.stManual.hist_setting.HistData.hist_min = 0.015;
             attr.stManual.hist_setting.HistData.hist_scale = 0.09;
             attr.stManual.hist_setting.HistData.cfg_gratio = 2;
-
-            attr.stManual.sigma_curve[0] = -7.80229e-013;
-            attr.stManual.sigma_curve[1] = -7.80229e-013;
-            attr.stManual.sigma_curve[2] = -2.20431e-005;
-            attr.stManual.sigma_curve[3] = 0.0298751;
-            attr.stManual.sigma_curve[4] = 10.9382;
             rk_aiq_user_api2_adehaze_setSwAttrib(ctx, attr);
             break;
         }
@@ -158,8 +144,8 @@ XCamReturn sample_adehaze_module(const void *arg)
             attr.sync.done = false;
             attr.mode = DEHAZE_API_MANUAL;
             attr.stManual.Enable                                    = true;
-            attr.stManual.cfg_alpha = 0.0;
-            attr.stManual.dehaze_setting.en = false;
+            attr.stManual.cfg_alpha                                 = 1.0;
+            attr.stManual.dehaze_setting.en                         = true;
             attr.stManual.dehaze_setting.air_lc_en = true;
             attr.stManual.dehaze_setting.stab_fnum = 8;
             attr.stManual.dehaze_setting.sigma = 6;
@@ -189,8 +175,8 @@ XCamReturn sample_adehaze_module(const void *arg)
             attr.stManual.dehaze_setting.DehazeData.space_sigma_pre = 0.14;
             attr.stManual.dehaze_setting.DehazeData.space_sigma_cur = 0.14;
 
-            attr.stManual.enhance_setting.en = true;
-            attr.stManual.enhance_setting.EnhanceData.enhance_value = 1.0;
+            attr.stManual.enhance_setting.en                         = false;
+            attr.stManual.enhance_setting.EnhanceData.enhance_value  = 1.0;
             attr.stManual.enhance_setting.EnhanceData.enhance_chroma = 1.0;
             attr.stManual.enhance_setting.enhance_curve[0] = 0;
             attr.stManual.enhance_setting.enhance_curve[1] = 64;
@@ -218,116 +204,10 @@ XCamReturn sample_adehaze_module(const void *arg)
             attr.stManual.hist_setting.HistData.hist_min = 0.015;
             attr.stManual.hist_setting.HistData.hist_scale = 0.09;
             attr.stManual.hist_setting.HistData.cfg_gratio = 2;
-
-            attr.stManual.sigma_curve[0] = -7.80229e-013;
-            attr.stManual.sigma_curve[1] = -7.80229e-013;
-            attr.stManual.sigma_curve[2] = -2.20431e-005;
-            attr.stManual.sigma_curve[3] = 0.0298751;
-            attr.stManual.sigma_curve[4] = 18.7607;
             rk_aiq_user_api2_adehaze_setSwAttrib(ctx, attr);
             break;
         }
         case '2': {
-            printf("\t ADEHAZE test rk_aiq_user_api2_adehaze_setSwAttrib DEHAZE_API_DEHAZE_AUTO Sync\n\n");
-            attr.sync.sync_mode = RK_AIQ_UAPI_MODE_DEFAULT;
-            attr.sync.done = false;
-            attr.mode = DEHAZE_API_DEHAZE_AUTO;
-            rk_aiq_user_api2_adehaze_setSwAttrib(ctx, attr);
-            break;
-        }
-        case '3': {
-            printf("\t ADEHAZE test rk_aiq_user_api2_adehaze_setSwAttrib DEHAZE_API_DEHAZE_AUTO Async\n\n");
-            attr.sync.sync_mode = RK_AIQ_UAPI_MODE_ASYNC;
-            attr.sync.done = false;
-            attr.mode = DEHAZE_API_DEHAZE_AUTO;
-            rk_aiq_user_api2_adehaze_setSwAttrib(ctx, attr);
-            break;
-        }
-        case '4': {
-            printf("\t ADEHAZE test rk_aiq_user_api2_adehaze_setSwAttrib DEHAZE_API_DEHAZE_MANUAL Sync\n\n");
-            attr.sync.sync_mode = RK_AIQ_UAPI_MODE_DEFAULT;
-            attr.sync.done = false;
-            attr.mode = DEHAZE_API_DEHAZE_MANUAL;
-            attr.stDehazeManu.level = 75;
-            rk_aiq_user_api2_adehaze_setSwAttrib(ctx, attr);
-            break;
-        }
-        case '5': {
-            printf("\t ADEHAZE test rk_aiq_user_api2_adehaze_setSwAttrib DEHAZE_API_DEHAZE_MANUAL Async\n\n");
-            attr.sync.sync_mode = RK_AIQ_UAPI_MODE_ASYNC;
-            attr.sync.done = false;
-            attr.mode = DEHAZE_API_DEHAZE_MANUAL;
-            attr.stDehazeManu.level = 70;
-            rk_aiq_user_api2_adehaze_setSwAttrib(ctx, attr);
-            break;
-        }
-        case '6': {
-            printf("\t ADEHAZE test rk_aiq_user_api2_adehaze_setSwAttrib DEHAZE_API_DEHAZE_OFF Sync\n\n");
-            attr.sync.sync_mode = RK_AIQ_UAPI_MODE_DEFAULT;
-            attr.sync.done = false;
-            attr.mode = DEHAZE_API_DEHAZE_OFF;
-            rk_aiq_user_api2_adehaze_setSwAttrib(ctx, attr);
-            break;
-        }
-        case '7': {
-            printf("\t ADEHAZE test rk_aiq_user_api2_adehaze_setSwAttrib DEHAZE_API_DEHAZE_OFF Async\n\n");
-            attr.sync.sync_mode = RK_AIQ_UAPI_MODE_ASYNC;
-            attr.sync.done = false;
-            attr.mode = DEHAZE_API_DEHAZE_OFF;
-            rk_aiq_user_api2_adehaze_setSwAttrib(ctx, attr);
-            break;
-        }
-        case '8': {
-            printf("\t ADEHAZE test rk_aiq_user_api2_adehaze_setSwAttrib DEHAZE_API_ENHANCE_MANUAL Sync\n\n");
-            attr.sync.sync_mode = RK_AIQ_UAPI_MODE_DEFAULT;
-            attr.sync.done = false;
-            attr.mode = DEHAZE_API_ENHANCE_MANUAL;
-            attr.stEnhanceManu.level = 78;
-            rk_aiq_user_api2_adehaze_setSwAttrib(ctx, attr);
-            break;
-        }
-        case '9': {
-            printf("\t ADEHAZE test rk_aiq_user_api2_adehaze_setSwAttrib DEHAZE_API_ENHANCE_MANUAL Async\n\n");
-            attr.sync.sync_mode = RK_AIQ_UAPI_MODE_ASYNC;
-            attr.sync.done = false;
-            attr.mode = DEHAZE_API_ENHANCE_MANUAL;
-            attr.stEnhanceManu.level = 70;
-            rk_aiq_user_api2_adehaze_setSwAttrib(ctx, attr);
-            break;
-        }
-        case 'a': {
-            printf("\t ADEHAZE test rk_aiq_user_api2_adehaze_setSwAttrib DEHAZE_API_ENHANCE_AUTO Sync\n\n");
-            attr.sync.sync_mode = RK_AIQ_UAPI_MODE_DEFAULT;
-            attr.sync.done = false;
-            attr.mode = DEHAZE_API_ENHANCE_AUTO;
-            rk_aiq_user_api2_adehaze_setSwAttrib(ctx, attr);
-            break;
-        }
-        case 'b': {
-            printf("\t ADEHAZE test rk_aiq_user_api2_adehaze_setSwAttrib DEHAZE_API_ENHANCE_AUTO Async\n\n");
-            attr.sync.sync_mode = RK_AIQ_UAPI_MODE_ASYNC;
-            attr.sync.done = false;
-            attr.mode = DEHAZE_API_ENHANCE_AUTO;
-            rk_aiq_user_api2_adehaze_setSwAttrib(ctx, attr);
-            break;
-        }
-        case 'c': {
-            printf("\t ADEHAZE test rk_aiq_user_api2_adehaze_setSwAttrib DEHAZE_API_ENHANCE_OFF Sync\n\n");
-            attr.sync.sync_mode = RK_AIQ_UAPI_MODE_DEFAULT;
-            attr.sync.done = false;
-            attr.mode = DEHAZE_API_ENHANCE_OFF;
-            rk_aiq_user_api2_adehaze_setSwAttrib(ctx, attr);
-            break;
-        }
-        case 'd': {
-            printf("\t ADEHAZE test rk_aiq_user_api2_adehaze_setSwAttrib DEHAZE_API_ENHANCE_OFF Async\n\n");
-            attr.sync.sync_mode = RK_AIQ_UAPI_MODE_ASYNC;
-            attr.sync.done = false;
-            attr.mode = DEHAZE_API_ENHANCE_OFF;
-            rk_aiq_user_api2_adehaze_setSwAttrib(ctx, attr);
-            break;
-        }
-        case 'e': {
             printf("\t ADEHAZE test rk_aiq_user_api2_adehaze_getSwAttrib\n\n");
             rk_aiq_user_api2_adehaze_getSwAttrib(ctx, &attr);
             printf("\t sync = %d, done = %d\n", attr.sync.sync_mode, attr.sync.done);
@@ -335,33 +215,50 @@ XCamReturn sample_adehaze_module(const void *arg)
             printf("\t stManual Enable: %d cfg_alpha:%f\n\n", attr.stManual.Enable, attr.stManual.cfg_alpha);
             printf("\t stDehazeManu level: %d\n\n", attr.stDehazeManu.level);
             printf("\t stEnhanceManu level: %d\n\n", attr.stEnhanceManu.level);
-            printf("\t sigma_curve[3]:%f sigma_curve[4]:%f\n\n", attr.stManual.sigma_curve[3],
-                   attr.stManual.sigma_curve[4]);
             break;
         }
-        case 'f': {
+        case '3': {
+            printf("\t ADEHAZE test rk_aiq_uapi2_setDehazeModuleEnable\n\n");
+            rk_aiq_uapi2_setDehazeModuleEnable(ctx, false);
+            break;
+        }
+        case '4': {
+            printf("\t ADEHAZE test rk_aiq_uapi2_setDehazeEnable\n\n");
+            rk_aiq_uapi2_setDehazeEnable(ctx, false);
+            break;
+        }
+        case '5': {
             printf("\t ADEHAZE test rk_aiq_uapi2_getMDehazeStrth\n\n");
             unsigned int level = 60;
             rk_aiq_uapi2_getMDehazeStrth(ctx, &level);
             printf("\t rk_aiq_uapi2_getMDehazeStrth level: %d\n\n", level);
             break;
         }
-        case 'g': {
+        case '6': {
             printf("\t ADEHAZE test rk_aiq_uapi2_setMDehazeStrth\n\n");
+            rk_aiq_uapi2_setDehazeModuleEnable(ctx, true);
+            rk_aiq_uapi2_setDehazeEnable(ctx, true);
             unsigned int level = 70;
             rk_aiq_uapi2_setMDehazeStrth(ctx, level);
             printf("\t rk_aiq_uapi2_setMDehazeStrth level: %d\n\n", level);
             break;
         }
-        case 'h': {
+        case '7': {
+            printf("\t ADEHAZE test rk_aiq_uapi2_setEnhanceEnable\n\n");
+            rk_aiq_uapi2_setEnhanceEnable(ctx, false);
+            break;
+        }
+        case '8': {
             printf("\t ADEHAZE test rk_aiq_uapi2_getMEnhanceStrth\n\n");
             unsigned int level = 60;
             rk_aiq_uapi2_getMEnhanceStrth(ctx, &level);
             printf("\t rk_aiq_uapi2_getMEnhanceStrth level: %d\n\n", level);
             break;
         }
-        case 'i': {
+        case '9': {
             printf("\t ADEHAZE test rk_aiq_uapi2_setMEnhanceStrth\n\n");
+            rk_aiq_uapi2_setDehazeModuleEnable(ctx, true);
+            rk_aiq_uapi2_setEnhanceEnable(ctx, true);
             unsigned int level = 70;
             rk_aiq_uapi2_setMEnhanceStrth(ctx, level);
             printf("\t rk_aiq_uapi2_setMEnhanceStrth level: %d\n\n", level);

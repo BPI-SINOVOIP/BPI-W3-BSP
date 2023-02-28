@@ -39,6 +39,19 @@ rk_aiq_uapi_camgroup_againV2_GetAttrib(const RkAiqAlgoContext *ctx,
     return XCAM_RETURN_NO_ERROR;
 }
 
+XCamReturn
+rk_aiq_uapi_camgroup_againV2_GetInfo(const RkAiqAlgoContext *ctx,
+                                     rk_aiq_gain_info_v2_t *pInfo)
+{
+
+    CamGroup_Again_Contex_t *pGroupCtx = (CamGroup_Again_Contex_t *)ctx;
+    Again_Context_V2_t* pCtx = pGroupCtx->again_contex_v2;
+
+    pInfo->iso = pCtx->stExpInfo.arIso[pCtx->stExpInfo.hdr_mode];
+    pInfo->expo_info = pCtx->stExpInfo;
+
+    return XCAM_RETURN_NO_ERROR;
+}
 
 
 #endif

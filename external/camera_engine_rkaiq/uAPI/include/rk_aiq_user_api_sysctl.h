@@ -463,6 +463,16 @@ int rk_aiq_uapi_sysctl_switch_scene(const rk_aiq_sys_ctx_t* sys_ctx,
                                     const char* main_scene,
                                     const char* sub_scene);
 
+/**
+ * @brief turn on/off socket server
+ *
+ * @param sys_ctx
+ * @param enable
+ *
+ * @return 0 if no error
+ */
+int rk_aiq_uapi_sysctl_tuning_enable(rk_aiq_sys_ctx_t* sys_ctx, bool enable);
+
 RKAIQ_END_DECLARE
 
 #endif

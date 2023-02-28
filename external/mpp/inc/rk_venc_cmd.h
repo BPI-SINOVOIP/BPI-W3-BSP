@@ -418,6 +418,8 @@ typedef enum MppEncHwCfgChange_e {
     MPP_ENC_HW_CFG_CHANGE_AQ_STEP_I     = (1 << 4),
     MPP_ENC_HW_CFG_CHANGE_AQ_STEP_P     = (1 << 5),
     MPP_ENC_HW_CFG_CHANGE_MB_RC         = (1 << 6),
+    MPP_ENC_HW_CFG_CHANGE_CU_MODE_BIAS  = (1 << 8),
+    MPP_ENC_HW_CFG_CHANGE_CU_SKIP_BIAS  = (1 << 9),
     MPP_ENC_HW_CFG_CHANGE_ALL           = (0xFFFFFFFF),
 } MppEncHwCfgChange;
 
@@ -443,6 +445,32 @@ typedef struct MppEncHwCfg_t {
 
     /* vepu580 */
     RK_S32                  extra_buf;
+
+    /*
+     * block mode decision bias config
+     * 0 - intra32x32
+     * 1 - intra16x16
+     * 2 - intra8x8
+     * 3 - intra4x4
+     * 4 - inter64x64
+     * 5 - inter32x32
+     * 6 - inter16x16
+     * 7 - inter8x8
+     * value range 0 ~ 15, default : 8
+     * If the value is smaller then encoder will be more likely to encode corresponding block mode.
+     */
+    RK_S32                  mode_bias[8];
+
+    /*
+     * skip mode bias config
+     * skip_bias_en - enable flag for skip bias config
+     * skip_sad     - sad threshold for skip / non-skip
+     * skip_bias    - tendency for skip, value range 0 ~ 15, default : 8
+     *                If the value is smaller then encoder will be more likely to encode skip block.
+     */
+    RK_S32                  skip_bias_en;
+    RK_S32                  skip_sad;
+    RK_S32                  skip_bias;
 } MppEncHwCfg;
 
 /*
@@ -452,8 +480,9 @@ typedef enum MppEncPrepCfgChange_e {
     MPP_ENC_PREP_CFG_CHANGE_INPUT       = (1 << 0),     /* change on input config */
     MPP_ENC_PREP_CFG_CHANGE_FORMAT      = (1 << 2),     /* change on format */
     /* transform parameter */
-    MPP_ENC_PREP_CFG_CHANGE_ROTATION    = (1 << 4),     /* change on ration */
+    MPP_ENC_PREP_CFG_CHANGE_ROTATION    = (1 << 4),     /* change on rotation */
     MPP_ENC_PREP_CFG_CHANGE_MIRRORING   = (1 << 5),     /* change on mirroring */
+    MPP_ENC_PREP_CFG_CHANGE_FLIP        = (1 << 6),     /* change on flip */
     /* enhancement parameter */
     MPP_ENC_PREP_CFG_CHANGE_DENOISE     = (1 << 8),     /* change on denoise */
     MPP_ENC_PREP_CFG_CHANGE_SHARPEN     = (1 << 9),     /* change on denoise */
@@ -522,15 +551,24 @@ typedef struct MppEncPrepCfg_t {
     MppFrameColorTransferCharacteristic colortrc;
     MppFrameColorRange  range;
 
+    /* suffix ext means the user set config externally */
     MppEncRotationCfg   rotation;
+    MppEncRotationCfg   rotation_ext;
 
     /*
      * input frame mirroring parameter
      * 0 - disable mirroring
      * 1 - horizontal mirroring
-     * 2 - vertical mirroring
      */
     RK_S32              mirroring;
+    RK_S32              mirroring_ext;
+
+    /*
+     * input frame flip parameter
+     * 0 - disable flip
+     * 1 - flip, vertical mirror transformation
+     */
+    RK_S32              flip;
 
     /*
      * TODO:
@@ -639,6 +677,10 @@ typedef enum MppEncH264CfgChange_e {
 
     /* change on vui */
     MPP_ENC_H264_CFG_CHANGE_VUI             = (1 << 28),
+
+    /* change on constraint */
+    MPP_ENC_H264_CFG_CHANGE_CONSTRAINT_SET  = (1 << 29),
+
     MPP_ENC_H264_CFG_CHANGE_ALL             = (0xFFFFFFFF),
 } MppEncH264CfgChange;
 
@@ -778,6 +820,17 @@ typedef struct MppEncH264Cfg_t {
     RK_S32              max_tid;
     RK_S32              prefix_mode;
     RK_S32              base_layer_pid;
+    /*
+     * Mpp encoder constraint_set parameter
+     * Mpp encoder constraint_set controls constraint_setx_flag in AVC.
+     * Mpp encoder constraint_set uses type RK_U32 to store force_flag and constraint_force as followed.
+     * | 00 | force_flag | 00 | constraint_force |
+     * As for force_flag and constraint_force, only low 6 bits are valid,
+     * corresponding to constraint_setx_flag from 5 to 0.
+     * If force_flag bit is enabled, constraint_setx_flag will be set correspondingly.
+     * Otherwise, constraint_setx_flag will use default value.
+     */
+    RK_U32              constraint_set;
 } MppEncH264Cfg;
 
 #define H265E_MAX_ROI_NUMBER  64
@@ -887,6 +940,7 @@ typedef enum MppEncH265CfgChange_e {
     MPP_ENC_H265_CFG_RC_I_QP_CHANGE             = (1 << 19),
     MPP_ENC_H265_CFG_RC_MAX_QP_STEP_CHANGE      = (1 << 21),
     MPP_ENC_H265_CFG_RC_IP_DELTA_QP_CHANGE      = (1 << 20),
+    MPP_ENC_H265_CFG_TITLE_CHANGE               = (1 << 22),
     MPP_ENC_H265_CFG_CHANGE_ALL                 = (0xFFFFFFFF),
 } MppEncH265CfgChange;
 
@@ -1007,6 +1061,7 @@ typedef struct MppEncH265Cfg_t {
     MppEncH265DblkCfg_t  dblk_cfg;
     MppEncH265RefCfg     ref_cfg;
     MppEncH265MergesCfg  merge_cfg;
+    RK_S32               auto_tile;
 
     /* extra info */
     MppEncH265VuiCfg    vui;
@@ -1105,6 +1160,11 @@ typedef enum MppEncSplitMode_e {
     MPP_ENC_SPLIT_BY_CTU,
 } MppEncSplitMode;
 
+typedef enum MppEncSplitOutMode_e {
+    MPP_ENC_SPLIT_OUT_LOWDELAY              = (1 << 0),
+    MPP_ENC_SPLIT_OUT_SEGMENT               = (1 << 1),
+} MppEncSplitOutMode;
+
 typedef struct MppEncSliceSplit_t {
     RK_U32  change;
 
@@ -1130,8 +1190,10 @@ typedef struct MppEncSliceSplit_t {
     /*
      * slice split output mode
      *
-     * 0    - output all slice in one packet
-     * 1    - output each slice in a single packet
+     * MPP_ENC_SPLIT_OUT_LOWDELAY
+     * - When enabled encoder will lowdelay output each slice in a single packet
+     * MPP_ENC_SPLIT_OUT_SEGMENT
+     * - When enabled encoder will packet with segment info for each slice
      */
     RK_U32  split_out;
 } MppEncSliceSplit;

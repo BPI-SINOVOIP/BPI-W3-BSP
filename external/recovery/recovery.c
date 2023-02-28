@@ -861,7 +861,7 @@ main(int argc, char **argv) {
     const char *encrypted_fs_mode = NULL;
     int wipe_data = 0;
     int wipe_all = 0;
-    int pcba_test = 0;  //chad.ma add for pcba test
+    int pcba_test = 0;  // add for pcba test
     int toggle_secure_fs = 0;
     encrypted_fs_info encrypted_fs_data;
 
@@ -876,7 +876,7 @@ main(int argc, char **argv) {
         case 'a': wipe_all = 1; break;
         case 'e': encrypted_fs_mode = optarg; toggle_secure_fs = 1; break;
         case 't': ui_show_text(1); break;
-        case 'f': pcba_test = 1; break;  //chad.ma add for pcba test
+        case 'f': pcba_test = 1; break;  // add for pcba test
         case '?':
             LOGE("Invalid command argument\n");
             continue;
@@ -1010,7 +1010,7 @@ main(int argc, char **argv) {
         if (status != INSTALL_SUCCESS) ui_print("Installation aborted.\n");
         ui_print("update.img Installation done.\n");
         //ui_show_text(0);
-    }else if (sdupdate_package != NULL) {
+    } else if (sdupdate_package != NULL) {
         // update image from sdcard
 #ifdef USE_RKUPDATE
         const char* binary = "/usr/bin/rkupdate";
@@ -1087,15 +1087,16 @@ main(int argc, char **argv) {
 
         ui_print("resize oem done.\n");
         //ui_show_text(0);
-    }
-    else if (pcba_test)
-    {
+    } else if (pcba_test) {
          //pcba test todo...
          printf("------------------ pcba test start -------------\n");
          exit(EXIT_SUCCESS); //exit recovery bin directly, not start pcba here, in rkLanuch.sh
          return 0;
-    }
-    else {
+    } else {
+        if (argc == 1) { // No command specified
+            finish_recovery(NULL);
+            return 0;
+        }
         status = INSTALL_ERROR;  // No command specified
     }
 

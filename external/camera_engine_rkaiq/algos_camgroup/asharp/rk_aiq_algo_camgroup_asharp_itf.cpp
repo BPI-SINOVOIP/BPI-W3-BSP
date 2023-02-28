@@ -144,6 +144,7 @@ static XCamReturn groupAsharpPrepare(RkAiqAlgoCom* params)
 
     if(g_asharp_hw_ver == ASHARP_HARDWARE_V3) {
         Asharp_Context_V3_t * asharp_contex_v3 = asharp_group_contex->asharp_contex_v3;
+		asharp_contex_v3->prepare_type = params->u.prepare.conf_type;
         if(!!(params->u.prepare.conf_type & RK_AIQ_ALGO_CONFTYPE_UPDATECALIB )) {
             // todo  update calib pars for surround view
 #if ASHARP_USE_JSON_FILE_V3
@@ -166,6 +167,7 @@ static XCamReturn groupAsharpPrepare(RkAiqAlgoCom* params)
     }
     else if(g_asharp_hw_ver == ASHARP_HARDWARE_V4) {
         Asharp_Context_V4_t * asharp_contex_v4 = asharp_group_contex->asharp_contex_v4;
+		asharp_contex_v4->prepare_type = params->u.prepare.conf_type;
         if(!!(params->u.prepare.conf_type & RK_AIQ_ALGO_CONFTYPE_UPDATECALIB )) {
             // todo  update calib pars for surround view
 #if ASHARP_USE_JSON_FILE_V4
@@ -239,7 +241,7 @@ static XCamReturn groupAsharpProcessing(const RkAiqAlgoCom* inparams, RkAiqAlgoR
         if((rk_aiq_working_mode_t)procParaGroup->working_mode == RK_AIQ_WORKING_MODE_NORMAL) {
             stExpInfoV3.hdr_mode = 0;
             stExpInfoV3.arAGain[0] = pCurExp->LinearExp.exp_real_params.analog_gain;
-            stExpInfoV3.arDGain[0] = pCurExp->LinearExp.exp_real_params.digital_gain;
+            stExpInfoV3.arDGain[0] = pCurExp->LinearExp.exp_real_params.digital_gain * pCurExp->LinearExp.exp_real_params.isp_dgain;
             stExpInfoV3.arTime[0] = pCurExp->LinearExp.exp_real_params.integration_time;
             stExpInfoV3.arIso[0] = stExpInfoV3.arAGain[0] * stExpInfoV3.arDGain[0] * 50;
 

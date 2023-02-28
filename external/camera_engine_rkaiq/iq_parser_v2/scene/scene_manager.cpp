@@ -16,6 +16,7 @@
  */
 
 #include "scene_manager.h"
+#include "RkAiqCalibDbV2.h"
 #include "j2s.h"
 #include <fcntl.h>
 #include <sys/stat.h>
@@ -173,7 +174,7 @@ RkAiqSceneManager::refToScene(CamCalibDbProj_t *calibproj,
   memset(&ctx, 0, sizeof(CamCalibDbV2Context_t));
 
   if (!main_list || main_list_len < 1) {
-    printf("No avaliable main scene!\n");
+    printf("No avaliable main scene for %s!\n", main_scene);
     return ctx;
   }
 
@@ -189,7 +190,7 @@ RkAiqSceneManager::refToScene(CamCalibDbProj_t *calibproj,
   }
 
   if (!sub_list || sub_list_len < 1) {
-    printf("No avaliable main scene!\n");
+    printf("No avaliable sub scene!\n");
     return ctx;
   }
 
@@ -211,6 +212,301 @@ RkAiqSceneManager::refToScene(CamCalibDbProj_t *calibproj,
   printf("Can't find scene:[%s]/[%s]!\n", main_scene, sub_scene);
 
   return ctx;
+}
+
+cJSON *RkAiqSceneManager::findMainScene(cJSON *base_json, const char *name) {
+  cJSON *json_item = NULL;
+  cJSON *found_main_json = NULL;
+  cJSON *main_scene_json = NULL;
+
+  if (!base_json) {
+    XCAM_LOG_ERROR("input base json is invalid!\n");
+    return NULL;
+  }
+
+  main_scene_json = cJSONUtils_GetPointer(base_json, "/main_scene");
+  if (!main_scene_json) {
+    XCAM_LOG_ERROR("invalid main scene!\n");
+    return NULL;
+  }
+
+  int main_scene_sum = cJSON_GetArraySize(main_scene_json);
+  if (main_scene_sum <= 0) {
+    XCAM_LOG_ERROR("invalid main scene len!\n");
+    return NULL;
+  }
+
+  json_item = main_scene_json->child;
+
+  for (int i = 0; i <= (main_scene_sum - 1); ++i) {
+    if (json_item) {
+      char *name_str = cJSON_GetObjectItem(json_item, "name")->valuestring;
+      if (name_str && strstr(name_str, name)) {
+        found_main_json = json_item;
+        break;
+      }
+          }
+    json_item = json_item->next;
+  }
+
+  return found_main_json;
+}
+
+cJSON *RkAiqSceneManager::findSubScene(cJSON *main_json, const char *name) {
+  cJSON *json_item = NULL;
+  cJSON *found_sub_json = NULL;
+  cJSON *sub_scene_json = NULL;
+
+  if (!main_json) {
+    XCAM_LOG_ERROR("input main scene json is invalid!\n");
+    return NULL;
+  }
+
+  sub_scene_json = cJSONUtils_GetPointer(main_json, "/sub_scene");
+  if (!sub_scene_json) {
+    XCAM_LOG_ERROR("invalid sub scene!\n");
+    return NULL;
+  }
+
+  int sub_scene_sum = cJSON_GetArraySize(sub_scene_json);
+  if (sub_scene_sum <= 0) {
+    XCAM_LOG_ERROR("invalid main scene len!\n");
+    return NULL;
+  }
+
+  json_item = sub_scene_json->child;
+
+  for (int i = 0; i < sub_scene_sum; ++i) {
+    if (json_item) {
+      char *name_str = cJSON_GetObjectItem(json_item, "name")->valuestring;
+      if (name_str && strstr(name_str, name)) {
+        found_sub_json = json_item;
+        break;
+      }
+    }
+    json_item = json_item->next;
+  }
+
+  return found_sub_json;
+}
+
+cJSON *RkAiqSceneManager::findSubScene(cJSON *json, const char *main_scene,
+                                       const char *sub_scene) {
+  return findSubScene(findMainScene(json, main_scene), sub_scene);
+}
+
+cJSON *RkAiqSceneManager::mergeSubMultiScene(cJSON *sub_scene_list,
+                                             cJSON* full_param, bool skip) {
+  cJSON *json_item = NULL;
+  cJSON *new_item = NULL;
+  int sub_scene_sum = 0;
+  int i = 0;
+
+  if (!sub_scene_list || !full_param) {
+    XCAM_LOG_ERROR("input base json is invalid!\n");
+    return NULL;
+  }
+
+  // need skip first full param scene
+  if (cJSON_GetArraySize(sub_scene_list) <= skip) {
+    XCAM_LOG_ERROR("invalid main scene len!\n");
+    return NULL;
+  }
+
+  json_item = sub_scene_list->child;
+
+  sub_scene_sum = cJSON_GetArraySize(sub_scene_list);
+  for (i = 0; i < sub_scene_sum; i++) {
+    if (json_item) {
+      cJSON* temp_item = json_item;
+      json_item = json_item->next;
+      // skip the full param scene
+      if (i == 0 && skip) {
+        continue;
+      }
+      new_item = cJSON_Duplicate(full_param, 1);
+      new_item = cJSONUtils_MergePatch(new_item, temp_item);
+      cJSON_ReplaceItemInArray(sub_scene_list, i, new_item);
+    } else {
+      break;
+    }
+  }
+    return sub_scene_list;
+}
+
+cJSON *RkAiqSceneManager::mergeMainMultiScene(cJSON *main_scene_list) {
+  cJSON *json_item = NULL;
+  cJSON *first_sub_scene_list = NULL;
+  cJSON *main_first = NULL;
+  cJSON *full_param = NULL;
+
+  if (!main_scene_list) {
+    XCAM_LOG_ERROR("input main scene list json is invalid!\n");
+    return NULL;
+  }
+
+  if (cJSON_GetArraySize(main_scene_list) <= 0) {
+    XCAM_LOG_ERROR("invalid main scene len!\n");
+    return NULL;
+  }
+
+  main_first = cJSON_GetArrayItem(main_scene_list, 0);
+  first_sub_scene_list = cJSONUtils_GetPointer(main_first, "/sub_scene");
+
+  if (cJSON_GetArraySize(first_sub_scene_list) <= 0) {
+    XCAM_LOG_ERROR("invalid sub scene len!\n");
+    return NULL;
+  }
+
+  full_param = cJSON_GetArrayItem(first_sub_scene_list, 0);
+
+  if (!full_param) {
+    XCAM_LOG_ERROR("invalid full param scene!\n");
+    return NULL;
+  }
+
+  json_item = main_scene_list->child;
+
+  int main_scene_sum = cJSON_GetArraySize(main_scene_list);
+  for (int i = 0; i < main_scene_sum; i++) {
+    // need skip first main scene's sub scene
+    cJSON *sub_scene_list = cJSONUtils_GetPointer(json_item, "/sub_scene");
+    if (json_item && sub_scene_list) {
+      mergeSubMultiScene(sub_scene_list, full_param, i == 0);
+    }
+    json_item = json_item->next;
+  }
+
+  return main_scene_list;
+}
+
+cJSON *RkAiqSceneManager::mergeMultiSceneIQ(cJSON *base_json) {
+  cJSON *main_scene_list_json = NULL;
+
+  // 1. foreach every sub scene.
+  // 2. merge every sub scene to base scene.
+  // 3. replace sub scene with new json.
+  if (!base_json) {
+    XCAM_LOG_ERROR("input base json is invalid!\n");
+    return NULL;
+  }
+
+  main_scene_list_json = cJSONUtils_GetPointer(base_json, "/main_scene");
+  if (!main_scene_list_json) {
+    XCAM_LOG_ERROR("invalid main scene!\n");
+    return NULL;
+  }
+
+  if (cJSON_GetArraySize(main_scene_list_json) <= 0) {
+    XCAM_LOG_ERROR("invalid main scene len!\n");
+    return NULL;
+  }
+
+  if (!mergeMainMultiScene(main_scene_list_json)) {
+    return NULL;
+  }
+
+  return base_json;
+}
+
+CamCalibDbV2Context_t* RkAiqSceneManager::createSceneCalib(
+    CamCalibDbProj_t* calibproj,
+    const char* main_scene,
+    const char* sub_scene) {
+  CamCalibDbV2Context_t *calib = NULL;
+  CamCalibDbV2Context_t* new_calib = NULL;
+  char* json_buff = NULL;
+  cJSON* root_json = NULL;
+  cJSON* base_json = NULL;
+  cJSON* diff_json = NULL;
+  cJSON* scene_json = NULL;
+  cJSON* calib_json = NULL;
+  j2s_ctx ctx;
+  int ret = -1;
+
+#if defined(ISP_HW_V20)
+    CamCalibDbV2ContextIsp20_t *calib_scene = new CamCalibDbV2ContextIsp20_t;
+#elif defined(ISP_HW_V21)
+    CamCalibDbV2ContextIsp21_t *calib_scene = new CamCalibDbV2ContextIsp21_t;
+#elif defined(ISP_HW_V30)
+    CamCalibDbV2ContextIsp30_t *calib_scene = new CamCalibDbV2ContextIsp30_t;
+#elif defined(ISP_HW_V32)
+    CamCalibDbV2ContextIsp32_t *calib_scene = new CamCalibDbV2ContextIsp32_t;
+#else
+#error "WRONG ISP_HW_VERSION, ONLY SUPPORT V20 AND V21 AND V30 NOW !"
+#endif
+
+  j2s_init(&ctx);
+  json_buff = j2s_dump_root_struct(&ctx, calibproj);
+
+  if (!json_buff) {
+    XCAM_LOG_ERROR("create CamCalibDbProj json failed.");
+    return NULL;
+  }
+
+  root_json = cJSON_Parse(json_buff);
+  if (!root_json) {
+    XCAM_LOG_ERROR("create root json failed.");
+    goto error;
+  }
+
+  base_json = findSubScene(root_json, "normal", "day");
+  diff_json = findSubScene(root_json, main_scene, sub_scene);
+
+  if (!base_json || !diff_json) {
+    XCAM_LOG_ERROR("find sub scene json failed.");
+    goto error;
+  }
+
+  scene_json = cJSONUtils_MergePatch(base_json, diff_json);
+  if (!scene_json) {
+    XCAM_LOG_ERROR("merge sub scene json failed.");
+    goto error;
+  }
+
+#if defined(ISP_HW_V20)
+    calib_json = cJSONUtils_GetPointer(scene_json, "scene_isp20");
+#elif defined(ISP_HW_V21)
+    calib_json = cJSONUtils_GetPointer(scene_json, "scene_isp21");
+#elif defined(ISP_HW_V30)
+    calib_json = cJSONUtils_GetPointer(scene_json, "scene_isp30");
+#elif defined(ISP_HW_V32)
+    calib_json = cJSONUtils_GetPointer(scene_json, "scene_isp32");
+#else
+#error "WRONG ISP_HW_VERSION, ONLY SUPPORT V20 AND V21 AND V30 NOW !"
+#endif
+
+    calib = RkAiqCalibDbV2::CalibV2Alloc();
+    ret = j2s_json_to_struct(&ctx, calib_json,
+                             calibdbv2_get_scene_ctx_struct_name(calib),
+                             calib_scene);
+    if (ret) {
+      XCAM_LOG_ERROR("merge sub scene json failed.");
+      goto error;
+    }
+
+    calib->module_info = &calibproj->module_calib;
+    calib->module_info_len = 1;
+    calib->sensor_info = &calibproj->sensor_calib;
+    calib->sensor_info_len = 1;
+    calib->sys_cfg = &calibproj->sys_static_cfg;
+    calib->sys_cfg_len = 1;
+    calib->calib_scene = (char*)calib_scene;
+
+    new_calib = calib;
+
+error:
+  if (json_buff) {
+    free(json_buff);
+  }
+
+  if (root_json) {
+    cJSON_Delete(root_json);
+  }
+
+  j2s_deinit(&ctx);
+
+  return new_calib;
 }
 
 } // namespace RkCam

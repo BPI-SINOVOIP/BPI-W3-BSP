@@ -107,9 +107,9 @@ static void rknand_print_data(uint8 *s, struct rk_vendor_req *buf,
 				  uint32 len, int pr_type)
 {
 	DEBUG("%s\n",s);
-	DEBUG("tag = %d // id = %d // len = %d // data = 0x%p\n", buf->tag, buf->id, buf->len, buf->data);
+	DEBUG("tag = %d // id = %d // len = %d // data = %p\n", buf->tag, buf->id, buf->len, buf->data);
 
-	INFO("%s: ", (buf->id > VENDOR_ID_MAX) ?
+	INFO("%s:", (buf->id > VENDOR_ID_MAX) ?
 		       "VENDOR_CUSTOM_ID" : vendor_id_table[buf->id - 1]);
 
 	if (pr_type)
@@ -155,7 +155,7 @@ static int vendor_storage_read(int cmd, int pr_type, char *output)
 			ERROR("failed to save %s\n", output);
 			return 0;
 		}
-		fwrite(req->data, strlen(req->data), 1, foutput);
+		fwrite(req->data, req->len, 1, foutput);
 		fclose(foutput);
 		INFO("save output to %s\n", output);
 	}

@@ -151,6 +151,10 @@ IspParamsAssembler::queue_locked(SmartPtr<cam3aResult>& result)
                         mLatestReadyFrmId);
         frame_id = 0;
         result->setId(0);
+    } else if (frame_id == -1) {
+        LOGE_CAMHW_SUBM(ISP20PARAM_SUBM, "type:%s, frame_id == -1 &&  mLatestReadyFrmId == %d ",
+                        Cam3aResultType2Str[type], mLatestReadyFrmId);
+        return ret;
     }
 
     mParamsMap[frame_id].params.push_back(result);
@@ -334,7 +338,19 @@ IspParamsAssembler::deQueOne(cam3aResultList& results, uint32_t& frame_id)
         }
     } else {
         LOG1_CAMHW_SUBM(ISP20PARAM_SUBM, "%s: no ready params", mName.c_str());
-        return XCAM_RETURN_ERROR_PARAM;
+
+        if (mParamsMap.size() > 0) {
+            std::map<int, params_t>::reverse_iterator rit = mParamsMap.rbegin();
+
+            if (rit->first - mLatestReadyFrmId > 5) {
+                std::map<int, params_t>::iterator it = mParamsMap.begin();
+                LOGE_CAMHW_SUBM(ISP20PARAM_SUBM, "not ready params num over 5, force ready: %d", it->first);
+
+                mLatestReadyFrmId = it->first;
+                results = it->second.params;
+                mParamsMap.erase(it);
+            }
+        }
     }
     LOG1_CAMHW_SUBM(ISP20PARAM_SUBM, "%s:(%d) %s: exit \n",
                     __FUNCTION__, __LINE__, mName.c_str());
@@ -406,6 +422,7 @@ Isp20Params::convertAiqAeToIsp20Params
 {
     /* ae update */
     if(/*aec_meas.ae_meas_en*/1) {
+#if 0
         if(_working_mode == RK_AIQ_WORKING_MODE_NORMAL) { // normal
             switch(aec_meas.rawae0.rawae_sel) {
             case 0:
@@ -438,6 +455,11 @@ Isp20Params::convertAiqAeToIsp20Params
             isp_cfg.module_ens |= 1LL << RK_ISP2X_RAWAE1_ID;
             isp_cfg.module_ens |= 1LL << RK_ISP2X_RAWAE2_ID;
         }
+#else
+        isp_cfg.module_ens |= 1LL << RK_ISP2X_RAWAE0_ID;
+        isp_cfg.module_ens |= 1LL << RK_ISP2X_RAWAE1_ID;
+        isp_cfg.module_ens |= 1LL << RK_ISP2X_RAWAE2_ID;
+#endif
 
         isp_cfg.module_ens |= 1LL << RK_ISP2X_RAWAE3_ID;
         isp_cfg.module_ens |= 1LL << RK_ISP2X_YUVAE_ID;
@@ -515,6 +537,7 @@ Isp20Params::convertAiqHistToIsp20Params
 {
     /* hist update */
     if(/*hist_meas.hist_meas_en*/1) {
+#if 0
         if(_working_mode == RK_AIQ_WORKING_MODE_NORMAL) { // normal
             switch(hist_meas.ae_swap) {
             case 0:
@@ -548,7 +571,11 @@ Isp20Params::convertAiqHistToIsp20Params
             isp_cfg.module_ens |= 1LL << RK_ISP2X_RAWHIST1_ID;
             isp_cfg.module_ens |= 1LL << RK_ISP2X_RAWHIST2_ID;
         }
-
+#else
+        isp_cfg.module_ens |= 1LL << RK_ISP2X_RAWHIST0_ID;
+        isp_cfg.module_ens |= 1LL << RK_ISP2X_RAWHIST1_ID;
+        isp_cfg.module_ens |= 1LL << RK_ISP2X_RAWHIST2_ID;
+#endif
         isp_cfg.module_ens |= 1LL << RK_ISP2X_RAWHIST3_ID;
         isp_cfg.module_ens |= 1LL << RK_ISP2X_SIHST_ID;
 
@@ -1790,9 +1817,15 @@ Isp20Params::convertAiqLscToIsp20Params(T& isp_cfg,
 
     if(lsc.lsc_en) {
         isp_cfg.module_ens |= ISP2X_MODULE_LSC;
+        isp_cfg.module_en_update |= ISP2X_MODULE_LSC;
+        isp_cfg.module_cfg_update |= ISP2X_MODULE_LSC;
+        _lsc_en = true;
+    } else {
+        isp_cfg.module_ens &= ~ISP2X_MODULE_LSC;
+        isp_cfg.module_en_update |= ISP2X_MODULE_LSC;
+        isp_cfg.module_cfg_update &= ~ISP2X_MODULE_LSC;
+        _lsc_en = false;
     }
-    isp_cfg.module_en_update |= ISP2X_MODULE_LSC;
-    isp_cfg.module_cfg_update |= ISP2X_MODULE_LSC;
 
 #ifdef ISP_HW_V30
     struct isp3x_lsc_cfg *  cfg = &isp_cfg.others.lsc_cfg;
@@ -1809,33 +1842,33 @@ Isp20Params::convertAiqLscToIsp20Params(T& isp_cfg,
     memcpy(cfg->gr_data_tbl, lsc.gr_data_tbl, sizeof(lsc.gr_data_tbl));
     memcpy(cfg->gb_data_tbl, lsc.gb_data_tbl, sizeof(lsc.gb_data_tbl));
     memcpy(cfg->b_data_tbl, lsc.b_data_tbl, sizeof(lsc.b_data_tbl));
-#ifdef ISP_HW_V30
-    #define MAX_LSC_VALUE 8191
+#if 0//def ISP_HW_V30
+#define MAX_LSC_VALUE 8191
     struct isp21_bls_cfg &bls_cfg = isp_cfg.others.bls_cfg;
-    if(bls_cfg.bls1_en && bls_cfg.bls1_val.b >0 && bls_cfg.bls1_val.r>0
-        && bls_cfg.bls1_val.gb >0 && bls_cfg.bls1_val.gr>0 ){
-        if(lsc.lsc_en){
-            for(int i=0;i<ISP3X_LSC_DATA_TBL_SIZE;i++){
-                cfg->b_data_tbl[i] = cfg->b_data_tbl[i]*((1 << ISP2X_BLC_BIT_MAX) - 1) / ((1 << ISP2X_BLC_BIT_MAX) - 1 - bls_cfg.bls1_val.b);
-                cfg->b_data_tbl[i] = MIN(cfg->b_data_tbl[i],MAX_LSC_VALUE);
-                cfg->gb_data_tbl[i] = cfg->gb_data_tbl[i]*((1 << ISP2X_BLC_BIT_MAX) - 1) / ((1 << ISP2X_BLC_BIT_MAX) - 1 - bls_cfg.bls1_val.gb);
-                cfg->gb_data_tbl[i] = MIN(cfg->gb_data_tbl[i],MAX_LSC_VALUE);
-                cfg->r_data_tbl[i] = cfg->r_data_tbl[i]*((1 << ISP2X_BLC_BIT_MAX) - 1) / ((1 << ISP2X_BLC_BIT_MAX) - 1 - bls_cfg.bls1_val.r);
-                cfg->r_data_tbl[i] = MIN(cfg->r_data_tbl[i],MAX_LSC_VALUE);
-                cfg->gr_data_tbl[i] = cfg->gr_data_tbl[i]*((1 << ISP2X_BLC_BIT_MAX) - 1) / ((1 << ISP2X_BLC_BIT_MAX) - 1 - bls_cfg.bls1_val.gr);
-                cfg->gr_data_tbl[i] = MIN(cfg->gr_data_tbl[i],MAX_LSC_VALUE);
+    if(bls_cfg.bls1_en && bls_cfg.bls1_val.b > 0 && bls_cfg.bls1_val.r > 0
+            && bls_cfg.bls1_val.gb > 0 && bls_cfg.bls1_val.gr > 0 ) {
+        if(lsc.lsc_en) {
+            for(int i = 0; i < ISP3X_LSC_DATA_TBL_SIZE; i++) {
+                cfg->b_data_tbl[i] = cfg->b_data_tbl[i] * ((1 << ISP2X_BLC_BIT_MAX) - 1) / ((1 << ISP2X_BLC_BIT_MAX) - 1 - bls_cfg.bls1_val.b);
+                cfg->b_data_tbl[i] = MIN(cfg->b_data_tbl[i], MAX_LSC_VALUE);
+                cfg->gb_data_tbl[i] = cfg->gb_data_tbl[i] * ((1 << ISP2X_BLC_BIT_MAX) - 1) / ((1 << ISP2X_BLC_BIT_MAX) - 1 - bls_cfg.bls1_val.gb);
+                cfg->gb_data_tbl[i] = MIN(cfg->gb_data_tbl[i], MAX_LSC_VALUE);
+                cfg->r_data_tbl[i] = cfg->r_data_tbl[i] * ((1 << ISP2X_BLC_BIT_MAX) - 1) / ((1 << ISP2X_BLC_BIT_MAX) - 1 - bls_cfg.bls1_val.r);
+                cfg->r_data_tbl[i] = MIN(cfg->r_data_tbl[i], MAX_LSC_VALUE);
+                cfg->gr_data_tbl[i] = cfg->gr_data_tbl[i] * ((1 << ISP2X_BLC_BIT_MAX) - 1) / ((1 << ISP2X_BLC_BIT_MAX) - 1 - bls_cfg.bls1_val.gr);
+                cfg->gr_data_tbl[i] = MIN(cfg->gr_data_tbl[i], MAX_LSC_VALUE);
             }
-        }else{
+        } else {
             isp_cfg.module_ens |= ISP2X_MODULE_LSC; //force open lsc
-            for(int i=0;i<ISP3X_LSC_DATA_TBL_SIZE;i++){
-                cfg->b_data_tbl[i] = 1024*((1 << ISP2X_BLC_BIT_MAX) - 1) / ((1 << ISP2X_BLC_BIT_MAX) - 1 - bls_cfg.bls1_val.b);
-                cfg->b_data_tbl[i] = MIN(cfg->b_data_tbl[i],MAX_LSC_VALUE);
-                cfg->gb_data_tbl[i] = 1024*((1 << ISP2X_BLC_BIT_MAX) - 1) / ((1 << ISP2X_BLC_BIT_MAX) - 1 - bls_cfg.bls1_val.gb);
-                cfg->gb_data_tbl[i] = MIN(cfg->gb_data_tbl[i],MAX_LSC_VALUE);
-                cfg->r_data_tbl[i] = 1024*((1 << ISP2X_BLC_BIT_MAX) - 1) / ((1 << ISP2X_BLC_BIT_MAX) - 1 - bls_cfg.bls1_val.r);
-                cfg->r_data_tbl[i] = MIN(cfg->r_data_tbl[i],MAX_LSC_VALUE);
-                cfg->gr_data_tbl[i] = 1024*((1 << ISP2X_BLC_BIT_MAX) - 1) / ((1 << ISP2X_BLC_BIT_MAX) - 1 - bls_cfg.bls1_val.gr);
-                cfg->gr_data_tbl[i] = MIN(cfg->gr_data_tbl[i],MAX_LSC_VALUE);
+            for(int i = 0; i < ISP3X_LSC_DATA_TBL_SIZE; i++) {
+                cfg->b_data_tbl[i] = 1024 * ((1 << ISP2X_BLC_BIT_MAX) - 1) / ((1 << ISP2X_BLC_BIT_MAX) - 1 - bls_cfg.bls1_val.b);
+                cfg->b_data_tbl[i] = MIN(cfg->b_data_tbl[i], MAX_LSC_VALUE);
+                cfg->gb_data_tbl[i] = 1024 * ((1 << ISP2X_BLC_BIT_MAX) - 1) / ((1 << ISP2X_BLC_BIT_MAX) - 1 - bls_cfg.bls1_val.gb);
+                cfg->gb_data_tbl[i] = MIN(cfg->gb_data_tbl[i], MAX_LSC_VALUE);
+                cfg->r_data_tbl[i] = 1024 * ((1 << ISP2X_BLC_BIT_MAX) - 1) / ((1 << ISP2X_BLC_BIT_MAX) - 1 - bls_cfg.bls1_val.r);
+                cfg->r_data_tbl[i] = MIN(cfg->r_data_tbl[i], MAX_LSC_VALUE);
+                cfg->gr_data_tbl[i] = 1024 * ((1 << ISP2X_BLC_BIT_MAX) - 1) / ((1 << ISP2X_BLC_BIT_MAX) - 1 - bls_cfg.bls1_val.gr);
+                cfg->gr_data_tbl[i] = MIN(cfg->gr_data_tbl[i], MAX_LSC_VALUE);
             }
         }
     }
@@ -1898,9 +1931,13 @@ void Isp20Params::convertAiqA3dlutToIsp20Params(T& isp_cfg,
     cfg->bypass_en = lut3d_cfg.bypass_en;
 #endif
     cfg->actual_size = lut3d_cfg.lut3d_lut_wsize;
-    memcpy(cfg->lut_r, lut3d_cfg.look_up_table_r, sizeof(cfg->lut_r));
-    memcpy(cfg->lut_g, lut3d_cfg.look_up_table_g, sizeof(cfg->lut_g));
-    memcpy(cfg->lut_b, lut3d_cfg.look_up_table_b, sizeof(cfg->lut_b));
+    if (lut3d_cfg.enable || !lut3d_cfg.bypass_en) {
+        memcpy(cfg->lut_r, lut3d_cfg.look_up_table_r, sizeof(cfg->lut_r));
+        memcpy(cfg->lut_g, lut3d_cfg.look_up_table_g, sizeof(cfg->lut_g));
+        memcpy(cfg->lut_b, lut3d_cfg.look_up_table_b, sizeof(cfg->lut_b));
+    } else {
+        isp_cfg.module_cfg_update &= ~ISP2X_MODULE_3DLUT;
+    }
 }
 
 template<class T>
@@ -3838,6 +3875,10 @@ bool Isp20Params::convert3aResultsToIspCfg(SmartPtr<cam3aResult> &result,
         SmartPtr<RkAiqIspHistParamsProxy> params = result.dynamic_cast_ptr<RkAiqIspHistParamsProxy>();
         if (params.ptr())
             convertAiqHistToIsp20Params(isp_cfg, params->data()->result);
+    }
+    case RESULT_TYPE_EXPOSURE_PARAM:
+    {
+        // TODO
     }
     break;
     case RESULT_TYPE_AWB_PARAM:

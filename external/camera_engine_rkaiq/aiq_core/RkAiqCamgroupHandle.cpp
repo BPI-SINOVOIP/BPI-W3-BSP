@@ -38,6 +38,7 @@ RkAiqCamgroupHandle::RkAiqCamgroupHandle(RkAiqAlgoDesComm* des, RkAiqCamGroupMan
 
 RkAiqCamgroupHandle::~RkAiqCamgroupHandle() {
     if (mDes) mDes->destroy_context(mAlgoCtx);
+    deInit();
 }
 
 void RkAiqCamgroupHandle::init() {

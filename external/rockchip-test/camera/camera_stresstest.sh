@@ -13,7 +13,7 @@ TEST_NUM=0;
 #cam link num
 CAM_NUM=0;
 #media node max
-MEDIA_MAX=16;
+MEDIA_MAX=20;
 #cif path node name
 CIF_PATH="stream_cif"
 #isp path node name
@@ -59,7 +59,7 @@ do
 		VIDEO_DEV=$(eval echo \$VIDEO_NODE$i);
 		if echo $VIDEO_DEV | grep -q "^/dev/video"
 		then
-			rkisp_demo --device=$VIDEO_DEV --output=/tmp/video$i.yuv --count=100;
+			rkisp_demo --device=$VIDEO_DEV --stream-to=/tmp/video$i.yuv --count=100;
 			echo "======================================================="
 			echo " camera $(eval echo \$VIDEO_NODE$i) No.($TEST_NUM) out /tmp/video$i.yuv is ok!";
 			echo "======================================================="

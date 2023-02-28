@@ -215,6 +215,8 @@ RegOffsetInfo *mpp_service_next_reg_offset(MppDevMppService *p)
     RegOffsetInfo *info = NULL;
 
     if (p->reg_offset_count + p->reg_offset_pos >= p->reg_offset_max) {
+        RegOffsetInfo *orig = p->reg_offset_info;
+
         mpp_dev_dbg_msg("enlarge reg offset count %d -> %d\n",
                         p->reg_offset_max, p->reg_offset_max * 2);
         p->reg_offset_info = mpp_realloc(p->reg_offset_info, RegOffsetInfo, p->reg_offset_max * 2);
@@ -222,6 +224,8 @@ RegOffsetInfo *mpp_service_next_reg_offset(MppDevMppService *p)
             mpp_err_f("failed to enlarge request buffer\n");
             return NULL;
         }
+        if (orig != p->reg_offset_info)
+            mpp_logw_f("enlarge reg offset buffer and get different pointer\n");
 
         p->reg_offset_max *= 2;
     }
@@ -471,7 +475,7 @@ MPP_RET mpp_service_reg_offset(void *ctx, MppDevRegOffsetCfg *cfg)
         }
     }
 
-    info = mpp_service_next_reg_offset(p);;
+    info = mpp_service_next_reg_offset(p);
     info->reg_idx = cfg->reg_idx;
     info->offset = cfg->offset;
 

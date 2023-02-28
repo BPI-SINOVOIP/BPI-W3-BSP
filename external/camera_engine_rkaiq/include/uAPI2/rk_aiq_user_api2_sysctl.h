@@ -314,6 +314,18 @@ XCamReturn
 rk_aiq_uapi2_sysctl_preInit_scene(const char* sns_ent_name, const char *main_scene,
                                   const char *sub_scene);
 
+/**
+ * @brief preInit the addr of IQ
+ *
+ * @param sns_ent_name
+ * @param addr
+ * @param len
+ *
+ * @return 0 if no error
+ */
+XCamReturn
+rk_aiq_uapi2_sysctl_preInit_iq_addr(const char* sns_ent_name, void *addr, size_t len);
+
 typedef struct rk_aiq_ctx_camInfo_s {
     const char* sns_ent_nm;
     int sns_camPhyId;
@@ -421,6 +433,19 @@ rk_aiq_uapi2_sysctl_registRkRawCb(const rk_aiq_sys_ctx_t* ctx, void (*callback)(
  */
 XCamReturn
 rk_aiq_uapi2_sysctl_getWorkingMode(const rk_aiq_sys_ctx_t* ctx, rk_aiq_working_mode_t *mode);
+
+/**
+ * @brief turn on/off socket server
+ *
+ * @param sys_ctx
+ * @param enable
+ *
+ * @return 0 if no error
+ */
+int rk_aiq_uapi2_sysctl_tuning_enable(rk_aiq_sys_ctx_t* sys_ctx, bool enable);
+
+XCamReturn
+rk_aiq_uapi2_sysctl_resetCam(const rk_aiq_sys_ctx_t* sys_ctx, int camId);
 
 RKAIQ_END_DECLARE
 

@@ -639,7 +639,7 @@ SensorHw::setExposureParams(SmartPtr<RkAiqExpParamsProxy>& expPar)
             new_exps.i2c_exp_res.nNumRegs = exp->aecExpInfo.exp_i2c_params.nNumRegs;
             for (uint32_t i = 0; i < exp->aecExpInfo.exp_i2c_params.nNumRegs; i++) {
                 new_exps.i2c_exp_res.RegAddr[i] = exp->aecExpInfo.exp_i2c_params.RegAddr[i];
-                new_exps.i2c_exp_res.RegValue[i] = exp->aecExpInfo.exp_i2c_params.RegValue[i];				
+                new_exps.i2c_exp_res.RegValue[i] = exp->aecExpInfo.exp_i2c_params.RegValue[i];
                 new_exps.i2c_exp_res.AddrByteNum[i] = exp->aecExpInfo.exp_i2c_params.AddrByteNum[i];
                 new_exps.i2c_exp_res.ValueByteNum[i] = exp->aecExpInfo.exp_i2c_params.ValueByteNum[i];
             }
@@ -898,7 +898,15 @@ SensorHw::split_locked(SmartPtr<RkAiqExpParamsProxy>& exp_param, uint32_t sof_id
                 tmp->i2c_exp_res.nNumRegs++;
             }
         }
-        _effecting_exp_map[max_dst_id] = exp_param;
+
+        if (max_dst_id < sof_id)
+            max_dst_id = sof_id + 1;
+
+        _effecting_exp_map[max_dst_id + 1] = exp_param;
+
+        LOGD_CAMHW_SUBM(SENSOR_SUBM,"cid: %d, num_reg:%d, efid:%d, isp_dgain:%0.3f \n",
+              num_regs, mCamPhyId, max_dst_id + 1,
+              exp_param->data()->aecExpInfo.LinearExp.exp_real_params.isp_dgain);
     } else {
         RKAiqAecExpInfo_t* exp_info = &exp_param->data()->aecExpInfo;
 
@@ -909,6 +917,7 @@ SensorHw::split_locked(SmartPtr<RkAiqExpParamsProxy>& exp_param, uint32_t sof_id
         pending_split_exps_t new_exps;
         pending_split_exps_t* p_new_exps = NULL;
         bool is_id_exist = true;
+        max_dst_id = sof_id + _time_delay;
 
         struct {
             uint32_t dst_id;
@@ -921,8 +930,6 @@ SensorHw::split_locked(SmartPtr<RkAiqExpParamsProxy>& exp_param, uint32_t sof_id
 
         for (auto& update_exp : update_exps) {
             dst_id = update_exp.dst_id;
-            if (max_dst_id < dst_id)
-                max_dst_id = dst_id;
             pending_split_exps_t* p_new_exps = &new_exps;
 
             if (_pending_spilt_map.count(dst_id) == 0) {
@@ -1007,8 +1014,8 @@ SensorHw::split_locked(SmartPtr<RkAiqExpParamsProxy>& exp_param, uint32_t sof_id
             if (!is_id_exist)
                 _pending_spilt_map[dst_id] = *p_new_exps;
 
-            _effecting_exp_map[max_dst_id] = exp_param;
         }
+        _effecting_exp_map[max_dst_id] = exp_param;
     }
 
     EXIT_CAMHW_FUNCTION();

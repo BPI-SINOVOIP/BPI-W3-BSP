@@ -50,6 +50,15 @@ rk_aiq_uapi2_sysctl_preInit_scene(const char* sns_ent_name, const char *main_sce
     return rk_aiq_uapi_sysctl_preInit_scene(sns_ent_name, main_scene, sub_scene);
 }
 
+XCamReturn
+rk_aiq_uapi2_sysctl_preInit_iq_addr(const char* sns_ent_name, void *addr, size_t len)
+{
+    g_rk_aiq_sys_preinit_cfg_map[sns_ent_name].iq_buffer.addr = addr;
+    g_rk_aiq_sys_preinit_cfg_map[sns_ent_name].iq_buffer.len = len;
+
+    return XCAM_RETURN_NO_ERROR;
+}
+
 rk_aiq_sys_ctx_t*
 rk_aiq_uapi2_sysctl_init(const char* sns_ent_name,
                         const char* config_file_dir,
@@ -299,4 +308,33 @@ rk_aiq_uapi2_sysctl_getWorkingMode(const rk_aiq_sys_ctx_t* ctx, rk_aiq_working_m
     EXIT_XCORE_FUNCTION();
 
     return XCAM_RETURN_NO_ERROR;
+}
+
+int rk_aiq_uapi2_sysctl_tuning_enable(rk_aiq_sys_ctx_t* sys_ctx, bool enable)
+{
+    return rk_aiq_uapi_sysctl_tuning_enable(sys_ctx, enable);
+}
+
+XCamReturn
+rk_aiq_uapi2_sysctl_resetCam(const rk_aiq_sys_ctx_t* sys_ctx, int camId)
+{
+    RKAIQ_API_SMART_LOCK(sys_ctx);
+    XCamReturn ret = XCAM_RETURN_NO_ERROR;
+
+    if (!sys_ctx) {
+        LOGE("%s: sys_ctx is invalied\n", __func__);
+        return XCAM_RETURN_ERROR_PARAM;
+    }
+
+    if (sys_ctx->cam_type == RK_AIQ_CAM_TYPE_GROUP) {
+        LOGE("%s: not support for camgroup\n", __func__);
+        return XCAM_RETURN_ERROR_FAILED;
+    }
+
+    ret = sys_ctx->_camHw->reset_hardware();
+    if (ret) {
+        LOGE("failed to reset hardware\n");
+    }
+
+    return ret;
 }

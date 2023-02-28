@@ -60,9 +60,15 @@ typedef struct rk_aiq_singlecam_3a_result_s {
 	RkAiqAdrcProcResult_t* _adrcConfig;
 	RkAiqAmergeProcResult_t* _amergeConfig;
     rk_aiq_isp_blc_v21_t * _blcConfig;
+
+    struct aynr_procRes_V3_t {
+        RK_YNR_Fix_V3_t*  _stFix;
+        float  _sigma[YNR_V3_ISO_CURVE_POINT_NUM];
+    };
+
     struct {
         union {
-            RK_YNR_Fix_V3_t*  _aynr_procRes_v3;
+            struct aynr_procRes_V3_t  _aynr_procRes_v3;
             RK_YNR_Fix_V2_t*  _aynr_procRes_v2;
         };
     } aynr;
@@ -107,7 +113,7 @@ typedef struct _AlgoCtxInstanceCfgCamGroup {
     // single cam calib
     const CamCalibDbV2Context_t* s_calibv2;
     CamCalibDbCamgroup_t* pCamgroupCalib;
-    int camIdArray[6];
+    int camIdArray[RK_AIQ_CAM_GROUP_MAX_CAMS];
     int camIdArrayLen;
 } AlgoCtxInstanceCfgCamGroup;
 
@@ -125,7 +131,7 @@ typedef struct _RkAiqAlgoCamGroupPrepare {
         float        PixelPeriodsPerLine;
         rk_aiq_sensor_nr_switch_t nr_switch;
     } aec;
-    int camIdArray[6];
+    int camIdArray[RK_AIQ_CAM_GROUP_MAX_CAMS];
     int camIdArrayLen;
     // single cam calib
     const CamCalibDbV2Context_t* s_calibv2;

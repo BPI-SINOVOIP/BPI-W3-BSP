@@ -259,9 +259,11 @@ static RK_S32 check_resend_hdr(MpiCmd cmd, void *param, MppEncCfgSet *cfg)
         return 0;
 
     do {
+        if (cmd == MPP_ENC_SET_IDR_FRAME)
+            return 1;
+
         if (cmd == MPP_ENC_SET_CODEC_CFG ||
-            cmd == MPP_ENC_SET_PREP_CFG ||
-            cmd == MPP_ENC_SET_IDR_FRAME) {
+            cmd == MPP_ENC_SET_PREP_CFG) {
             resend = 1;
             break;
         }
@@ -312,7 +314,7 @@ static RK_S32 check_resend_hdr(MpiCmd cmd, void *param, MppEncCfgSet *cfg)
     } while (0);
 
     if (resend)
-        mpp_log("send header for %s\n", resend_reason[resend]);
+        enc_dbg_detail("send header for %s\n", resend_reason[resend]);
 
     return resend;
 }
@@ -390,7 +392,7 @@ static void check_low_delay_output(MppEncImpl *enc)
 
     enc->low_delay_output = 0;
 
-    if (!cfg->split.split_mode || !cfg->split.split_out)
+    if (!cfg->split.split_mode || !(cfg->split.split_out & MPP_ENC_SPLIT_OUT_LOWDELAY))
         return;
 
     if (cfg->rc.max_reenc_times) {
@@ -491,6 +493,9 @@ MPP_RET mpp_enc_callback(const char *caller, void *ctx, RK_S32 cmd, void *param)
 
             mpp_meta_set_s32(impl->meta, KEY_OUTPUT_INTRA, frm->is_intra);
         }
+
+        mpp_packet_copy_segment_info(impl, packet);
+        mpp_packet_reset_segment(packet);
 
         enc_dbg_detail("pkt %d new pos %p len %d\n", task->part_count,
                        last_pos, slice_length);
@@ -759,6 +764,15 @@ MPP_RET mpp_enc_proc_hw_cfg(MppEncHwCfg *dst, MppEncHwCfg *src)
         if (change & MPP_ENC_HW_CFG_CHANGE_MB_RC)
             dst->mb_rc_disable = src->mb_rc_disable;
 
+        if (change & MPP_ENC_HW_CFG_CHANGE_CU_MODE_BIAS)
+            memcpy(dst->mode_bias, src->mode_bias, sizeof(dst->mode_bias));
+
+        if (change & MPP_ENC_HW_CFG_CHANGE_CU_SKIP_BIAS) {
+            dst->skip_bias_en = src->skip_bias_en;
+            dst->skip_sad = src->skip_sad;
+            dst->skip_bias = src->skip_bias;
+        }
+
         if (dst->qp_delta_row < 0 || dst->qp_delta_row_i < 0) {
             mpp_err("invalid hw qp delta row [%d:%d]\n",
                     dst->qp_delta_row_i, dst->qp_delta_row);
@@ -876,6 +890,12 @@ MPP_RET mpp_enc_proc_cfg(MppEncImpl *enc, MpiCmd cmd, void *param)
             *(MppPacket *)param = enc->hdr_pkt;
         } else {
             mpp_packet_copy((MppPacket)param, enc->hdr_pkt);
+        }
+
+        if (enc->hdr_pkt) {
+            Mpp *mpp = (Mpp *)enc->mpp;
+            // dump output
+            mpp_ops_enc_get_pkt(mpp->mDump, enc->hdr_pkt);
         }
 
         enc->hdr_status.added_by_ctrl = 1;
@@ -1294,6 +1314,7 @@ static MPP_RET mpp_enc_check_frm_pkt(MppEncImpl *enc)
         enc->frm_buf = frm_buf;
 
         mpp_packet_set_pts(enc->packet, pts);
+        mpp_packet_set_dts(enc->packet, mpp_frame_get_dts(enc->frame));
 
         if (mpp_frame_get_eos(enc->frame))
             mpp_packet_set_eos(enc->packet);
@@ -1501,6 +1522,7 @@ static MPP_RET mpp_enc_normal(Mpp *mpp, EncAsyncTaskInfo *task)
     enc_dbg_detail("task %d hal generate reg\n", frm->seq_idx);
     ENC_RUN_FUNC2(mpp_enc_hal_gen_regs, hal, hal_task, mpp, ret);
 
+    hal_task->segment_nb = mpp_packet_get_segment_nb(hal_task->packet);
     mpp_stopwatch_record(hal_task->stopwatch, "encode hal start");
     enc_dbg_detail("task %d hal start\n", frm->seq_idx);
     ENC_RUN_FUNC2(mpp_enc_hal_start, hal, hal_task, mpp, ret);
@@ -1523,6 +1545,22 @@ TASK_DONE:
     return ret;
 }
 
+static void mpp_enc_clr_rc_cb_info(EncRcTask *rc_task)
+{
+    EncRcTaskInfo *hal_rc = (EncRcTaskInfo *) &rc_task->info;
+    EncRcTaskInfo bak = rc_task->info;
+
+    memset(hal_rc, 0, sizeof(rc_task->info));
+
+    hal_rc->frame_type = bak.frame_type;
+    hal_rc->bit_target = bak.bit_target;
+    hal_rc->bit_max = bak.bit_max;
+    hal_rc->bit_min = bak.bit_min;
+    hal_rc->quality_target = bak.quality_target;
+    hal_rc->quality_max = bak.quality_max;
+    hal_rc->quality_min = bak.quality_min;
+}
+
 static MPP_RET mpp_enc_reenc_simple(Mpp *mpp, EncAsyncTaskInfo *task)
 {
     MppEncImpl *enc = (MppEncImpl *)mpp->mEnc;
@@ -1533,6 +1571,8 @@ static MPP_RET mpp_enc_reenc_simple(Mpp *mpp, EncAsyncTaskInfo *task)
     MPP_RET ret = MPP_OK;
 
     enc_dbg_func("enter\n");
+
+    mpp_enc_clr_rc_cb_info(rc_task);
 
     enc_dbg_detail("task %d enc proc hal\n", frm->seq_idx);
     ENC_RUN_FUNC2(enc_impl_proc_hal, enc->impl, hal_task, mpp, ret);
@@ -2089,6 +2129,8 @@ static MPP_RET try_proc_normal_task(MppEncImpl *enc, EncAsyncTaskInfo *task)
         hal_task->length -= hal_task->hw_length;
         hal_task->hw_length = 0;
 
+        mpp_packet_set_segment_nb(hal_task->packet, hal_task->segment_nb);
+
         enc_dbg_detail("task %d reenc %d times %d\n", frm->seq_idx, frm->reencode, frm->reencode_times);
 
         if (frm->drop) {
@@ -2347,6 +2389,7 @@ static void async_task_skip(MppEncImpl *enc)
 
     mpp_packet_set_length(pkt, 0);
     mpp_packet_set_pts(pkt, mpp_frame_get_pts(frm));
+    mpp_packet_set_dts(pkt, mpp_frame_get_dts(frm));
 
     if (mpp_frame_get_eos(frm))
         mpp_packet_set_eos(pkt);
@@ -2395,6 +2438,7 @@ static MPP_RET check_async_frm_pkt(EncAsyncTaskInfo *async)
         hal_task->input = frm_buf;
 
         mpp_packet_set_pts(packet, pts);
+        mpp_packet_set_dts(packet, mpp_frame_get_dts(frame));
 
         if (mpp_frame_get_eos(frame))
             mpp_packet_set_eos(packet);
@@ -2539,22 +2583,25 @@ static MPP_RET try_get_async_task(MppEncImpl *enc, EncAsyncWait *wait)
      * If there is no input frame just return empty packet task
      */
     if (!status->frm_pkt_rdy) {
+        async->seq_idx = enc->task_idx++;
+        async->pts = mpp_frame_get_pts(hal_task->frame);
+
+        hal_task->stopwatch = stopwatch;
+        rc_task->frame = async->task.frame;
+
+        enc_dbg_detail("task seq idx %d start\n", seq_idx);
+
         if (check_async_frm_pkt(async)) {
-            mpp_stopwatch_record(stopwatch, "invalid on check frm pkt");
-            reset_hal_enc_task(hal_task);
-            ret = MPP_NOK;
+            mpp_stopwatch_record(stopwatch, "empty frame on check frm pkt");
+            hal_task->valid = 1;
+            hal_task->length = 0;
+            hal_task->flags.drop_by_fps = 1;
+            ret = MPP_OK;
             goto TASK_DONE;
         }
 
         status->frm_pkt_rdy = 1;
-        hal_task->stopwatch = stopwatch;
         enc_dbg_detail("task frame packet ready\n");
-
-        async->seq_idx = enc->task_idx++;
-        async->pts = mpp_frame_get_pts(hal_task->frame);
-
-        rc_task->frame = async->task.frame;
-        enc_dbg_detail("task seq idx %d start\n", seq_idx);
     }
 
     seq_idx = async->seq_idx;

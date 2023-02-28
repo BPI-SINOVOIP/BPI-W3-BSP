@@ -50,12 +50,19 @@ static MppKernelVersion check_kernel_version(void)
             pos += 14;
             count = sscanf(pos, "%d.%d.%d ", &major, &minor, &last);
             if (count >= 2 && major > 0 && minor > 0) {
-                if (major == 3)
+                switch (major) {
+                case 3: {
                     version = KERNEL_3_10;
-                else if (major == 4) {
+                } break;
+                case 4: {
                     version = KERNEL_4_4;
                     if (minor >= 19)
                         version = KERNEL_4_19;
+                } break;
+                case 5: {
+                    version = KERNEL_5_10;
+                } break;
+                default: break;
                 }
             }
         }
@@ -92,6 +99,7 @@ public:
     const char          *get_soc_name() { return soc_name; };
     MppServiceCmdCap    *get_mpp_service_cmd_cap() { return &mpp_service_cmd_cap; };
     RK_U32              get_hw_id(RK_S32 client_type);
+    RK_U32              get_vcodec_type(void) { return vcodec_type; };
 };
 
 MppPlatformService::MppPlatformService()
@@ -127,7 +135,8 @@ MppPlatformService::MppPlatformService()
         check_mpp_service_cap(&vcodec_type, hw_ids, cap);
     }
     kernel_version = check_kernel_version();
-    vcodec_type = soc_info->vcodec_type;
+    if (!vcodec_type)
+        vcodec_type = soc_info->vcodec_type;
 }
 
 RK_U32 MppPlatformService::get_hw_id(RK_S32 client_type)
@@ -171,4 +180,14 @@ const MppServiceCmdCap *mpp_get_mpp_service_cmd_cap(void)
 RK_U32 mpp_get_client_hw_id(RK_S32 client_type)
 {
     return MppPlatformService::get_instance()->get_hw_id(client_type);
+}
+
+RK_U32 mpp_get_vcodec_type(void)
+{
+    static RK_U32 vcodec_type = 0;
+
+    if (!vcodec_type)
+        vcodec_type = MppPlatformService::get_instance()->get_vcodec_type();
+
+    return vcodec_type;
 }

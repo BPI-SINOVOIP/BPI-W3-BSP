@@ -51,4 +51,19 @@ rk_aiq_user_api_againV2_GetAttrib(const rk_aiq_sys_ctx_t* sys_ctx, rk_aiq_gain_a
     return XCAM_RETURN_NO_ERROR;
 }
 
+
+XCamReturn
+rk_aiq_user_api_againV2_GetInfo(const rk_aiq_sys_ctx_t* sys_ctx, rk_aiq_gain_info_v2_t* pInfo)
+{
+    RkAiqAgainV2HandleInt* algo_handle =
+        algoHandle<RkAiqAgainV2HandleInt>(sys_ctx, RK_AIQ_ALGO_TYPE_ARAWNR);
+
+    if (algo_handle) {
+        return algo_handle->getInfo(pInfo);
+    }
+
+    return XCAM_RETURN_NO_ERROR;
+}
+
+
 RKAIQ_END_DECLARE

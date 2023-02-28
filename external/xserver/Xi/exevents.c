@@ -1032,6 +1032,11 @@ DeliverOneTouchEvent(ClientPtr client, DeviceIntPtr dev, TouchPointInfoPtr ti,
     err = TryClientEvents(client, dev, xi2, 1, filter, filter, NullGrab);
     free(xi2);
 
+    if (ev->any.type == ET_TouchUpdate && ti->pending_finish) {
+        ev->any.type = ET_TouchEnd;
+        DeliverOneTouchEvent(client, dev, ti, grab, win, ev);
+    }
+
     /* Returning the value from TryClientEvents isn't useful, since all our
      * resource-gone cleanups will update the delivery list anyway. */
     return TRUE;
@@ -1293,21 +1298,13 @@ RetrieveTouchDeliveryData(DeviceIntPtr dev, TouchPointInfoPtr ti,
     int rc;
     InputClients *iclients = NULL;
     *mask = NULL;
-    *grab = NULL;
 
     if (listener->type == LISTENER_GRAB ||
         listener->type == LISTENER_POINTER_GRAB) {
         *grab = listener->grab;
 
         BUG_RETURN_VAL(!*grab, FALSE);
-    }
-    else if (ti->emulate_pointer && dev->deviceGrab.grab &&
-             !dev->deviceGrab.fromPassiveGrab) {
-        /* There may be an active pointer grab on the device */
-        *grab = dev->deviceGrab.grab;
-    }
 
-    if (*grab) {
         *client = rClient(*grab);
         *win = (*grab)->window;
         *mask = (*grab)->xi2mask;
@@ -1364,6 +1361,8 @@ RetrieveTouchDeliveryData(DeviceIntPtr dev, TouchPointInfoPtr ti,
             /* if owner selected, oclients is NULL */
             *client = oclients ? rClient(oclients) : wClient(*win);
         }
+
+        *grab = NULL;
     }
 
     return TRUE;
@@ -1379,6 +1378,16 @@ DeliverTouchEmulatedEvent(DeviceIntPtr dev, TouchPointInfoPtr ti,
     InternalEvent *ptrev = &motion;
     int nevents;
     DeviceIntPtr kbd;
+
+    /* There may be a pointer grab on the device */
+    if (!grab) {
+        grab = dev->deviceGrab.grab;
+        if (grab) {
+            win = grab->window;
+            xi2mask = grab->xi2mask;
+            client = rClient(grab);
+        }
+    }
 
     /* We don't deliver pointer events to non-owners */
     if (!TouchResourceIsOwner(ti, listener->listener))
@@ -1977,6 +1986,9 @@ DeliverTouchEndEvent(DeviceIntPtr dev, TouchPointInfoPtr ti, InternalEvent *ev,
             ev->any.type = ET_TouchUpdate;
             ev->device_event.flags |= TOUCH_PENDING_END;
             ti->pending_finish = TRUE;
+
+            if (normal_end && listener->state != LISTENER_HAS_END)
+                rc = DeliverOneTouchEvent(client, dev, ti, grab, win, ev);
         }
 
         if (normal_end)

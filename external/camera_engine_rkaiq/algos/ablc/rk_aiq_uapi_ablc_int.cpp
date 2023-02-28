@@ -111,3 +111,16 @@ rk_aiq_uapi_ablc_GetProc(const RkAiqAlgoContext *ctx,
     return ret;
 }
 
+XCamReturn
+rk_aiq_uapi_ablc_GetInfo(const RkAiqAlgoContext *ctx,
+                         rk_aiq_ablc_info_t *pInfo)
+{
+    AblcContext_t* pAblcCtx = (AblcContext_t*)ctx;
+    XCamReturn ret = XCAM_RETURN_NO_ERROR;
+
+    pInfo->iso = pAblcCtx->stExpInfo.arIso[pAblcCtx->stExpInfo.hdr_mode];
+    pInfo->expo_info = pAblcCtx->stExpInfo;
+    return ret;
+}
+
+

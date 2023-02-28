@@ -42,6 +42,7 @@ class RkAiqAlscHandleInt : virtual public RkAiqHandle {
     XCamReturn setAttrib(rk_aiq_lsc_attrib_t att);
     XCamReturn getAttrib(rk_aiq_lsc_attrib_t* att);
     XCamReturn queryLscInfo(rk_aiq_lsc_querry_info_t* lsc_querry_info);
+    RkAiqBayerPattern_t getBayerPattern(uint32_t pixelformat);
 
  protected:
     virtual void init();

@@ -43,7 +43,6 @@ typedef struct rk_aiq_ccm_attrib_s {
     rk_aiq_ccm_op_mode_t mode;
     rk_aiq_ccm_mccm_attrib_t stManual;
     rk_aiq_ccm_accm_attrib_t stAuto;
-    CalibDbV2_Ccm_Para_V2_t stTool;
 } rk_aiq_ccm_attrib_t;
 
 typedef struct rk_aiq_ccm_querry_info_s {

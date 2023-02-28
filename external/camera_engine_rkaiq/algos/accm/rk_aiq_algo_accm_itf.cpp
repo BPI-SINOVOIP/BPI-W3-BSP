@@ -27,18 +27,19 @@ RKAIQ_BEGIN_DECLARE
 static XCamReturn
 create_context(RkAiqAlgoContext **context, const AlgoCtxInstanceCfg* cfg)
 {
+    XCamReturn ret = XCAM_RETURN_NO_ERROR;
     LOG1_ACCM( "%s: (enter)\n", __FUNCTION__);
     RkAiqAlgoContext *ctx = new RkAiqAlgoContext();
     if (ctx == NULL) {
         LOGE_ACCM( "%s: create ccm context fail!\n", __FUNCTION__);
         return XCAM_RETURN_ERROR_MEM;
     }
-        AccmInit(&ctx->accm_para, cfg->calibv2);
+    ret = AccmInit(&ctx->accm_para, cfg->calibv2);
 
     *context = ctx;
 
     LOG1_ACCM( "%s: (exit)\n", __FUNCTION__);
-    return XCAM_RETURN_NO_ERROR;
+    return ret;
 }
 
 static XCamReturn

@@ -51,7 +51,7 @@ create_context(RkAiqAlgoContext **context, const AlgoCtxInstanceCfg* cfg)
     if (ctx->acsmCtx.calibv2) {
         Csm_Param_t *csm =
             (Csm_Param_t*)(CALIBDBV2_GET_MODULE_PTR(ctx->acsmCtx.calibv2, csm));
-        if (csm) {
+        if (csm && (csm->full_range)) {
             *params = *csm;
         } else {
             *params = g_csm_def;
@@ -84,8 +84,9 @@ prepare(RkAiqAlgoCom* params)
         if (pCfgParam->com.u.prepare.calibv2) {
             Csm_Param_t *csm =
                 (Csm_Param_t*)(CALIBDBV2_GET_MODULE_PTR(pCfgParam->com.u.prepare.calibv2, csm));
-            if (csm)
+            if (csm && (csm->full_range)) {
                 *acsm_params = *csm;
+            }
         }
     }
     return XCAM_RETURN_NO_ERROR;

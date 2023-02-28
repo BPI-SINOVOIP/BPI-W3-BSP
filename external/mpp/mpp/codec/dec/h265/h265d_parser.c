@@ -1133,11 +1133,29 @@ __BITREAD_ERR:
     return  MPP_ERR_STREAM;
 }
 
+static RK_S32 mpp_hevc_out_dec_order(void *ctx)
+{
+    H265dContext_t *h265dctx = (H265dContext_t *)ctx;
+    HEVCContext *s = (HEVCContext *)h265dctx->priv_data;
+
+    if (s->ref && (s->ref->flags & HEVC_FRAME_FLAG_OUTPUT)) {
+        s->ref->flags &= ~(HEVC_FRAME_FLAG_OUTPUT);
+        mpp_buf_slot_set_flag(s->slots, s->ref->slot_index, SLOT_QUEUE_USE);
+        mpp_buf_slot_enqueue(s->slots, s->ref->slot_index, QUEUE_DISPLAY);
+    }
+
+    return 0;
+}
+
 static RK_S32 mpp_hevc_output_frame(void *ctx, int flush)
 {
 
     H265dContext_t *h265dctx = (H265dContext_t *)ctx;
     HEVCContext *s = (HEVCContext *)h265dctx->priv_data;
+    MppDecCfgSet *cfg = h265dctx->cfg;
+
+    if (cfg->base.fast_out)
+        return mpp_hevc_out_dec_order(ctx);
 
     do {
         RK_S32 nb_output = 0;
@@ -1159,8 +1177,14 @@ static RK_S32 mpp_hevc_output_frame(void *ctx, int flush)
 
         /* wait for more frames before output */
         if (!flush && s->seq_output == s->seq_decode && s->sps &&
-            nb_output <= s->sps->temporal_layer[s->sps->max_sub_layers - 1].num_reorder_pics)
-            return 0;
+            nb_output <= s->sps->temporal_layer[s->sps->max_sub_layers - 1].num_reorder_pics) {
+            if (cfg->base.enable_fast_play && (IS_IDR(s) ||
+                                               (IS_BLA(s) && !s->first_i_fast_play))) {
+                s->first_i_fast_play = 1;
+            } else {
+                return 0;
+            }
+        }
 
         if (nb_output) {
             HEVCFrame *frame = &s->DPB[min_idx];
@@ -1256,7 +1280,7 @@ static RK_S32 parser_nal_unit(HEVCContext *s, const RK_U8 *nal, int length)
     BitReadCtx_t *gb    = &lc->gb;
     RK_S32 ret;
     mpp_set_bitread_ctx(gb, (RK_U8*)nal, length);
-    mpp_set_pre_detection(gb);
+    mpp_set_bitread_pseudo_code_type(gb, PSEUDO_CODE_H264_H265);
     ret = hls_nal_unit(s);
     if (ret < 0) {
         mpp_err("Invalid NAL unit %d, skipping.\n",
@@ -1348,8 +1372,8 @@ static RK_S32 parser_nal_unit(HEVCContext *s, const RK_U8 *nal, int length)
 
         if (ret < 0) {
             mpp_err("hls_slice_header error ret = %d", ret);
-
-            if (s->first_nal_type != s->nal_unit_type)
+            /*s->first_nal_type == -1 means first nal is still not parsed.*/
+            if ((s->first_nal_type != s->nal_unit_type) && (s->first_nal_type != NAL_INIT_VALUE))
                 return 0;
 
             return ret;
@@ -1602,7 +1626,7 @@ static RK_S32 split_nal_units(HEVCContext *s, RK_U8 *buf, RK_U32 length)
         s->nb_nals++;
 
         mpp_set_bitread_ctx(&s->HEVClc->gb, (RK_U8 *)nal->data, nal->size);
-        mpp_set_pre_detection(&s->HEVClc->gb);
+        mpp_set_bitread_pseudo_code_type(&s->HEVClc->gb, PSEUDO_CODE_H264_H265);
         if (hls_nal_unit(s) < 0)
             s->nb_nals--;
 
@@ -1773,7 +1797,7 @@ MPP_RET h265d_prepare(void *ctx, MppPacket pkt, HalDecTask *task)
     h265d_dbg(H265D_DBG_TIME, "prepare get pts %lld", pts);
     length = (RK_S32)mpp_packet_get_length(pkt);
 
-    if (mpp_packet_get_flag(pkt)& MPP_PACKET_FLAG_EXTRA_DATA) {
+    if (mpp_packet_get_flag(pkt) & MPP_PACKET_FLAG_EXTRA_DATA) {
 
         h265dctx->extradata_size = length;
         h265dctx->extradata = buf;
@@ -1932,6 +1956,9 @@ MPP_RET h265d_deinit(void *ctx)
     s->nals_allocated = 0;
 
     if (s->hal_pic_private) {
+        h265d_dxva2_picture_context_t *ctx_pic = (h265d_dxva2_picture_context_t *)s->hal_pic_private;
+        MPP_FREE(ctx_pic->slice_short);
+        MPP_FREE(ctx_pic->slice_cut_param);
         mpp_free(s->hal_pic_private);
     }
     if (s->input_packet) {
@@ -2005,6 +2032,7 @@ MPP_RET h265d_init(void *ctx, ParserCfg *parser_cfg)
         h265dctx->priv_data = s;
     }
 
+    s->first_nal_type = NAL_INIT_VALUE;
     h265dctx->cfg = parser_cfg->cfg;
 
     if (sc == NULL && h265dctx->cfg->base.split_parse) {
@@ -2022,6 +2050,21 @@ MPP_RET h265d_init(void *ctx, ParserCfg *parser_cfg)
     ret = hevc_init_context(h265dctx);
 
     s->hal_pic_private = mpp_calloc_size(void, sizeof(h265d_dxva2_picture_context_t));
+
+    if (s->hal_pic_private) {
+        h265d_dxva2_picture_context_t *ctx_pic = (h265d_dxva2_picture_context_t *)s->hal_pic_private;
+        ctx_pic->slice_short = (DXVA_Slice_HEVC_Short *)mpp_malloc(DXVA_Slice_HEVC_Short, MAX_SLICES);
+
+        if (!ctx_pic->slice_short)
+            return MPP_ERR_NOMEM;
+
+        ctx_pic->slice_cut_param = (DXVA_Slice_HEVC_Cut_Param *)mpp_malloc(DXVA_Slice_HEVC_Cut_Param, MAX_SLICES);
+        if (!ctx_pic->slice_cut_param)
+            return MPP_ERR_NOMEM;
+        ctx_pic->max_slice_num = MAX_SLICES;
+    } else {
+        return MPP_ERR_NOMEM;
+    }
 
     if (ret < 0)
         return ret;
@@ -2084,6 +2127,7 @@ MPP_RET h265d_reset(void *ctx)
     h265d_split_reset(h265dctx->split_cxt);
     s->max_ra = INT_MAX;
     s->eos = 0;
+    s->first_i_fast_play = 0;
     return MPP_OK;
 }
 

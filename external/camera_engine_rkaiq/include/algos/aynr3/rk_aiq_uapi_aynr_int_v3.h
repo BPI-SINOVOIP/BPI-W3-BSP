@@ -30,8 +30,9 @@ XCamReturn
 rk_aiq_uapi_aynrV3_GetLumaSFStrength(const RkAiqAlgoContext *ctx,
                                      rk_aiq_ynr_strength_v3_t *pStrength);
 
-
-
+XCamReturn
+rk_aiq_uapi_aynrV3_GetInfo(const RkAiqAlgoContext *ctx,
+                           rk_aiq_ynr_info_v3_t *pInfo);
 
 
 #endif

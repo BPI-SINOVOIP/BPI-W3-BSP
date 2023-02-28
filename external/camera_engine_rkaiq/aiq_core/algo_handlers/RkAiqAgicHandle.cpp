@@ -259,7 +259,7 @@ XCamReturn RkAiqAgicHandleInt::processing() {
     RKAiqAecExpInfo_t* aeCurExp = &shared->curExp;
     if (aeCurExp != NULL) {
         if((rk_aiq_working_mode_t)sharedCom->working_mode == RK_AIQ_WORKING_MODE_NORMAL) {
-            agic_proc_int->iso = aeCurExp->LinearExp.exp_real_params.analog_gain * 50;
+            agic_proc_int->iso = aeCurExp->LinearExp.exp_real_params.analog_gain * aeCurExp->LinearExp.exp_real_params.isp_dgain * 50;
             LOGD_AGIC("%s:NORMAL:iso=%d,again=%f\n", __FUNCTION__, agic_proc_int->iso,
                       aeCurExp->LinearExp.exp_real_params.analog_gain);
         } else if ((rk_aiq_working_mode_t)sharedCom->working_mode == RK_AIQ_WORKING_MODE_ISP_HDR2) {

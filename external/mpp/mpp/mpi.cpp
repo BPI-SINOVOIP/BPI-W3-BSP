@@ -60,7 +60,11 @@ static MppCodingTypeInfo support_list[] = {
     {   MPP_CTX_DEC,    MPP_VIDEO_CodingVP9,        "dec",  "VP9",          },
 #endif
 #if HAVE_AVSD
+    {   MPP_CTX_DEC,    MPP_VIDEO_CodingAVS,        "dec",  "avs",          },
     {   MPP_CTX_DEC,    MPP_VIDEO_CodingAVSPLUS,    "dec",  "avs+",         },
+#endif
+#if HAVE_AVS2D
+    {   MPP_CTX_DEC,    MPP_VIDEO_CodingAVS2,       "dec",  "avs2",         },
 #endif
 #if HAVE_JPEGD
     {   MPP_CTX_DEC,    MPP_VIDEO_CodingMJPEG,      "dec",  "jpeg",         },

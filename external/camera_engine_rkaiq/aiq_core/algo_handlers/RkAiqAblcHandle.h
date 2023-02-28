@@ -25,14 +25,16 @@
 namespace RkCam {
 
 class RkAiqAblcHandleInt : virtual public RkAiqHandle {
- public:
+public:
     explicit RkAiqAblcHandleInt(RkAiqAlgoDesComm* des, RkAiqCore* aiqCore)
         : RkAiqHandle(des, aiqCore) {
         memset(&mCurAtt, 0, sizeof(rk_aiq_blc_attrib_t));
         memset(&mNewAtt, 0, sizeof(rk_aiq_blc_attrib_t));
         updateAtt = false;
     };
-    virtual ~RkAiqAblcHandleInt() { RkAiqHandle::deInit(); };
+    virtual ~RkAiqAblcHandleInt() {
+        RkAiqHandle::deInit();
+    };
     virtual XCamReturn updateConfig(bool needSync);
     virtual XCamReturn prepare();
     virtual XCamReturn preProcess();
@@ -43,17 +45,20 @@ class RkAiqAblcHandleInt : virtual public RkAiqHandle {
     XCamReturn setAttrib(rk_aiq_blc_attrib_t* att);
     XCamReturn getAttrib(rk_aiq_blc_attrib_t* att);
     XCamReturn getProcRes(AblcProc_t* ProcRes);
+    XCamReturn getInfo(rk_aiq_ablc_info_t *pInfo);
 
- protected:
+protected:
     virtual void init();
-    virtual void deInit() { RkAiqHandle::deInit(); };
+    virtual void deInit() {
+        RkAiqHandle::deInit();
+    };
 
- private:
+private:
     // TODO
     rk_aiq_blc_attrib_t mCurAtt;
     rk_aiq_blc_attrib_t mNewAtt;
 
- private:
+private:
     DECLARE_HANDLE_REGISTER_TYPE(RkAiqAblcHandleInt);
 };
 

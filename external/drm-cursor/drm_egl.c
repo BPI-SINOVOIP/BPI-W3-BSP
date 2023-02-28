@@ -28,6 +28,9 @@
 #include "drm_common.h"
 #include "drm_egl.h"
 
+#define EGL_LOAD_PROC(val, type, func) \
+  do { val = (type) eglGetProcAddress(func); } while (0)
+
 static const GLfloat texcoords[] = {
   0.0f,  1.0f,
   1.0f,  1.0f,
@@ -180,8 +183,7 @@ drm_private void *egl_init_ctx(int fd, int num_surfaces, int width, int height,
 {
   PFNEGLGETPLATFORMDISPLAYEXTPROC get_platform_display;
 
-#define EGL_MAX_CONFIG 64
-  EGLConfig configs[EGL_MAX_CONFIG];
+  EGLConfig *configs;
   EGLint num_configs;
   egl_ctx *ctx;
 
@@ -196,22 +198,13 @@ drm_private void *egl_init_ctx(int fd, int num_surfaces, int width, int height,
     EGL_NONE
   };
 
-  static const EGLint config_attribs[] = {
-    EGL_SURFACE_TYPE, EGL_WINDOW_BIT,
-    EGL_RED_SIZE, 1,
-    EGL_GREEN_SIZE, 1,
-    EGL_BLUE_SIZE, 1,
-    EGL_ALPHA_SIZE, 0,
-    EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT,
-    EGL_NONE
-  };
-
   if (num_surfaces > MAX_NUM_SURFACES) {
     DRM_ERROR("too much surfaces: %d > %d\n", num_surfaces, MAX_NUM_SURFACES);
     return NULL;
   }
 
-  get_platform_display = (void *)eglGetProcAddress("eglGetPlatformDisplayEXT");
+  EGL_LOAD_PROC(get_platform_display, PFNEGLGETPLATFORMDISPLAYEXTPROC,
+                "eglGetPlatformDisplayEXT");
   if (!get_platform_display) {
     DRM_ERROR("failed to get proc address\n");
     return NULL;
@@ -258,10 +251,20 @@ drm_private void *egl_init_ctx(int fd, int num_surfaces, int width, int height,
     goto err;
   }
 
-  if (!eglChooseConfig(ctx->egl_display, config_attribs,
-                       configs, EGL_MAX_CONFIG, &num_configs) ||
+  if (!eglGetConfigs(ctx->egl_display, NULL, 0, &num_configs) ||
       num_configs < 1) {
-    DRM_ERROR("failed to choose config\n");
+    DRM_ERROR("failed to get configs\n");
+    goto err;
+  }
+
+  configs = calloc(num_configs, sizeof(*configs));
+  if (!configs) {
+    DRM_ERROR("failed to alloc configs\n");
+    goto err;
+  }
+
+  if (!eglGetConfigs(ctx->egl_display, configs, num_configs, &num_configs)) {
+    DRM_ERROR("failed to get configs\n");
     goto err;
   }
 
@@ -277,7 +280,7 @@ drm_private void *egl_init_ctx(int fd, int num_surfaces, int width, int height,
   }
 
   if (i == num_configs) {
-    DRM_ERROR("failed to find EGL config for %4s, force using the first\n",
+    DRM_ERROR("failed to find EGL config for %.4s, force using the first\n",
               (char *)&format);
     ctx->egl_config = configs[0];
   } else {
@@ -372,7 +375,7 @@ static uint32_t egl_bo_to_fb(int fd, struct gbm_bo* bo, int format,
 {
   uint32_t width = gbm_bo_get_width(bo);
   uint32_t height = gbm_bo_get_height(bo);
-  uint32_t bpp = gbm_bo_get_bpp(bo) ?: 32;
+  uint32_t bpp = gbm_bo_get_bpp(bo) ? gbm_bo_get_bpp(bo) : 32;
   uint32_t handles[4] = { 0 };
   uint32_t strides[4] = { 0 };
   uint32_t offsets[4] = { 0 };
@@ -401,14 +404,12 @@ static uint32_t egl_bo_to_fb(int fd, struct gbm_bo* bo, int format,
   return fb;
 }
 
-static int egl_attach_dmabuf(egl_ctx *ctx, int dma_fd)
+static int egl_attach_dmabuf(egl_ctx *ctx, int dma_fd, int width, int height)
 {
   static PFNGLEGLIMAGETARGETTEXTURE2DOESPROC image_target_texture_2d = NULL;
   static PFNEGLCREATEIMAGEKHRPROC create_image = NULL;
   static PFNEGLDESTROYIMAGEKHRPROC destroy_image = NULL;
   EGLImageKHR image;
-  int width = ctx->width;
-  int height = ctx->height;
 
   /* Cursor format should be ARGB8888 */
   const EGLint attrs[] = {
@@ -422,14 +423,16 @@ static int egl_attach_dmabuf(egl_ctx *ctx, int dma_fd)
   };
 
   if (!create_image)
-    create_image = (void *) eglGetProcAddress("eglCreateImageKHR");
+    EGL_LOAD_PROC(create_image, PFNEGLCREATEIMAGEKHRPROC,
+                  "eglCreateImageKHR");
 
   if (!destroy_image)
-    destroy_image = (void *) eglGetProcAddress("eglDestroyImageKHR");
+    EGL_LOAD_PROC(destroy_image, PFNEGLDESTROYIMAGEKHRPROC,
+                  "eglDestroyImageKHR");
 
   if (!image_target_texture_2d)
-    image_target_texture_2d =
-      (void *) eglGetProcAddress("glEGLImageTargetTexture2DOES");
+    EGL_LOAD_PROC(image_target_texture_2d, PFNGLEGLIMAGETARGETTEXTURE2DOESPROC,
+                  "glEGLImageTargetTexture2DOES");
 
   if (!create_image || !destroy_image || !image_target_texture_2d) {
     DRM_ERROR("failed to get proc address\n");
@@ -465,16 +468,6 @@ drm_private uint32_t egl_convert_fb(void *data, uint32_t handle,
      1.0f,  1.0f,
   };
 
-  if (width != ctx->width || height != ctx->height) {
-    ctx->width = width;
-    ctx->height = height;
-
-    if (egl_flush_surfaces(ctx) < 0) {
-      DRM_ERROR("failed to flush surfaces\n");
-      return 0;
-    }
-  }
-
   dma_fd = egl_handle_to_fd(ctx->fd, handle);
   if (dma_fd < 0) {
     DRM_ERROR("failed to get dma fd\n");
@@ -500,7 +493,7 @@ drm_private uint32_t egl_convert_fb(void *data, uint32_t handle,
   glActiveTexture(GL_TEXTURE0);
   glBindTexture(GL_TEXTURE_EXTERNAL_OES, texture);
 
-  if (egl_attach_dmabuf(ctx, dma_fd) < 0) {
+  if (egl_attach_dmabuf(ctx, dma_fd, width, height) < 0) {
     DRM_ERROR("failed to attach dmabuf\n");
     goto err_del_texture;
   }

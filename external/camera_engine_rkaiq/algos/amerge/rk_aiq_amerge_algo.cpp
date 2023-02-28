@@ -147,35 +147,6 @@ void AmergeGetEnvLv
     LOG1_AMERGE( "%s:exit!\n", __FUNCTION__);
 }
 
-void GetCurrMergeDataV20
-(
-    AmergeContext_t*           pAmergeCtx
-) {
-    LOG1_AMERGE( "%s:enter!\n", __FUNCTION__);
-
-    //get Current merge OECurve
-    pAmergeCtx->CurrData.HandleData.Merge_v20.OECurve_smooth = GetCurrPara(pAmergeCtx->CurrData.CtrlData.EnvLv,
-            pAmergeCtx->Config.Merge_v20.EnvLv, pAmergeCtx->Config.Merge_v20.OECurve_smooth, pAmergeCtx->Config.Merge_v20.MaxEnvLvKnots);
-    pAmergeCtx->CurrData.HandleData.Merge_v20.OECurve_offset = GetCurrPara(pAmergeCtx->CurrData.CtrlData.EnvLv,
-            pAmergeCtx->Config.Merge_v20.EnvLv, pAmergeCtx->Config.Merge_v20.OECurve_offset, pAmergeCtx->Config.Merge_v20.MaxEnvLvKnots);
-
-    //get Current merge MDCurve
-    pAmergeCtx->CurrData.HandleData.Merge_v20.MDCurveLM_smooth = GetCurrPara(pAmergeCtx->CurrData.CtrlData.MoveCoef,
-            pAmergeCtx->Config.Merge_v20.MoveCoef, pAmergeCtx->Config.Merge_v20.MDCurveLM_smooth, pAmergeCtx->Config.Merge_v20.MaxMoveCoefKnots);
-    pAmergeCtx->CurrData.HandleData.Merge_v20.MDCurveLM_offset = GetCurrPara(pAmergeCtx->CurrData.CtrlData.MoveCoef,
-            pAmergeCtx->Config.Merge_v20.MoveCoef, pAmergeCtx->Config.Merge_v20.MDCurveLM_offset, pAmergeCtx->Config.Merge_v20.MaxMoveCoefKnots);
-    pAmergeCtx->CurrData.HandleData.Merge_v20.MDCurveMS_smooth = GetCurrPara(pAmergeCtx->CurrData.CtrlData.MoveCoef,
-            pAmergeCtx->Config.Merge_v20.MoveCoef, pAmergeCtx->Config.Merge_v20.MDCurveMS_smooth, pAmergeCtx->Config.Merge_v20.MaxMoveCoefKnots);
-    pAmergeCtx->CurrData.HandleData.Merge_v20.MDCurveMS_offset = GetCurrPara(pAmergeCtx->CurrData.CtrlData.MoveCoef,
-            pAmergeCtx->Config.Merge_v20.MoveCoef, pAmergeCtx->Config.Merge_v20.MDCurveMS_offset, pAmergeCtx->Config.Merge_v20.MaxMoveCoefKnots);
-
-    pAmergeCtx->CurrData.CtrlData.MergeOEDamp = pAmergeCtx->Config.Merge_v20.OECurve_damp;
-    pAmergeCtx->CurrData.CtrlData.MergeMDDampLM = pAmergeCtx->Config.Merge_v20.MDCurveLM_damp;
-    pAmergeCtx->CurrData.CtrlData.MergeMDDampMS = pAmergeCtx->Config.Merge_v20.MDCurveMS_damp;
-
-    LOG1_AMERGE( "%s:exit!\n", __FUNCTION__);
-}
-
 void AmergeGetSensorInfo
 (
     AmergeContext_t*     pAmergeCtx,
@@ -222,11 +193,19 @@ void AmergeIQUpdate(AmergeContext_t*     pAmergeCtx)
     LOG1_AMERGE("%s:enter!\n", __FUNCTION__);
 
     if(CHECK_ISP_HW_V21()) {
+        float CtrlData = pAmergeCtx->CurrData.CtrlData.EnvLv;
+        if (pAmergeCtx->Config.Merge_v20.CtrlDataType == CTRLDATATYPE_ISO)
+            CtrlData = pAmergeCtx->CurrData.CtrlData.ISO;
+
         //get Current merge OECurve
-        pAmergeCtx->CurrData.HandleData.Merge_v20.OECurve_smooth = GetCurrPara(pAmergeCtx->CurrData.CtrlData.EnvLv,
-                pAmergeCtx->Config.Merge_v20.EnvLv, pAmergeCtx->Config.Merge_v20.OECurve_smooth, pAmergeCtx->Config.Merge_v20.MaxEnvLvKnots);
-        pAmergeCtx->CurrData.HandleData.Merge_v20.OECurve_offset = GetCurrPara(pAmergeCtx->CurrData.CtrlData.EnvLv,
-                pAmergeCtx->Config.Merge_v20.EnvLv, pAmergeCtx->Config.Merge_v20.OECurve_offset, pAmergeCtx->Config.Merge_v20.MaxEnvLvKnots);
+        pAmergeCtx->CurrData.HandleData.Merge_v20.OECurve_smooth =
+            GetCurrPara(CtrlData, pAmergeCtx->Config.Merge_v20.CtrlData,
+                        pAmergeCtx->Config.Merge_v20.OECurve_smooth,
+                        pAmergeCtx->Config.Merge_v20.MaxEnvLvKnots);
+        pAmergeCtx->CurrData.HandleData.Merge_v20.OECurve_offset =
+            GetCurrPara(CtrlData, pAmergeCtx->Config.Merge_v20.CtrlData,
+                        pAmergeCtx->Config.Merge_v20.OECurve_offset,
+                        pAmergeCtx->Config.Merge_v20.MaxEnvLvKnots);
 
         //get Current merge MDCurve
         pAmergeCtx->CurrData.HandleData.Merge_v20.MDCurveLM_smooth = GetCurrPara(pAmergeCtx->CurrData.CtrlData.MoveCoef,
@@ -243,12 +222,19 @@ void AmergeIQUpdate(AmergeContext_t*     pAmergeCtx)
         pAmergeCtx->CurrData.CtrlData.MergeMDDampMS = pAmergeCtx->Config.Merge_v20.MDCurveMS_damp;
     }
     else if(CHECK_ISP_HW_V30()) {
+        float CtrlData = pAmergeCtx->CurrData.CtrlData.EnvLv;
+        if (pAmergeCtx->Config.Merge_v30.CtrlDataType == CTRLDATATYPE_ISO)
+            CtrlData = pAmergeCtx->CurrData.CtrlData.ISO;
         if(pAmergeCtx->Config.Merge_v30.BaseFrm == BASEFRAME_LONG) {
             //get Current merge OECurve
-            pAmergeCtx->CurrData.HandleData.Merge_v30.OECurve_smooth = GetCurrPara(pAmergeCtx->CurrData.CtrlData.EnvLv,
-                    pAmergeCtx->Config.Merge_v30.LongFrmEnvLv, pAmergeCtx->Config.Merge_v30.LongFrmOECurve_smooth, pAmergeCtx->Config.Merge_v30.LongFrmMaxEnvLvKnots);
-            pAmergeCtx->CurrData.HandleData.Merge_v30.OECurve_offset = GetCurrPara(pAmergeCtx->CurrData.CtrlData.EnvLv,
-                    pAmergeCtx->Config.Merge_v30.LongFrmEnvLv, pAmergeCtx->Config.Merge_v30.LongFrmOECurve_offset, pAmergeCtx->Config.Merge_v30.LongFrmMaxEnvLvKnots);
+            pAmergeCtx->CurrData.HandleData.Merge_v30.OECurve_smooth =
+                GetCurrPara(CtrlData, pAmergeCtx->Config.Merge_v30.LongFrmEnvLv,
+                            pAmergeCtx->Config.Merge_v30.LongFrmOECurve_smooth,
+                            pAmergeCtx->Config.Merge_v30.LongFrmMaxEnvLvKnots);
+            pAmergeCtx->CurrData.HandleData.Merge_v30.OECurve_offset =
+                GetCurrPara(CtrlData, pAmergeCtx->Config.Merge_v30.LongFrmEnvLv,
+                            pAmergeCtx->Config.Merge_v30.LongFrmOECurve_offset,
+                            pAmergeCtx->Config.Merge_v30.LongFrmMaxEnvLvKnots);
 
             //get Current merge MDCurve
             pAmergeCtx->CurrData.HandleData.Merge_v30.MDCurveLM_smooth = GetCurrPara(pAmergeCtx->CurrData.CtrlData.MoveCoef,
@@ -266,10 +252,14 @@ void AmergeIQUpdate(AmergeContext_t*     pAmergeCtx)
         }
         else if(pAmergeCtx->Config.Merge_v30.BaseFrm == BASEFRAME_SHORT) {
             //get Current merge OECurve
-            pAmergeCtx->CurrData.HandleData.Merge_v30.OECurve_smooth = GetCurrPara(pAmergeCtx->CurrData.CtrlData.EnvLv,
-                    pAmergeCtx->Config.Merge_v30.ShortFrmEnvLv, pAmergeCtx->Config.Merge_v30.ShortFrmOECurve_smooth, pAmergeCtx->Config.Merge_v30.ShortFrmMaxEnvLvKnots);
-            pAmergeCtx->CurrData.HandleData.Merge_v30.OECurve_offset = GetCurrPara(pAmergeCtx->CurrData.CtrlData.EnvLv,
-                    pAmergeCtx->Config.Merge_v30.ShortFrmEnvLv, pAmergeCtx->Config.Merge_v30.ShortFrmOECurve_offset, pAmergeCtx->Config.Merge_v30.ShortFrmMaxEnvLvKnots);
+            pAmergeCtx->CurrData.HandleData.Merge_v30.OECurve_smooth =
+                GetCurrPara(CtrlData, pAmergeCtx->Config.Merge_v30.ShortFrmEnvLv,
+                            pAmergeCtx->Config.Merge_v30.ShortFrmOECurve_smooth,
+                            pAmergeCtx->Config.Merge_v30.ShortFrmMaxEnvLvKnots);
+            pAmergeCtx->CurrData.HandleData.Merge_v30.OECurve_offset =
+                GetCurrPara(CtrlData, pAmergeCtx->Config.Merge_v30.ShortFrmEnvLv,
+                            pAmergeCtx->Config.Merge_v30.ShortFrmOECurve_offset,
+                            pAmergeCtx->Config.Merge_v30.ShortFrmMaxEnvLvKnots);
 
             //get Current merge MDCurve
             pAmergeCtx->CurrData.HandleData.Merge_v30.MDCurve_Coef = GetCurrPara(pAmergeCtx->CurrData.CtrlData.MoveCoef,
@@ -302,18 +292,19 @@ void MergePrepareJsonMalloc
     DCT_ASSERT(pCalibDb != NULL);
 
     if(CHECK_ISP_HW_V21()) {
-        int New_OECurve_EnvLv_len = pCalibDb->Merge_v20.MergeTuningPara.OECurve.EnvLv_len;
+        int New_OECurve_EnvLv_len    = pCalibDb->Merge_v20.MergeTuningPara.OECurve.CtrlData_len;
         int New_MDCurve_MoveCoef_len = pCalibDb->Merge_v20.MergeTuningPara.MDCurve.MoveCoef_len;
 
         LOG1_AMERGE( "%s: Pre MaxEnvLvKnots:%d Cur MaxEnvLvKnots:%d\n", __FUNCTION__, pAmergeConfig->Merge_v20.MaxEnvLvKnots, New_OECurve_EnvLv_len);
         LOG1_AMERGE( "%s: Pre MaxMoveCoefKnots:%d Cur MaxMoveCoefKnots:%d\n", __FUNCTION__, pAmergeConfig->Merge_v20.MaxMoveCoefKnots, New_MDCurve_MoveCoef_len);
 
         if(pAmergeConfig->Merge_v20.MaxEnvLvKnots != New_OECurve_EnvLv_len) {
-            free(pAmergeConfig->Merge_v20.EnvLv);
+            free(pAmergeConfig->Merge_v20.CtrlData);
             free(pAmergeConfig->Merge_v20.OECurve_smooth);
             free(pAmergeConfig->Merge_v20.OECurve_offset);
             pAmergeConfig->Merge_v20.MaxEnvLvKnots = New_OECurve_EnvLv_len;
-            pAmergeConfig->Merge_v20.EnvLv = (float*)malloc(sizeof(float) * New_OECurve_EnvLv_len);
+            pAmergeConfig->Merge_v20.CtrlData =
+                (float*)malloc(sizeof(float) * New_OECurve_EnvLv_len);
             pAmergeConfig->Merge_v20.OECurve_smooth = (float*)malloc(sizeof(float) * New_OECurve_EnvLv_len);
             pAmergeConfig->Merge_v20.OECurve_offset = (float*)malloc(sizeof(float) * New_OECurve_EnvLv_len);
         }
@@ -332,9 +323,11 @@ void MergePrepareJsonMalloc
         }
     }
     else if(CHECK_ISP_HW_V30()) {
-        int New_Long_OECurve_EnvLv_len = pCalibDb->Merge_v30.MergeTuningPara.LongFrmModeData.OECurve.EnvLv_len;
+        int New_Long_OECurve_EnvLv_len =
+            pCalibDb->Merge_v30.MergeTuningPara.LongFrmModeData.OECurve.CtrlData_len;
         int New_Long_MDCurve_MoveCoef_len = pCalibDb->Merge_v30.MergeTuningPara.LongFrmModeData.MDCurve.MoveCoef_len;
-        int New_Short_OECurve_EnvLv_len = pCalibDb->Merge_v30.MergeTuningPara.ShortFrmModeData.OECurve.EnvLv_len;
+        int New_Short_OECurve_EnvLv_len =
+            pCalibDb->Merge_v30.MergeTuningPara.ShortFrmModeData.OECurve.CtrlData_len;
         int New_Short_MDCurve_MoveCoef_len = pCalibDb->Merge_v30.MergeTuningPara.ShortFrmModeData.MDCurve.MoveCoef_len;
 
         //long frm mode
@@ -418,11 +411,12 @@ void MergeProcApiMalloc
         LOG1_AMERGE( "%s: Pre MaxMoveCoefKnots:%d Cur MaxMoveCoefKnots:%d\n", __FUNCTION__, pAmergeConfig->Merge_v20.MaxMoveCoefKnots, New_MDCurve_MoveCoef_len);
 
         if(pAmergeConfig->Merge_v20.MaxEnvLvKnots != New_OECurve_EnvLv_len) {
-            free(pAmergeConfig->Merge_v20.EnvLv);
+            free(pAmergeConfig->Merge_v20.CtrlData);
             free(pAmergeConfig->Merge_v20.OECurve_smooth);
             free(pAmergeConfig->Merge_v20.OECurve_offset);
             pAmergeConfig->Merge_v20.MaxEnvLvKnots = New_OECurve_EnvLv_len;
-            pAmergeConfig->Merge_v20.EnvLv = (float*)malloc(sizeof(float) * New_OECurve_EnvLv_len);
+            pAmergeConfig->Merge_v20.CtrlData =
+                (float*)malloc(sizeof(float) * New_OECurve_EnvLv_len);
             pAmergeConfig->Merge_v20.OECurve_smooth = (float*)malloc(sizeof(float) * New_OECurve_EnvLv_len);
             pAmergeConfig->Merge_v20.OECurve_offset = (float*)malloc(sizeof(float) * New_OECurve_EnvLv_len);
         }
@@ -524,11 +518,14 @@ void AmergePrepareJsonUpdateConfig
     if(CHECK_ISP_HW_V21()) {
         pAmergeCtx->Config.Merge_v20.BaseFrm = BASEFRAME_LONG;
         pAmergeCtx->Config.Merge_v20.ByPassThr = LIMIT_VALUE(pCalibDb->Merge_v20.MergeTuningPara.ByPassThr, DAMPMAX, DAMPMIN);
+        pAmergeCtx->Config.Merge_v20.CtrlDataType =
+            pCalibDb->Merge_v20.MergeTuningPara.CtrlDataType;
         pAmergeCtx->Config.Merge_v20.OECurve_damp = LIMIT_VALUE(pCalibDb->Merge_v20.MergeTuningPara.OECurve_damp, DAMPMAX, DAMPMIN);
         pAmergeCtx->Config.Merge_v20.MDCurveLM_damp = LIMIT_VALUE(pCalibDb->Merge_v20.MergeTuningPara.MDCurveLM_damp, DAMPMAX, DAMPMIN);
         pAmergeCtx->Config.Merge_v20.MDCurveMS_damp = LIMIT_VALUE(pCalibDb->Merge_v20.MergeTuningPara.MDCurveMS_damp, DAMPMAX, DAMPMIN);
         for (int i = 0; i < pAmergeCtx->Config.Merge_v20.MaxEnvLvKnots; i++ ) {
-            pAmergeCtx->Config.Merge_v20.EnvLv[i] = LIMIT_VALUE(pCalibDb->Merge_v20.MergeTuningPara.OECurve.EnvLv[i], ENVLVMAX, ENVLVMIN);
+            pAmergeCtx->Config.Merge_v20.CtrlData[i] =
+                pCalibDb->Merge_v20.MergeTuningPara.OECurve.CtrlData[i];
             pAmergeCtx->Config.Merge_v20.OECurve_smooth[i] = LIMIT_VALUE(pCalibDb->Merge_v20.MergeTuningPara.OECurve.Smooth[i], IQPARAMAX, IQPARAMIN);
             pAmergeCtx->Config.Merge_v20.OECurve_offset[i] = LIMIT_VALUE(pCalibDb->Merge_v20.MergeTuningPara.OECurve.Offset[i], OECURVEOFFSETMAX, OECURVEOFFSETMIN);
         }
@@ -562,6 +559,8 @@ void AmergePrepareJsonUpdateConfig
     }
     else if(CHECK_ISP_HW_V30()) {
         pAmergeCtx->Config.Merge_v30.BaseFrm = pCalibDb->Merge_v30.MergeTuningPara.BaseFrm;
+        pAmergeCtx->Config.Merge_v30.CtrlDataType =
+            pCalibDb->Merge_v30.MergeTuningPara.CtrlDataType;
         pAmergeCtx->Config.Merge_v30.ByPassThr = LIMIT_VALUE(pCalibDb->Merge_v30.MergeTuningPara.ByPassThr, DAMPMAX, DAMPMIN);
 
         //long frm mode para
@@ -569,7 +568,8 @@ void AmergePrepareJsonUpdateConfig
         pAmergeCtx->Config.Merge_v30.LongFrmMDCurveLM_damp = LIMIT_VALUE(pCalibDb->Merge_v30.MergeTuningPara.LongFrmModeData.MDCurveLM_damp, DAMPMAX, DAMPMIN);
         pAmergeCtx->Config.Merge_v30.LongFrmMDCurveMS_damp = LIMIT_VALUE(pCalibDb->Merge_v30.MergeTuningPara.LongFrmModeData.MDCurveMS_damp, DAMPMAX, DAMPMIN);
         for (int i = 0; i < pAmergeCtx->Config.Merge_v30.LongFrmMaxEnvLvKnots; i++ ) {
-            pAmergeCtx->Config.Merge_v30.LongFrmEnvLv[i] = LIMIT_VALUE(pCalibDb->Merge_v30.MergeTuningPara.LongFrmModeData.OECurve.EnvLv[i], ENVLVMAX, ENVLVMIN);
+            pAmergeCtx->Config.Merge_v30.LongFrmEnvLv[i] =
+                pCalibDb->Merge_v30.MergeTuningPara.LongFrmModeData.OECurve.CtrlData[i];
             pAmergeCtx->Config.Merge_v30.LongFrmOECurve_smooth[i] = LIMIT_VALUE(pCalibDb->Merge_v30.MergeTuningPara.LongFrmModeData.OECurve.Smooth[i], IQPARAMAX, IQPARAMIN);
             pAmergeCtx->Config.Merge_v30.LongFrmOECurve_offset[i] = LIMIT_VALUE(pCalibDb->Merge_v30.MergeTuningPara.LongFrmModeData.OECurve.Offset[i], OECURVEOFFSETMAX, OECURVEOFFSETMIN);
         }
@@ -584,7 +584,8 @@ void AmergePrepareJsonUpdateConfig
         pAmergeCtx->Config.Merge_v30.ShortFrmOECurve_damp = LIMIT_VALUE(pCalibDb->Merge_v30.MergeTuningPara.ShortFrmModeData.OECurve_damp, DAMPMAX, DAMPMIN);
         pAmergeCtx->Config.Merge_v30.ShortFrmMDCurve_damp = LIMIT_VALUE(pCalibDb->Merge_v30.MergeTuningPara.ShortFrmModeData.MDCurve_damp, DAMPMAX, DAMPMIN);
         for (int i = 0; i < pAmergeCtx->Config.Merge_v30.ShortFrmMaxEnvLvKnots; i++ ) {
-            pAmergeCtx->Config.Merge_v30.ShortFrmEnvLv[i] = LIMIT_VALUE(pCalibDb->Merge_v30.MergeTuningPara.ShortFrmModeData.OECurve.EnvLv[i], ENVLVMAX, ENVLVMIN);
+            pAmergeCtx->Config.Merge_v30.ShortFrmEnvLv[i] =
+                pCalibDb->Merge_v30.MergeTuningPara.ShortFrmModeData.OECurve.CtrlData[i];
             pAmergeCtx->Config.Merge_v30.ShortFrmOECurve_smooth[i] = LIMIT_VALUE(pCalibDb->Merge_v30.MergeTuningPara.ShortFrmModeData.OECurve.Smooth[i], IQPARAMAX, IQPARAMIN);
             pAmergeCtx->Config.Merge_v30.ShortFrmOECurve_offset[i] = LIMIT_VALUE(pCalibDb->Merge_v30.MergeTuningPara.ShortFrmModeData.OECurve.Offset[i], OECURVEOFFSETMAX, OECURVEOFFSETMIN);
         }
@@ -641,7 +642,7 @@ void AmergeProcApiUpdateConfig
         pAmergeCtx->Config.Merge_v20.MDCurveLM_damp = DAMPMIN;
         pAmergeCtx->Config.Merge_v20.MDCurveMS_damp = DAMPMIN;
         for (int i = 0; i < pAmergeCtx->Config.Merge_v20.MaxEnvLvKnots; i++ ) {
-            pAmergeCtx->Config.Merge_v20.EnvLv[i] = ENVLVMIN;
+            pAmergeCtx->Config.Merge_v20.CtrlData[i] = ENVLVMIN;
             pAmergeCtx->Config.Merge_v20.OECurve_smooth[i] = LIMIT_VALUE(pAmergeCtx->mergeAttr.attrV21.stManual.OECurve.Smooth, IQPARAMAX, IQPARAMIN);
             pAmergeCtx->Config.Merge_v20.OECurve_offset[i] = LIMIT_VALUE(pAmergeCtx->mergeAttr.attrV21.stManual.OECurve.Offset, OECURVEOFFSETMAX, OECURVEOFFSETMIN);
         }
@@ -979,11 +980,13 @@ void AmergeTuningProcessing
     if(CHECK_ISP_HW_V21()) {
         //transfer control data to api
         pAmergeCtx->mergeAttr.attrV21.CtlInfo.Envlv = pAmergeCtx->CurrData.CtrlData.EnvLv;
+        pAmergeCtx->mergeAttr.attrV21.CtlInfo.ISO      = pAmergeCtx->CurrData.CtrlData.ISO;
         pAmergeCtx->mergeAttr.attrV21.CtlInfo.MoveCoef = pAmergeCtx->CurrData.CtrlData.MoveCoef;
     }
     else if(CHECK_ISP_HW_V30()) {
         //transfer control data to api
         pAmergeCtx->mergeAttr.attrV30.CtlInfo.Envlv = pAmergeCtx->CurrData.CtrlData.EnvLv;
+        pAmergeCtx->mergeAttr.attrV30.CtlInfo.ISO      = pAmergeCtx->CurrData.CtrlData.ISO;
         pAmergeCtx->mergeAttr.attrV30.CtlInfo.MoveCoef = pAmergeCtx->CurrData.CtrlData.MoveCoef;
     }
 
@@ -1144,11 +1147,11 @@ void AmergeExpoProcessing
         pAmergeCtx->ProcRes.Merge_v30.sw_hdrmge_gain2 = SW_HDRMGE_GAIN_FIX;
 
         //isp30 add
-        float Coef = pAmergeCtx->CurrData.HandleData.Merge_v30.MDCurve_Coef / SHORT_MODE_COEF_MAX;
+        float Coef = pAmergeCtx->CurrData.HandleData.Merge_v30.MDCurve_Coef * SHORT_MODE_COEF_MAX;
         float sw_hdrmge_ms_thd0 = pAmergeCtx->CurrData.HandleData.Merge_v30.MDCurve_ms_thd0;
         float sw_hdrmge_lm_thd0 = pAmergeCtx->CurrData.HandleData.Merge_v30.MDCurve_lm_thd0;
-        float sw_hdrmge_ms_thd1 = 1024 * pow(100 * Coef * pExpoData->nextSGain, 0.5f);
-        float sw_hdrmge_lm_thd1 = 1024 * pow(100 * Coef * pExpoData->nextMGain, 0.5f);
+        float sw_hdrmge_ms_thd1 = pow(100 * Coef * pExpoData->nextSGain, 0.5f);
+        float sw_hdrmge_lm_thd1 = pow(100 * Coef * pExpoData->nextMGain, 0.5f);
         float sw_hdrmge_ms_scl = (sw_hdrmge_ms_thd1 == sw_hdrmge_ms_thd0) ? 0 : (1 / (sw_hdrmge_ms_thd1 - sw_hdrmge_ms_thd0));
         float sw_hdrmge_lm_scl = (sw_hdrmge_lm_thd1 == sw_hdrmge_lm_thd0) ? 0 : (1 / (sw_hdrmge_lm_thd1 - sw_hdrmge_lm_thd0));
         pAmergeCtx->ProcRes.Merge_v30.sw_hdrmge_ms_thd0 = (int)(1024 * sw_hdrmge_ms_thd0);
@@ -1240,40 +1243,79 @@ bool AmergeByPassProcessing
         bypass = false;
     else if(ApiMode != pAmergeCtx->PrevData.CtrlData.ApiMode)//api change
         bypass = false;
-    else { //EvnLv change
-        //get Current hdr mode
+    else {
         float ByPassThr = 0.0;
         if(CHECK_ISP_HW_V21()) {
             pAmergeCtx->CurrData.HandleData.Merge_v20.MergeMode = pAmergeCtx->FrameNumber - 1;
             LOG1_AMERGE("%s:  Current MergeMode: %d \n", __FUNCTION__, pAmergeCtx->CurrData.HandleData.Merge_v20.MergeMode);
             ByPassThr = pAmergeCtx->Config.Merge_v20.ByPassThr;
+            if (pAmergeCtx->Config.Merge_v20.CtrlDataType == CTRLDATATYPE_ENVLV) {
+                diff = pAmergeCtx->PrevData.CtrlData.EnvLv - pAmergeCtx->CurrData.CtrlData.EnvLv;
+                if (pAmergeCtx->PrevData.CtrlData.EnvLv == 0.0) {
+                    diff = pAmergeCtx->CurrData.CtrlData.EnvLv;
+                    if (diff == 0.0)
+                        bypass = true;
+                    else
+                        bypass = false;
+                } else {
+                    diff /= pAmergeCtx->PrevData.CtrlData.EnvLv;
+                    if (diff >= ByPassThr || diff <= (0 - ByPassThr))
+                        bypass = false;
+                    else
+                        bypass = true;
+                }
+            } else if (pAmergeCtx->Config.Merge_v20.CtrlDataType == CTRLDATATYPE_ISO) {
+                diff = pAmergeCtx->PrevData.CtrlData.ISO - pAmergeCtx->CurrData.CtrlData.ISO;
+                diff /= pAmergeCtx->PrevData.CtrlData.ISO;
+                if (diff >= ByPassThr || diff <= (0 - ByPassThr))
+                    bypass = false;
+                else
+                    bypass = true;
+            }
+            LOGD_AMERGE(
+                "%s: FrameID:%d HDRFrameNum:%d LongFrmMode:%d MergeApiMode:%d CtrlDataType:%d "
+                "EnvLv:%f ISO:%f MoveCoef:%f bypass:%d\n",
+                __FUNCTION__, pAmergeCtx->frameCnt, pAmergeCtx->FrameNumber,
+                pAmergeCtx->SensorInfo.LongFrmMode, ApiMode,
+                pAmergeCtx->Config.Merge_v20.CtrlDataType, pAmergeCtx->CurrData.CtrlData.EnvLv,
+                pAmergeCtx->CurrData.CtrlData.ISO, pAmergeCtx->CurrData.CtrlData.MoveCoef, bypass);
         }
         else if(CHECK_ISP_HW_V30()) {
             pAmergeCtx->CurrData.HandleData.Merge_v30.MergeMode = pAmergeCtx->FrameNumber - 1;
             LOG1_AMERGE("%s:  Current MergeMode: %d \n", __FUNCTION__, pAmergeCtx->CurrData.HandleData.Merge_v30.MergeMode);
             ByPassThr = pAmergeCtx->Config.Merge_v30.ByPassThr;
-        }
-
-        //use Envlv for now
-        diff = pAmergeCtx->PrevData.CtrlData.EnvLv - pAmergeCtx->CurrData.CtrlData.EnvLv;
-        if(pAmergeCtx->PrevData.CtrlData.EnvLv == 0.0) {
-            diff = pAmergeCtx->CurrData.CtrlData.EnvLv;
-            if(diff == 0.0)
-                bypass = true;
-            else
-                bypass = false;
-        }
-        else {
-            diff /= pAmergeCtx->PrevData.CtrlData.EnvLv;
-            if(diff >= ByPassThr || diff <= (0 - ByPassThr))
-                bypass = false;
-            else
-                bypass = true;
+            if (pAmergeCtx->Config.Merge_v30.CtrlDataType == CTRLDATATYPE_ENVLV) {
+                diff = pAmergeCtx->PrevData.CtrlData.EnvLv - pAmergeCtx->CurrData.CtrlData.EnvLv;
+                if (pAmergeCtx->PrevData.CtrlData.EnvLv == 0.0) {
+                    diff = pAmergeCtx->CurrData.CtrlData.EnvLv;
+                    if (diff == 0.0)
+                        bypass = true;
+                    else
+                        bypass = false;
+                } else {
+                    diff /= pAmergeCtx->PrevData.CtrlData.EnvLv;
+                    if (diff >= ByPassThr || diff <= (0 - ByPassThr))
+                        bypass = false;
+                    else
+                        bypass = true;
+                }
+            } else if (pAmergeCtx->Config.Merge_v30.CtrlDataType == CTRLDATATYPE_ISO) {
+                diff = pAmergeCtx->PrevData.CtrlData.ISO - pAmergeCtx->CurrData.CtrlData.ISO;
+                diff /= pAmergeCtx->PrevData.CtrlData.ISO;
+                if (diff >= ByPassThr || diff <= (0 - ByPassThr))
+                    bypass = false;
+                else
+                    bypass = true;
+            }
+            LOGD_AMERGE(
+                "%s: FrameID:%d HDRFrameNum:%d LongFrmMode:%d MergeApiMode:%d CtrlDataType:%d "
+                "EnvLv:%f ISO:%f MoveCoef:%f bypass:%d\n",
+                __FUNCTION__, pAmergeCtx->frameCnt, pAmergeCtx->FrameNumber,
+                pAmergeCtx->SensorInfo.LongFrmMode, ApiMode,
+                pAmergeCtx->Config.Merge_v30.CtrlDataType, pAmergeCtx->CurrData.CtrlData.EnvLv,
+                pAmergeCtx->CurrData.CtrlData.ISO, pAmergeCtx->CurrData.CtrlData.MoveCoef, bypass);
         }
     }
-
-    LOGD_AMERGE( "%s: FrameID:%d HDRFrameNum:%d LongFrmMode:%d MergeApiMode:%d EnvLv:%f MoveCoef:%f bypass:%d\n", __FUNCTION__, pAmergeCtx->frameCnt, pAmergeCtx->FrameNumber,
-                 pAmergeCtx->SensorInfo.LongFrmMode, ApiMode, pAmergeCtx->CurrData.CtrlData.EnvLv, pAmergeCtx->CurrData.CtrlData.MoveCoef, bypass);
 
     LOG1_AMERGE( "%s:exit!\n", __FUNCTION__);
     return bypass;
@@ -1310,10 +1352,14 @@ XCamReturn AmergeInit
         //memcpy(&pAmergeCtx->mergeAttr.stTool, calibv2_amerge_calib, sizeof(CalibDbV2_merge_t));//load iq paras to stTool
 
         //malloc
-        pAmergeCtx->Config.Merge_v20.MaxEnvLvKnots = calibv2_amerge_calib->MergeTuningPara.OECurve.EnvLv_len;
-        pAmergeCtx->Config.Merge_v20.EnvLv = (float*)malloc(sizeof(float) * (calibv2_amerge_calib->MergeTuningPara.OECurve.EnvLv_len));
-        pAmergeCtx->Config.Merge_v20.OECurve_smooth = (float*)malloc(sizeof(float) * (calibv2_amerge_calib->MergeTuningPara.OECurve.EnvLv_len));
-        pAmergeCtx->Config.Merge_v20.OECurve_offset = (float*)malloc(sizeof(float) * (calibv2_amerge_calib->MergeTuningPara.OECurve.EnvLv_len));
+        pAmergeCtx->Config.Merge_v20.MaxEnvLvKnots =
+            calibv2_amerge_calib->MergeTuningPara.OECurve.CtrlData_len;
+        pAmergeCtx->Config.Merge_v20.CtrlData = (float*)malloc(
+            sizeof(float) * (calibv2_amerge_calib->MergeTuningPara.OECurve.CtrlData_len));
+        pAmergeCtx->Config.Merge_v20.OECurve_smooth = (float*)malloc(
+            sizeof(float) * (calibv2_amerge_calib->MergeTuningPara.OECurve.CtrlData_len));
+        pAmergeCtx->Config.Merge_v20.OECurve_offset = (float*)malloc(
+            sizeof(float) * (calibv2_amerge_calib->MergeTuningPara.OECurve.CtrlData_len));
         pAmergeCtx->Config.Merge_v20.MaxMoveCoefKnots = calibv2_amerge_calib->MergeTuningPara.MDCurve.MoveCoef_len;
         pAmergeCtx->Config.Merge_v20.MoveCoef = (float*)malloc(sizeof(float) * (calibv2_amerge_calib->MergeTuningPara.MDCurve.MoveCoef_len));
         pAmergeCtx->Config.Merge_v20.MDCurveLM_smooth = (float*)malloc(sizeof(float) * (calibv2_amerge_calib->MergeTuningPara.MDCurve.MoveCoef_len));
@@ -1353,11 +1399,18 @@ XCamReturn AmergeInit
         memcpy(&pAmergeCtx->pCalibDB.Merge_v30, calibv2_amerge_calib, sizeof(CalibDbV2_merge_V2_t));//load iq paras
 
         //malloc long frm mode
-        pAmergeCtx->Config.Merge_v30.LongFrmMaxEnvLvKnots = calibv2_amerge_calib->MergeTuningPara.LongFrmModeData.OECurve.EnvLv_len;
+        pAmergeCtx->Config.Merge_v30.LongFrmMaxEnvLvKnots =
+            calibv2_amerge_calib->MergeTuningPara.LongFrmModeData.OECurve.CtrlData_len;
         pAmergeCtx->Config.Merge_v30.LongFrmMaxMoveCoefKnots = calibv2_amerge_calib->MergeTuningPara.LongFrmModeData.MDCurve.MoveCoef_len;
-        pAmergeCtx->Config.Merge_v30.LongFrmEnvLv = (float*)malloc(sizeof(float) * (calibv2_amerge_calib->MergeTuningPara.LongFrmModeData.OECurve.EnvLv_len));
-        pAmergeCtx->Config.Merge_v30.LongFrmOECurve_smooth = (float*)malloc(sizeof(float) * (calibv2_amerge_calib->MergeTuningPara.LongFrmModeData.OECurve.EnvLv_len));
-        pAmergeCtx->Config.Merge_v30.LongFrmOECurve_offset = (float*)malloc(sizeof(float) * (calibv2_amerge_calib->MergeTuningPara.LongFrmModeData.OECurve.EnvLv_len));
+        pAmergeCtx->Config.Merge_v30.LongFrmEnvLv = (float*)malloc(
+            sizeof(float) *
+            (calibv2_amerge_calib->MergeTuningPara.LongFrmModeData.OECurve.CtrlData_len));
+        pAmergeCtx->Config.Merge_v30.LongFrmOECurve_smooth = (float*)malloc(
+            sizeof(float) *
+            (calibv2_amerge_calib->MergeTuningPara.LongFrmModeData.OECurve.CtrlData_len));
+        pAmergeCtx->Config.Merge_v30.LongFrmOECurve_offset = (float*)malloc(
+            sizeof(float) *
+            (calibv2_amerge_calib->MergeTuningPara.LongFrmModeData.OECurve.CtrlData_len));
         pAmergeCtx->Config.Merge_v30.LongFrmMoveCoef = (float*)malloc(sizeof(float) * (calibv2_amerge_calib->MergeTuningPara.LongFrmModeData.MDCurve.MoveCoef_len));
         pAmergeCtx->Config.Merge_v30.LongFrmMDCurveLM_smooth = (float*)malloc(sizeof(float) * (calibv2_amerge_calib->MergeTuningPara.LongFrmModeData.MDCurve.MoveCoef_len));
         pAmergeCtx->Config.Merge_v30.LongFrmMDCurveLM_offset = (float*)malloc(sizeof(float) * (calibv2_amerge_calib->MergeTuningPara.LongFrmModeData.MDCurve.MoveCoef_len));
@@ -1365,11 +1418,18 @@ XCamReturn AmergeInit
         pAmergeCtx->Config.Merge_v30.LongFrmMDCurveMS_offset = (float*)malloc(sizeof(float) * (calibv2_amerge_calib->MergeTuningPara.LongFrmModeData.MDCurve.MoveCoef_len));
 
         //malloc short frm mode
-        pAmergeCtx->Config.Merge_v30.ShortFrmMaxEnvLvKnots = calibv2_amerge_calib->MergeTuningPara.ShortFrmModeData.OECurve.EnvLv_len;
+        pAmergeCtx->Config.Merge_v30.ShortFrmMaxEnvLvKnots =
+            calibv2_amerge_calib->MergeTuningPara.ShortFrmModeData.OECurve.CtrlData_len;
         pAmergeCtx->Config.Merge_v30.ShortFrmMaxMoveCoefKnots = calibv2_amerge_calib->MergeTuningPara.ShortFrmModeData.MDCurve.MoveCoef_len;
-        pAmergeCtx->Config.Merge_v30.ShortFrmEnvLv = (float*)malloc(sizeof(float) * (calibv2_amerge_calib->MergeTuningPara.ShortFrmModeData.OECurve.EnvLv_len));
-        pAmergeCtx->Config.Merge_v30.ShortFrmOECurve_smooth = (float*)malloc(sizeof(float) * (calibv2_amerge_calib->MergeTuningPara.ShortFrmModeData.OECurve.EnvLv_len));
-        pAmergeCtx->Config.Merge_v30.ShortFrmOECurve_offset = (float*)malloc(sizeof(float) * (calibv2_amerge_calib->MergeTuningPara.ShortFrmModeData.OECurve.EnvLv_len));
+        pAmergeCtx->Config.Merge_v30.ShortFrmEnvLv = (float*)malloc(
+            sizeof(float) *
+            (calibv2_amerge_calib->MergeTuningPara.ShortFrmModeData.OECurve.CtrlData_len));
+        pAmergeCtx->Config.Merge_v30.ShortFrmOECurve_smooth = (float*)malloc(
+            sizeof(float) *
+            (calibv2_amerge_calib->MergeTuningPara.ShortFrmModeData.OECurve.CtrlData_len));
+        pAmergeCtx->Config.Merge_v30.ShortFrmOECurve_offset = (float*)malloc(
+            sizeof(float) *
+            (calibv2_amerge_calib->MergeTuningPara.ShortFrmModeData.OECurve.CtrlData_len));
         pAmergeCtx->Config.Merge_v30.ShortFrmMoveCoef = (float*)malloc(sizeof(float) * (calibv2_amerge_calib->MergeTuningPara.ShortFrmModeData.MDCurve.MoveCoef_len));
         pAmergeCtx->Config.Merge_v30.ShortFrmMDCurve_Coef = (float*)malloc(sizeof(float) * (calibv2_amerge_calib->MergeTuningPara.ShortFrmModeData.MDCurve.MoveCoef_len));
         pAmergeCtx->Config.Merge_v30.ShortFrmMDCurve_ms_thd0 = (float*)malloc(sizeof(float) * (calibv2_amerge_calib->MergeTuningPara.ShortFrmModeData.MDCurve.MoveCoef_len));
@@ -1443,7 +1503,7 @@ XCamReturn AmergeRelease
     }
 
     if(CHECK_ISP_HW_V21()) {
-        free(pAmergeCtx->Config.Merge_v20.EnvLv);
+        free(pAmergeCtx->Config.Merge_v20.CtrlData);
         free(pAmergeCtx->Config.Merge_v20.OECurve_smooth);
         free(pAmergeCtx->Config.Merge_v20.OECurve_offset);
         free(pAmergeCtx->Config.Merge_v20.MoveCoef);

@@ -83,6 +83,7 @@ typedef struct MppDecStatusCfg_t {
     RK_U32              hal_support_fast_mode;
     RK_U32              hal_task_count;
     RK_U32              vproc_task_count;
+    RK_U32              use_ext_fast_play;
 } MppDecStatusCfg;
 
 typedef struct MppDecCfgSet_t {
@@ -90,16 +91,5 @@ typedef struct MppDecCfgSet_t {
     MppDecStatusCfg     status;
     MppDecCbCfg         cb;
 } MppDecCfgSet;
-
-/*
- * MppDecCfgApi is the function set for configure MppDecCfgSet by name
- */
-typedef struct MppDecCfgApi_t {
-    const char          *name;
-    RK_S32              type_set;
-    RK_S32              type_get;
-    void                *api_set;
-    void                *api_get;
-} MppDecCfgApi;
 
 #endif /* __MPP_DEC_CFG_H__ */

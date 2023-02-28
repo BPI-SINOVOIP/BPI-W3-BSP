@@ -70,7 +70,7 @@ XCamReturn RkAiqAblcHandleInt::setAttrib(rk_aiq_blc_attrib_t* att) {
     // called by RkAiqCore
     bool isChanged = false;
     if (att->sync.sync_mode == RK_AIQ_UAPI_MODE_ASYNC && \
-        memcmp(&mNewAtt, att, sizeof(*att)))
+            memcmp(&mNewAtt, att, sizeof(*att)))
         isChanged = true;
     else if (att->sync.sync_mode != RK_AIQ_UAPI_MODE_ASYNC && \
              memcmp(&mCurAtt, att, sizeof(*att)))
@@ -123,6 +123,25 @@ XCamReturn RkAiqAblcHandleInt::getProcRes(AblcProc_t *ProcRes) {
     return ret;
 }
 
+XCamReturn RkAiqAblcHandleInt::getInfo(rk_aiq_ablc_info_t *pInfo) {
+    ENTER_ANALYZER_FUNCTION();
+
+    XCamReturn ret = XCAM_RETURN_NO_ERROR;
+
+    if(pInfo->sync.sync_mode == RK_AIQ_UAPI_MODE_SYNC) {
+        mCfgMutex.lock();
+        rk_aiq_uapi_ablc_GetInfo(mAlgoCtx, pInfo);
+        pInfo->sync.done = true;
+        mCfgMutex.unlock();
+    } else {
+        rk_aiq_uapi_ablc_GetInfo(mAlgoCtx, pInfo);
+        pInfo->sync.done = true;
+
+    }
+
+    EXIT_ANALYZER_FUNCTION();
+    return ret;
+}
 
 XCamReturn RkAiqAblcHandleInt::prepare() {
     ENTER_ANALYZER_FUNCTION();

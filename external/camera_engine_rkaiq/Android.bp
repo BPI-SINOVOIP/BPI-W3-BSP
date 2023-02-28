@@ -302,7 +302,6 @@ cc_library_shared {
         "-frtti",
         "-std=c++11",
         "-DANDROID_OS",
-        "-DRKAIQ_ENABLE_PARSER_V1",
         "-DRKAIQ_ENABLE_CAMGROUP",
     ],
 

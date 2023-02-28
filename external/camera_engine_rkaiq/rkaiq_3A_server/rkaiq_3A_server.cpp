@@ -35,7 +35,7 @@
 static int silent = 0;
 static int width = 2688;
 static int height = 1520;
-static int has_mul_cam = 0;
+static const char fake_name[32] = "FakeCamera";
 
 struct rkaiq_media_info {
     char sd_isp_path[RKAIQ_FILE_PATH_LEN];
@@ -125,7 +125,7 @@ int rkaiq_get_media_info(struct rkaiq_media_info *media_info)
     }
 
     sensor_name = rk_aiq_uapi2_sysctl_getBindedSnsEntNmByVd(media_info->mainpath);
-    if (sensor_name == NULL || strlen(sensor_name) == 0) {
+    if (sensor_name == NULL || strlen(sensor_name) == 0 || !(strstr(sensor_name, fake_name) == NULL)) {
         fprintf(stderr, "ERR: No sensor attached to %s\n", media_info->mdev_path);
         media_device_unref (device);
         return -EINVAL;
@@ -144,8 +144,8 @@ static void init_engine(struct rkaiq_media_info *media_info)
 
     media_info->aiq_ctx = rk_aiq_uapi2_sysctl_init(media_info->sensor_entity_name,
                                                   IQ_PATH, NULL, NULL);
-    if (has_mul_cam)
-        rk_aiq_uapi2_sysctl_setMulCamConc(media_info->aiq_ctx, 1);
+
+    rk_aiq_uapi2_sysctl_setMulCamConc(media_info->aiq_ctx, 1);
 
     if (rk_aiq_uapi2_sysctl_prepare(media_info->aiq_ctx,
             width, height, RK_AIQ_WORKING_MODE_NORMAL)) {
@@ -285,23 +285,21 @@ void *engine_thread(void *arg)
     }
 
     init_engine(media_info);
+    subscrible_stream_event(media_info, isp_fd, true);
 
     for (;;) {
-        subscrible_stream_event(media_info, isp_fd, true);
+        start_engine(media_info);
         DBG("%s: wait stream start event...\n", media_info->mdev_path);
         wait_stream_event(isp_fd, CIFISP_V4L2_EVENT_STREAM_START, -1);
         DBG("%s: wait stream start event success ...\n", media_info->mdev_path);
 
-        start_engine(media_info);
-
         DBG("%s: wait stream stop event...\n", media_info->mdev_path);
         wait_stream_event(isp_fd, CIFISP_V4L2_EVENT_STREAM_STOP, -1);
         DBG("%s: wait stream stop event success ...\n", media_info->mdev_path);
-
         stop_engine(media_info);
-        subscrible_stream_event(media_info, isp_fd, false);
     }
-    
+
+    subscrible_stream_event(media_info, isp_fd, false);
     deinit_engine(media_info);
     close(isp_fd);
 
@@ -311,7 +309,6 @@ void *engine_thread(void *arg)
 int main(int argc, char **argv)
 {
     int ret, i;
-    int threads = 0;
 
     /* Line buffered so that printf can flash every line if redirected to
      * no-interactive device.
@@ -328,11 +325,7 @@ int main(int argc, char **argv)
             continue;
         }
         media_infos[i].available = 1;
-        threads++;
     }
-
-    if (threads > 1)
-        has_mul_cam = 1;
 
     for (i = 0; i < MAX_MEDIA_NODES; i++) {
         if (!media_infos[i].available)

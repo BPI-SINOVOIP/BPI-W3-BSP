@@ -94,24 +94,27 @@ AblcResult_t Ablc_Select_Params_By_ISO(AblcParams_t *pParams, AblcSelect_t *pSel
 
         if(isoValue > pParams->iso[pParams->len - 1])
         {
-            isoLowlevel = pParams->len - 1;
+            isoLowlevel = pParams->len - 2;
             isoHighlevel = pParams->len - 1;
             ratio = 0;
         }
     }
 
+    pExpInfo->isoHigh = pParams->iso[isoHighlevel];
+    pExpInfo->isoLow = pParams->iso[isoLowlevel];
+
     pSelect->enable = pParams->enable;
 
-    pSelect->blc_r = (short int)(ratio * (pParams->blc_r[isoHighlevel] - pParams->blc_r[isoLowlevel])
-                                 + pParams->blc_r[isoLowlevel]);
-    pSelect->blc_gr = (short int)(ratio * (pParams->blc_gr[isoHighlevel] - pParams->blc_gr[isoLowlevel])
-                                  + pParams->blc_gr[isoLowlevel]);
-    pSelect->blc_gb = (short int)(ratio * (pParams->blc_gb[isoHighlevel] - pParams->blc_gb[isoLowlevel])
-                                  + pParams->blc_gb[isoLowlevel]);
-    pSelect->blc_b = (short int)(ratio * (pParams->blc_b[isoHighlevel] - pParams->blc_b[isoLowlevel])
-                                 + pParams->blc_b[isoLowlevel]);
+    pSelect->blc_r = (ratio * (pParams->blc_r[isoHighlevel] - pParams->blc_r[isoLowlevel])
+                      + pParams->blc_r[isoLowlevel]);
+    pSelect->blc_gr = (ratio * (pParams->blc_gr[isoHighlevel] - pParams->blc_gr[isoLowlevel])
+                       + pParams->blc_gr[isoLowlevel]);
+    pSelect->blc_gb = (ratio * (pParams->blc_gb[isoHighlevel] - pParams->blc_gb[isoLowlevel])
+                       + pParams->blc_gb[isoLowlevel]);
+    pSelect->blc_b = (ratio * (pParams->blc_b[isoHighlevel] - pParams->blc_b[isoLowlevel])
+                      + pParams->blc_b[isoLowlevel]);
 
-    LOGD_ABLC("%s:(%d) Ablc En:%d  ISO:%d  isoLowlevel:%d isoHighlevel:%d  rggb: %d %d %d %d  \n",
+    LOGD_ABLC("%s:(%d) Ablc En:%d  ISO:%d  isoLowlevel:%d isoHighlevel:%d  rggb: %f %f %f %f  \n",
               __FUNCTION__, __LINE__,
               pSelect->enable, isoValue,
               isoLowlevel, isoHighlevel,
@@ -282,49 +285,71 @@ AblcResult_t AblcProcess(AblcContext_t *pAblcCtx, AblcExpInfo_t *pExpInfo)
         return ABLC_RET_NULL_POINTER;
     }
 
-    memcpy(&pAblcCtx->stExpInfo, pExpInfo, sizeof(AblcExpInfo_t));
-
     if(pAblcCtx->eMode == ABLC_OP_MODE_AUTO) {
         LOGD_ABLC("%s:(%d) Ablc auto !!! \n", __FUNCTION__, __LINE__);
         ret = Ablc_Select_Params_By_ISO(&pAblcCtx->stBlc0Params, &pAblcCtx->stBlc0Select, pExpInfo);
         pAblcCtx->ProcRes.enable = pAblcCtx->stBlc0Select.enable;
-        pAblcCtx->ProcRes.blc_r = pAblcCtx->stBlc0Select.blc_r;
-        pAblcCtx->ProcRes.blc_gr = pAblcCtx->stBlc0Select.blc_gr;
-        pAblcCtx->ProcRes.blc_gb = pAblcCtx->stBlc0Select.blc_gb;
-        pAblcCtx->ProcRes.blc_b = pAblcCtx->stBlc0Select.blc_b;
+        pAblcCtx->ProcRes.blc_r = (uint16_t)(pAblcCtx->stBlc0Select.blc_r + 0.5);
+        pAblcCtx->ProcRes.blc_gr = (uint16_t)(pAblcCtx->stBlc0Select.blc_gr + 0.5);
+        pAblcCtx->ProcRes.blc_gb = (uint16_t)(pAblcCtx->stBlc0Select.blc_gb + 0.5);
+        pAblcCtx->ProcRes.blc_b = (uint16_t)(pAblcCtx->stBlc0Select.blc_b + 0.5);
 
         if (CHECK_ISP_HW_V3X()) {
-            if(pAblcCtx->stBlc1Params.enable) {
-                ret = Ablc_Select_Params_By_ISO(&pAblcCtx->stBlc1Params, &pAblcCtx->stBlc1Select, pExpInfo);
+            if(pExpInfo->hdr_mode == 0) {
+                //normal mode allow blc1 enable
+                if(pAblcCtx->stBlc1Params.enable) {
+                    ret = Ablc_Select_Params_By_ISO(&pAblcCtx->stBlc1Params, &pAblcCtx->stBlc1Select, pExpInfo);
+                }
+                pAblcCtx->stBlc1Select.enable = pAblcCtx->stBlc1Params.enable;
+                pAblcCtx->ProcRes.blc1_enable = pAblcCtx->stBlc1Select.enable;
+                pAblcCtx->ProcRes.blc1_r = pAblcCtx->stBlc1Select.blc_r;
+                pAblcCtx->ProcRes.blc1_gr = pAblcCtx->stBlc1Select.blc_gr;
+                pAblcCtx->ProcRes.blc1_gb = pAblcCtx->stBlc1Select.blc_gb;
+                pAblcCtx->ProcRes.blc1_b = pAblcCtx->stBlc1Select.blc_b;
+            } else {
+                //hdr mode blc1 must disable
+                pAblcCtx->stBlc1Select.enable = 0;
+                pAblcCtx->ProcRes.blc1_enable = 0;
+                pAblcCtx->ProcRes.blc1_r = 0;
+                pAblcCtx->ProcRes.blc1_gr = 0;
+                pAblcCtx->ProcRes.blc1_gb = 0;
+                pAblcCtx->ProcRes.blc1_b = 0;
             }
-            pAblcCtx->stBlc1Select.enable = pAblcCtx->stBlc1Params.enable;
-            pAblcCtx->ProcRes.blc1_enable = pAblcCtx->stBlc1Select.enable;
-            pAblcCtx->ProcRes.blc1_r = pAblcCtx->stBlc1Select.blc_r;
-            pAblcCtx->ProcRes.blc1_gr = pAblcCtx->stBlc1Select.blc_gr;
-            pAblcCtx->ProcRes.blc1_gb = pAblcCtx->stBlc1Select.blc_gb;
-            pAblcCtx->ProcRes.blc1_b = pAblcCtx->stBlc1Select.blc_b;
 
 
         }
     } else if(pAblcCtx->eMode == ABLC_OP_MODE_MANUAL) {
         LOGD_ABLC("%s:(%d) Ablc manual !!! \n", __FUNCTION__, __LINE__);
         pAblcCtx->ProcRes.enable = pAblcCtx->stBlc0Manual.enable;
-        pAblcCtx->ProcRes.blc_r = pAblcCtx->stBlc0Manual.blc_r;
-        pAblcCtx->ProcRes.blc_gr = pAblcCtx->stBlc0Manual.blc_gr;
-        pAblcCtx->ProcRes.blc_gb = pAblcCtx->stBlc0Manual.blc_gb;
-        pAblcCtx->ProcRes.blc_b = pAblcCtx->stBlc0Manual.blc_b;
+        pAblcCtx->ProcRes.blc_r = (uint16_t)(pAblcCtx->stBlc0Manual.blc_r + 0.5);
+        pAblcCtx->ProcRes.blc_gr = (uint16_t)(pAblcCtx->stBlc0Manual.blc_gr + 0.5);
+        pAblcCtx->ProcRes.blc_gb = (uint16_t)(pAblcCtx->stBlc0Manual.blc_gb + 0.5);
+        pAblcCtx->ProcRes.blc_b = (uint16_t)(pAblcCtx->stBlc0Manual.blc_b + 0.5);
+
 
         if (CHECK_ISP_HW_V3X()) {
-            pAblcCtx->ProcRes.blc1_enable = pAblcCtx->stBlc1Manual.enable;
-            pAblcCtx->ProcRes.blc1_r = pAblcCtx->stBlc1Manual.blc_r;
-            pAblcCtx->ProcRes.blc1_gr = pAblcCtx->stBlc1Manual.blc_gr;
-            pAblcCtx->ProcRes.blc1_gb = pAblcCtx->stBlc1Manual.blc_gb;
-            pAblcCtx->ProcRes.blc1_b = pAblcCtx->stBlc1Manual.blc_b;
+            if(pExpInfo->hdr_mode == 0) {
+                //normal mode allow blc1 enable
+                pAblcCtx->ProcRes.blc1_enable = pAblcCtx->stBlc1Manual.enable;
+                pAblcCtx->ProcRes.blc1_r = pAblcCtx->stBlc1Manual.blc_r;
+                pAblcCtx->ProcRes.blc1_gr = pAblcCtx->stBlc1Manual.blc_gr;
+                pAblcCtx->ProcRes.blc1_gb = pAblcCtx->stBlc1Manual.blc_gb;
+                pAblcCtx->ProcRes.blc1_b = pAblcCtx->stBlc1Manual.blc_b;
+            } else {
+                //hdr mode blc1 must disable
+                pAblcCtx->ProcRes.blc1_enable = 0;
+                pAblcCtx->ProcRes.blc1_r = 0;
+                pAblcCtx->ProcRes.blc1_gr = 0;
+                pAblcCtx->ProcRes.blc1_gb = 0;
+                pAblcCtx->ProcRes.blc1_b = 0;
+            }
         }
     } else {
         LOGE_ABLC("%s(%d): not support mode:%d!\n", __FUNCTION__, __LINE__, pAblcCtx->eMode);
     }
 
+
+    memcpy(&pAblcCtx->stExpInfo, pExpInfo, sizeof(AblcExpInfo_t));
 
     LOGD_ABLC("%s(%d): Ablc en:%d blc:%d %d %d %d \n",
               __FUNCTION__, __LINE__,
@@ -335,7 +360,7 @@ AblcResult_t AblcProcess(AblcContext_t *pAblcCtx, AblcExpInfo_t *pExpInfo)
               pAblcCtx->ProcRes.blc_b);
 
     if (CHECK_ISP_HW_V3X()) {
-        LOGD_ABLC("%s(%d): Ablc1 en:%d blc:%d %d %d %d \n",
+        LOGD_ABLC("%s(%d): Ablc1 en:%d blc:%f %f %f %f \n",
                   __FUNCTION__, __LINE__,
                   pAblcCtx->ProcRes.blc1_enable,
                   pAblcCtx->ProcRes.blc1_r,

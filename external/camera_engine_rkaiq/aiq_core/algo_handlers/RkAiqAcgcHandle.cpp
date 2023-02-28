@@ -129,6 +129,23 @@ XCamReturn RkAiqAcgcHandleInt::postProcess() {
     return ret;
 }
 
+XCamReturn RkAiqAcgcHandleInt::updateConfig(bool needSync) {
+    ENTER_ANALYZER_FUNCTION();
+
+    XCamReturn ret = XCAM_RETURN_NO_ERROR;
+    if (needSync) mCfgMutex.lock();
+    // if something changed
+    if (updateAtt) {
+        mCurAtt = mNewAtt;
+        rk_aiq_uapi_acgc_SetAttrib(mAlgoCtx, mCurAtt, false);
+        updateAtt = false;
+        sendSignal(mCurAtt.sync.sync_mode);
+    }
+    if (needSync) mCfgMutex.unlock();
+    EXIT_ANALYZER_FUNCTION();
+    return ret;
+}
+
 XCamReturn RkAiqAcgcHandleInt::genIspResult(RkAiqFullParams* params, RkAiqFullParams* cur_params) {
     ENTER_ANALYZER_FUNCTION();
 
@@ -154,10 +171,68 @@ XCamReturn RkAiqAcgcHandleInt::genIspResult(RkAiqFullParams* params, RkAiqFullPa
         RkAiqAlgoProcResAcgc* acgc_rk = (RkAiqAlgoProcResAcgc*)acgc_com;
     }
 
+    cgc_param->result = acgc_com->acgc_res;
+
     cur_params->mCgcParams = params->mCgcParams;
 
     EXIT_ANALYZER_FUNCTION();
 
+    return ret;
+}
+
+XCamReturn RkAiqAcgcHandleInt::setAttrib(rk_aiq_uapi_acgc_attrib_t att) {
+    ENTER_ANALYZER_FUNCTION();
+
+    XCamReturn ret = XCAM_RETURN_NO_ERROR;
+    mCfgMutex.lock();
+
+    // check if there is different between att & mCurAtt(sync)/mNewAtt(async)
+    // if something changed, set att to mNewAtt, and
+    // the new params will be effective later when updateConfig
+    // called by RkAiqCore
+    bool isChanged = false;
+    if (att.sync.sync_mode == RK_AIQ_UAPI_MODE_ASYNC && \
+        memcmp(&mNewAtt, &att, sizeof(att)))
+        isChanged = true;
+    else if (att.sync.sync_mode != RK_AIQ_UAPI_MODE_ASYNC && \
+             memcmp(&mCurAtt, &att, sizeof(att)))
+        isChanged = true;
+
+    // if something changed
+    if (isChanged) {
+        mNewAtt   = att;
+        updateAtt = true;
+        waitSignal(att.sync.sync_mode);
+    }
+
+    mCfgMutex.unlock();
+
+    EXIT_ANALYZER_FUNCTION();
+    return ret;
+}
+
+XCamReturn RkAiqAcgcHandleInt::getAttrib(rk_aiq_uapi_acgc_attrib_t* att) {
+    ENTER_ANALYZER_FUNCTION();
+
+    XCamReturn ret = XCAM_RETURN_NO_ERROR;
+
+    if (att->sync.sync_mode == RK_AIQ_UAPI_MODE_SYNC) {
+        mCfgMutex.lock();
+        rk_aiq_uapi_acgc_GetAttrib(mAlgoCtx, att);
+        att->sync.done = true;
+        mCfgMutex.unlock();
+    } else {
+        if (updateAtt) {
+            memcpy(att, &mNewAtt, sizeof(mNewAtt));
+            att->sync.done = false;
+        } else {
+            rk_aiq_uapi_acgc_GetAttrib(mAlgoCtx, att);
+            att->sync.sync_mode = mNewAtt.sync.sync_mode;
+            att->sync.done      = true;
+        }
+    }
+
+    EXIT_ANALYZER_FUNCTION();
     return ret;
 }
 

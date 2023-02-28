@@ -2,6 +2,8 @@
 
 URI=/oem/SampleVideo_1280x720_5mb.mp4
 
+export mpp_syslog_perror=1
+
 if [ "$1" != "" ]
 then
     URI=$1

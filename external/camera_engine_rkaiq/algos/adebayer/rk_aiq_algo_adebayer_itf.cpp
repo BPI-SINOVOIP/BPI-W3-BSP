@@ -39,6 +39,7 @@ create_context
     }
     LOGV_ADEBAYER("%s: (enter)\n", __FUNCTION__ );
     AdebayerInit(&ctx->adebayerCtx, cfg->calib, cfg->calibv2);
+    ctx->adebayerCtx.full_param.updated = false;
     *context = ctx;
     LOGV_ADEBAYER("%s: (exit)\n", __FUNCTION__ );
     return result;
@@ -74,6 +75,7 @@ prepare
 
     if(!!(params->u.prepare.conf_type & RK_AIQ_ALGO_CONFTYPE_UPDATECALIB )) {
         AdebayerInit(pAdebayerCtx, pCfgParam->com.u.prepare.calib, pCfgParam->com.u.prepare.calibv2);
+        pAdebayerCtx->full_param.updated = true;
     }
 
     AdebayerStart(pAdebayerCtx);
@@ -117,17 +119,19 @@ processing
         RKAiqAecExpInfo_t *curExp = pAdebayerProcParams->com.u.proc.curExp;
         if(curExp != NULL) {
             if(pAdebayerProcParams->hdr_mode == RK_AIQ_WORKING_MODE_NORMAL) {
-                iso = curExp->LinearExp.exp_real_params.analog_gain * 50;
+                iso = curExp->LinearExp.exp_real_params.analog_gain *
+                      curExp->LinearExp.exp_real_params.digital_gain *
+                      curExp->LinearExp.exp_real_params.isp_dgain * 50;
                 LOGD_ADEBAYER("%s:NORMAL:iso=%d,again=%f\n", __FUNCTION__, iso,
                               curExp->LinearExp.exp_real_params.analog_gain);
             } else if(RK_AIQ_HDR_GET_WORKING_MODE(pAdebayerProcParams->hdr_mode) == RK_AIQ_WORKING_MODE_ISP_HDR2) {
-                iso = curExp->HdrExp[1].exp_real_params.analog_gain * 50;
-                LOGD_ADEBAYER("%s:HDR2:iso=%d,again=%f\n", __FUNCTION__, iso,
-                              curExp->HdrExp[1].exp_real_params.analog_gain);
+                iso = curExp->HdrExp[1].exp_real_params.analog_gain *
+                      curExp->HdrExp[1].exp_real_params.digital_gain *
+                      curExp->HdrExp[1].exp_real_params.isp_dgain * 50;
             } else if(RK_AIQ_HDR_GET_WORKING_MODE(pAdebayerProcParams->hdr_mode) == RK_AIQ_WORKING_MODE_ISP_HDR3) {
-                iso = curExp->HdrExp[2].exp_real_params.analog_gain * 50;
-                LOGD_ADEBAYER("%s:HDR3:iso=%d,again=%f\n", __FUNCTION__, iso,
-                              curExp->HdrExp[2].exp_real_params.analog_gain);
+                iso = curExp->HdrExp[2].exp_real_params.analog_gain *
+                      curExp->HdrExp[2].exp_real_params.digital_gain *
+                      curExp->HdrExp[2].exp_real_params.isp_dgain * 50;
             }
         } else {
             LOGE_ADEBAYER("%s: curExp is NULL, so use default instead \n", __FUNCTION__);
@@ -136,6 +140,7 @@ processing
         if (iso != pAdebayerCtx->iso) {
             pAdebayerCtx->iso = iso;
             pAdebayerCtx->config.updatecfg = true;
+            LOGD_ADEBAYER("%s:iso=%d\n", __FUNCTION__, iso);
         }
 
         if (pAdebayerCtx->full_param.updated) {

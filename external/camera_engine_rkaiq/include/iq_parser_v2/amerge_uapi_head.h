@@ -11,7 +11,7 @@ extern "C" {
 typedef struct mMergeOECurveV21_s {
     // M4_NUMBER_DESC("Smooth", "f32", M4_RANGE(0,1), "0.4", M4_DIGIT(4))
     float Smooth;
-    // M4_NUMBER_DESC("Offset", "f32", M4_RANGE(0,1), "210", M4_DIGIT(4))
+    // M4_NUMBER_DESC("Offset", "f32", M4_RANGE(108,280), "210", M4_DIGIT(4))
     float Offset;
 } mMergeOECurveV21_t;
 
@@ -66,9 +66,11 @@ typedef struct mMergeAttrV30_s {
 } mMergeAttrV30_t;
 
 typedef struct uapiMergeCurrCtlData_s {
-    // M4_NUMBER_DESC("Envlv", "f32", M4_RANGE(0,8), "0", M4_DIGIT(6))
+    // M4_NUMBER_DESC("Envlv", "f32", M4_RANGE(0,1), "0", M4_DIGIT(4))
     float Envlv;
-    // M4_NUMBER_DESC("MoveCoef", "f32", M4_RANGE(0,8), "0", M4_DIGIT(6))
+    // M4_NUMBER_DESC("ISO", "f32", M4_RANGE(0,10000000000), "0", M4_DIGIT(2))
+    float ISO;
+    // M4_NUMBER_DESC("MoveCoef", "f32", M4_RANGE(0,1), "0", M4_DIGIT(4))
     float MoveCoef;
 } uapiMergeCurrCtlData_t;
 

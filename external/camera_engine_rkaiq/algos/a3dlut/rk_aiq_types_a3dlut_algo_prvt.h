@@ -31,6 +31,8 @@
 
 RKAIQ_BEGIN_DECLARE
 
+#define RKAIQ_A3DLUT_ILLU_VOTE 0
+
 typedef struct lut3d_3ares_info_s{
     float sensorGain;
     float awbGain[2];
@@ -40,11 +42,12 @@ typedef struct lut3d_3ares_info_s{
 
 typedef struct alut3d_rest_info_s {
     float alpha;
+#if RKAIQ_A3DLUT_ILLU_VOTE
     List dominateIdxList;//to record domain lutIdx
+#endif
     int dominateIdx;
     const CalibDbV2_Lut3D_LutPara_t *pLutProfile;
-    CalibDbV2_Lut3D_Table_Para_t undampedLut;
-    CalibDbV2_Lut3D_Table_Para_t dampedLut;
+    rk_aiq_lut3d_mlut3d_attrib_t UndampLut;
     lut3d_3ares_info_t res3a_info;
 } alut3d_rest_info_t;
 
@@ -72,7 +75,6 @@ typedef struct alut3d_context_s {
 typedef alut3d_context_t* alut3d_handle_t ;
 
 typedef struct _RkAiqAlgoContext {
-    void* place_holder[0];
     alut3d_handle_t a3dlut_para;
 } RkAiqAlgoContext;
 

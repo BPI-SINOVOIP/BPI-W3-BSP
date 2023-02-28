@@ -245,7 +245,8 @@ typedef struct {
 } rk_aiq_pdaf_algo_stat_t;
 
 typedef struct {
-    bool pdMirrorInCalib;
+    unsigned char pdMirrorInCalib;
+    unsigned char pdLRInDiffLine;
     unsigned short pdWidth;
     unsigned short pdHeight;
     struct rkmodule_pdaf_inf *otp_pdaf;
@@ -253,16 +254,21 @@ typedef struct {
 
 typedef struct {
     int iso;
-    float pdNoiseFactor;
+    float pdConfdRatio0;
     float pdConfdRatio1;
     float pdConfdRatio2;
-    float pdNoiseBias;
+    float pdConfdRatio3;
     float pdConfdThresh;
     float stablePdRatio;
     float stableCntRatio;
-    unsigned short defocusPdThresh;
+    unsigned short convergedInfPdThresh;
+    unsigned short convergedMacPdThresh;
+    unsigned short defocusInfPdThresh;
+    unsigned short defocusMacPdThresh;
     unsigned short stablePdOffset;
     unsigned short noconfCntThresh;
+    unsigned char blkCntW;
+    unsigned char blkCntH;
 
     unsigned int fineSearchConfidence[RKAIQ_PDAF_FINE_SEARCH_RANGE_MAX];
     int fineSearchRange[RKAIQ_PDAF_FINE_SEARCH_RANGE_MAX];
@@ -271,17 +277,37 @@ typedef struct {
 } rk_aiq_pdaf_algo_isopara_t;
 
 typedef struct {
-    bool pdVsImgoutMirror;
+    unsigned char pdVsImgoutMirror;
     unsigned char pdVsCdDebug;
     unsigned char pdDumpDebug;
+    unsigned char pdVerBinning;
+    unsigned char pdFrmInValid;
+    unsigned char pdDgainValid;
+    unsigned char pdGainMapNormEn;
+    unsigned char pdConfdMode;
+    unsigned char pdDiscardRegionEn;
+    unsigned short pdDumpMaxFrm;
     unsigned short pdDataBit;
     unsigned short pdBlkLevel;
     unsigned short pdSearchRadius;
     unsigned short pdConfdMwinFactor;
+    unsigned short pdGainMapW;
+    unsigned short pdGainMapH;
+    unsigned short pdDccMapW;
+    unsigned short pdDccMapH;
     float pdStepRatio[RKAIQ_PDAF_STEPRATIO_NUM];
     unsigned short pdStepDefocus[RKAIQ_PDAF_STEPRATIO_NUM];
     rk_aiq_pdaf_algo_isopara_t pdIsoPara[RKAIQ_PDAF_ISOPARA_NUM];
     int pdIsoParaCnt;
+    unsigned int pdCenterMinFv;
+    float pdCenterMinRatio;
+    float pdHighlightRatio;
+    float pdNoiseSn;
+    float pdNoiseRn[2];
+    float pdNoisePn;
+    float pdSatValRatio;
+    float pdSatCntRatio;
+    float pdLessTextureRatio;
 } rk_aiq_pdaf_algo_config_t;
 
 int get_lpfv(uint32_t sequence, uint8_t *image_buf, int32_t _img_width, int32_t _img_height,

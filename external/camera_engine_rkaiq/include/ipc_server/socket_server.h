@@ -54,7 +54,7 @@ public:
   virtual ~SocketServer();
 
   int Send(int cilent_socket, char *buff, int size);
-  int Process(rk_aiq_sys_ctx_t *aiq_ctx);
+  int Process(rk_aiq_sys_ctx_t *aiq_ctx, int camid);
 
   void RegisterRecvCallBack(RecvCallBack cb) { callback_ = cb; }
   void UnRegisterRecvCallBack() { callback_ = nullptr; }
@@ -316,6 +316,14 @@ enum {
   ENUM_ID_ATMO_SETATTRIB,
   ENUM_ID_ATMO_GETATTRIB,
   ENUM_ID_ATMO_END,
+};
+
+enum
+{
+  ENUM_ID_AIQ_UAPI_START = 0X1F00,
+  ENUM_ID_AIQ_UAPI_SYSCTL_GET3ASTATS,
+  ENUM_ID_AIQ_UAPI_SYSCTL_GET3ASTATSBLK,
+  ENUM_ID_AIQ_UAPI_END,
 };
 
 #endif

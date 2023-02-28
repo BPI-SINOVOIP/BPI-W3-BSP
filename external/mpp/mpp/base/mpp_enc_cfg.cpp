@@ -173,8 +173,9 @@ public:
     ENTRY(prep, colortrc,       S32, MppFrameColorTransferCharacteristic, MPP_ENC_PREP_CFG_CHANGE_COLOR_TRC, prep, colortrc) \
     ENTRY(prep, colorrange,     S32, MppFrameColorRange,MPP_ENC_PREP_CFG_CHANGE_COLOR_RANGE,    prep, range) \
     ENTRY(prep, range,          S32, MppFrameColorRange,MPP_ENC_PREP_CFG_CHANGE_COLOR_RANGE,    prep, range) \
-    ENTRY(prep, rotation,       S32, MppEncRotationCfg, MPP_ENC_PREP_CFG_CHANGE_ROTATION,       prep, rotation) \
-    ENTRY(prep, mirroring,      S32, RK_S32,            MPP_ENC_PREP_CFG_CHANGE_MIRRORING,      prep, mirroring) \
+    ENTRY(prep, rotation,       S32, MppEncRotationCfg, MPP_ENC_PREP_CFG_CHANGE_ROTATION,       prep, rotation_ext) \
+    ENTRY(prep, mirroring,      S32, RK_S32,            MPP_ENC_PREP_CFG_CHANGE_MIRRORING,      prep, mirroring_ext) \
+    ENTRY(prep, flip,           S32, RK_S32,            MPP_ENC_PREP_CFG_CHANGE_FLIP,           prep, flip) \
     /* codec coding config */ \
     ENTRY(codec, type,          S32, MppCodingType,     0,                                      codec, coding) \
     /* h264 config */ \
@@ -206,6 +207,7 @@ public:
     ENTRY(h264, max_ltr,        S32, RK_S32,            MPP_ENC_H264_CFG_CHANGE_MAX_LTR,        codec.h264, max_ltr_frames) \
     ENTRY(h264, prefix_mode,    S32, RK_S32,            MPP_ENC_H264_CFG_CHANGE_ADD_PREFIX,     codec.h264, prefix_mode) \
     ENTRY(h264, base_layer_pid, S32, RK_S32,            MPP_ENC_H264_CFG_CHANGE_BASE_LAYER_PID, codec.h264, base_layer_pid) \
+    ENTRY(h264, constraint_set, U32, RK_U32,            MPP_ENC_H264_CFG_CHANGE_CONSTRAINT_SET, codec.h264, constraint_set) \
     /* h265 config*/ \
     ENTRY(h265, profile,        S32, RK_S32,            MPP_ENC_H265_CFG_PROFILE_LEVEL_TILER_CHANGE,    codec.h265, profile) \
     ENTRY(h265, level,          S32, RK_S32,            MPP_ENC_H265_CFG_PROFILE_LEVEL_TILER_CHANGE,    codec.h265, level) \
@@ -224,6 +226,7 @@ public:
     ENTRY(h265, qp_delta_ip,    S32, RK_S32,            MPP_ENC_RC_CFG_CHANGE_QP_IP,            rc, qp_delta_ip) \
     ENTRY(h265, sao_luma_disable,   S32, RK_S32,        MPP_ENC_H265_CFG_SAO_CHANGE,            codec.h265, sao_cfg.slice_sao_luma_disable) \
     ENTRY(h265, sao_chroma_disable, S32, RK_S32,        MPP_ENC_H265_CFG_SAO_CHANGE,            codec.h265, sao_cfg.slice_sao_chroma_disable) \
+    ENTRY(h265, auto_tile,      S32, RK_S32,            MPP_ENC_H265_CFG_TITLE_CHANGE,          codec.h265, auto_tile) \
     /* vp8 config */ \
     ENTRY(vp8,  qp_init,        S32, RK_S32,            MPP_ENC_RC_CFG_CHANGE_QP_INIT,          rc, qp_init) \
     ENTRY(vp8,  qp_min,         S32, RK_S32,            MPP_ENC_RC_CFG_CHANGE_QP_RANGE,         rc, qp_min) \
@@ -253,6 +256,10 @@ public:
     ENTRY(hw,   aq_step_i,      St,  RK_S32 *,          MPP_ENC_HW_CFG_CHANGE_AQ_STEP_I,        hw, aq_step_i) \
     ENTRY(hw,   aq_step_p,      St,  RK_S32 *,          MPP_ENC_HW_CFG_CHANGE_AQ_STEP_P,        hw, aq_step_p) \
     ENTRY(hw,   mb_rc_disable,  S32, RK_S32,            MPP_ENC_HW_CFG_CHANGE_MB_RC,            hw, mb_rc_disable) \
+    ENTRY(hw,   mode_bias,      St,  RK_S32 *,          MPP_ENC_HW_CFG_CHANGE_CU_MODE_BIAS,     hw, mode_bias) \
+    ENTRY(hw,   skip_bias_en,   S32, RK_S32,            MPP_ENC_HW_CFG_CHANGE_CU_SKIP_BIAS,     hw, skip_bias_en) \
+    ENTRY(hw,   skip_sad,       S32, RK_S32,            MPP_ENC_HW_CFG_CHANGE_CU_SKIP_BIAS,     hw, skip_sad) \
+    ENTRY(hw,   skip_bias,      S32, RK_S32,            MPP_ENC_HW_CFG_CHANGE_CU_SKIP_BIAS,     hw, skip_bias) \
     /* quality fine tuning config */ \
     ENTRY(tune, scene_mode,     S32, MppEncSceneMode,   MPP_ENC_TUNE_CFG_CHANGE_SCENE_MODE,     tune, scene_mode)
 
@@ -353,7 +360,7 @@ MppEncCfgService::MppEncCfgService() :
     MPP_RET ret;
     RK_S32 i;
 
-    ret = mpp_trie_init(&trie, 1560, cfg_cnt);
+    ret = mpp_trie_init(&trie, 1644, cfg_cnt);
     if (ret) {
         mpp_err_f("failed to init enc cfg set trie\n");
         return ;
@@ -383,9 +390,19 @@ MppCfgInfoNode *MppEncCfgService::get_info_root()
 
 static void mpp_enc_cfg_set_default(MppEncCfgSet *cfg)
 {
+    RK_U32 i;
+
+    cfg->rc.max_reenc_times = 1;
+
     cfg->prep.color = MPP_FRAME_SPC_UNSPECIFIED;
     cfg->prep.colorprim = MPP_FRAME_PRI_UNSPECIFIED;
     cfg->prep.colortrc = MPP_FRAME_TRC_UNSPECIFIED;
+
+    for (i = 0; i < MPP_ARRAY_ELEMS(cfg->hw.mode_bias); i++)
+        cfg->hw.mode_bias[i] = 8;
+
+    cfg->hw.skip_sad  = 8;
+    cfg->hw.skip_bias = 8;
 }
 
 MPP_RET mpp_enc_cfg_init(MppEncCfg *cfg)

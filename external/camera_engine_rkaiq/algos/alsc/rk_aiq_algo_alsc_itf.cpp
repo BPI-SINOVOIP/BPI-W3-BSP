@@ -37,6 +37,8 @@ create_context(RkAiqAlgoContext **context, const AlgoCtxInstanceCfg* cfg)
     }
     AlscInit(&ctx->alsc_para, cfg->calibv2);
     *context = ctx;
+    alsc_handle_t hAlsc = (alsc_handle_t)ctx->alsc_para;
+    hAlsc->eState = ALSC_STATE_INITIALIZED;
     LOG1_ALSC( "%s: (exit)\n", __FUNCTION__);
     return XCAM_RETURN_NO_ERROR;
 }
@@ -68,8 +70,13 @@ prepare(RkAiqAlgoCom* params)
        hAlsc->calibLscV2 =
             (CalibDbV2_LSC_t*)(CALIBDBV2_GET_MODULE_PTR(para->com.u.prepare.calibv2, lsc_v2));
    }
+    if (hAlsc->eState == ALSC_STATE_INITIALIZED) {
+       alscGetOtpInfo(params);
+       convertSensorLscOTP(hAlsc);
+    }
     AlscPrepare((alsc_handle_t)(params->ctx->alsc_para));
 
+    hAlsc->eState = ALSC_STATE_STOPPED;
     LOG1_ALSC( "%s: (exit)\n", __FUNCTION__);
     return XCAM_RETURN_NO_ERROR;
 }
@@ -120,6 +127,7 @@ processing(const RkAiqAlgoCom* inparams, RkAiqAlgoResCom* outparams)
 #endif
 
     LOG1_ALSC( "%s: (exit)\n", __FUNCTION__);
+    hAlsc->eState = ALSC_STATE_RUNNING;
     return XCAM_RETURN_NO_ERROR;
 }
 

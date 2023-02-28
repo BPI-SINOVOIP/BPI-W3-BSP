@@ -180,7 +180,7 @@ static XCamReturn AeReal2RegConv
     float SplitGain,
     unsigned int *regIntegrationTime,
     unsigned int *regGain,
-    int *pDcgMode
+    int pDcgMode
 ) {
     XCamReturn ret = XCAM_RETURN_NO_ERROR;
 
@@ -202,11 +202,11 @@ static XCamReturn AeReal2RegConv
 
 
     //gain convertion
-    float ag = SplitGain / (pDcgMode[AEC_NORMAL_FRAME] >= 1 ? dcg_ratio : 1.0f);
+    float ag = SplitGain / (pDcgMode >= 1 ? dcg_ratio : 1.0f);
 
     if(pConfig->stSensorInfo.Gain2Reg.GainMode == EXPGAIN_MODE_LINEAR) {
 
-        float C1 = 0.0f, C0 = 0.0f, M0 = 0.0f, minReg = 0.0f, maxReg = 0.0f, ag = 0.0f;
+        float C1 = 0.0f, C0 = 0.0f, M0 = 0.0f, minReg = 0.0f, maxReg = 0.0f;
 
         for (int i = 0; i < pConfig->stSensorInfo.Gain2Reg.GainRange_len; i += 7) {
             if (ag >= pConfig->stSensorInfo.Gain2Reg.GainRange[i] && ag <= pConfig->stSensorInfo.Gain2Reg.GainRange[i + 1]) {
@@ -499,6 +499,7 @@ static XCamReturn initAecHwConfig(rk_aiq_rkAe_config_t* pConfig)
     /*      rawae0-2.rawae_sel should be the same, defining BIG/LITE mode of chn[0-2]    */
     /*    rawae3.rawae_sel is different from rawae0-2, defining BIG/LITE mode of debayer  */
     /*****************************************************************/
+#if defined(ISP_HW_V30)
 
     if(pConfig->HdrFrmNum < 3) {
         pConfig->aeHwConfig.ae_meas.rawae0.rawae_sel = 2;
@@ -511,6 +512,22 @@ static XCamReturn initAecHwConfig(rk_aiq_rkAe_config_t* pConfig)
         pConfig->aeHwConfig.ae_meas.rawae2.rawae_sel = 1;
         pConfig->aeHwConfig.ae_meas.rawae3.rawae_sel = 3;
     }
+#endif
+
+#if defined(ISP_HW_V21)
+
+    if(pConfig->IsHdr) {
+        pConfig->aeHwConfig.ae_meas.rawae0.rawae_sel = 1;
+        pConfig->aeHwConfig.ae_meas.rawae1.rawae_sel = 1;
+        pConfig->aeHwConfig.ae_meas.rawae2.rawae_sel = 1; //rawae2 no effective
+        pConfig->aeHwConfig.ae_meas.rawae3.rawae_sel = 1; //raw.chn[0] = BIG, make all channel = BIG
+    } else {
+        pConfig->aeHwConfig.ae_meas.rawae0.rawae_sel = 1;
+        pConfig->aeHwConfig.ae_meas.rawae1.rawae_sel = 1;
+        pConfig->aeHwConfig.ae_meas.rawae2.rawae_sel = 1; //rawae2 no effective
+        pConfig->aeHwConfig.ae_meas.rawae3.rawae_sel = 3;
+    }
+#endif
 
     pConfig->aeHwConfig.hist_meas.ae_swap = pConfig->aeHwConfig.ae_meas.rawae1.rawae_sel;
     pConfig->aeHwConfig.hist_meas.ae_sel = pConfig->aeHwConfig.ae_meas.rawae3.rawae_sel;
@@ -719,7 +736,7 @@ static void initCustomAeRes(rk_aiq_customeAe_results_t* customAe, rk_aiq_rkAe_co
                            customAe->hdr_exp[i].exp_real_params.analog_gain,
                            &customAe->hdr_exp[i].exp_sensor_params.coarse_integration_time,
                            &customAe->hdr_exp[i].exp_sensor_params.analog_gain_code_global,
-                           &customAe->hdr_exp[i].exp_real_params.dcg_mode);
+                           customAe->hdr_exp[i].exp_real_params.dcg_mode);
 
             customAe->exp_i2c_params.bValid = false;
         }
@@ -737,7 +754,7 @@ static void initCustomAeRes(rk_aiq_customeAe_results_t* customAe, rk_aiq_rkAe_co
                        customAe->linear_exp.exp_real_params.analog_gain,
                        &customAe->linear_exp.exp_sensor_params.coarse_integration_time,
                        &customAe->linear_exp.exp_sensor_params.analog_gain_code_global,
-                       &customAe->linear_exp.exp_real_params.dcg_mode);
+                       customAe->linear_exp.exp_real_params.dcg_mode);
 
         customAe->exp_i2c_params.bValid = false;
     }
@@ -941,7 +958,7 @@ void _customAeRes2rkAeRes(rk_aiq_rkAe_config_t* pConfig, RkAiqAlgoProcResAe* rkA
                                customAeProcRes->hdr_exp[i].exp_real_params.analog_gain,
                                &customAeProcRes->hdr_exp[i].exp_sensor_params.coarse_integration_time,
                                &customAeProcRes->hdr_exp[i].exp_sensor_params.analog_gain_code_global,
-                               &customAeProcRes->hdr_exp[i].exp_real_params.dcg_mode);
+                               customAeProcRes->hdr_exp[i].exp_real_params.dcg_mode);
             }
             rkAeProcRes->new_ae_exp.HdrExp[i] = customAeProcRes->hdr_exp[i];
         }
@@ -954,7 +971,7 @@ void _customAeRes2rkAeRes(rk_aiq_rkAe_config_t* pConfig, RkAiqAlgoProcResAe* rkA
                            customAeProcRes->linear_exp.exp_real_params.analog_gain,
                            &customAeProcRes->linear_exp.exp_sensor_params.coarse_integration_time,
                            &customAeProcRes->linear_exp.exp_sensor_params.analog_gain_code_global,
-                           &customAeProcRes->linear_exp.exp_real_params.dcg_mode);
+                           customAeProcRes->linear_exp.exp_real_params.dcg_mode);
 
         }
 
@@ -1028,7 +1045,7 @@ void _customGrpAeSingleResSet(rk_aiq_rkAe_config_t* pConfig, rk_aiq_singlecam_3a
                                customAeRes.hdr_exp[i].exp_real_params.analog_gain,
                                &customAeRes.hdr_exp[i].exp_sensor_params.coarse_integration_time,
                                &customAeRes.hdr_exp[i].exp_sensor_params.analog_gain_code_global,
-                               &customAeRes.hdr_exp[i].exp_real_params.dcg_mode);
+                               customAeRes.hdr_exp[i].exp_real_params.dcg_mode);
             }
 
             rk_aiq_singlecam_3a_result->aec.exp_tbl[0].HdrExp[i] = customAeRes.hdr_exp[i];
@@ -1043,7 +1060,7 @@ void _customGrpAeSingleResSet(rk_aiq_rkAe_config_t* pConfig, rk_aiq_singlecam_3a
                            customAeRes.linear_exp.exp_real_params.analog_gain,
                            &customAeRes.linear_exp.exp_sensor_params.coarse_integration_time,
                            &customAeRes.linear_exp.exp_sensor_params.analog_gain_code_global,
-                           &customAeRes.linear_exp.exp_real_params.dcg_mode);
+                           customAeRes.linear_exp.exp_real_params.dcg_mode);
         }
 
         rk_aiq_singlecam_3a_result->aec.exp_tbl[0].LinearExp = customAeRes.linear_exp;

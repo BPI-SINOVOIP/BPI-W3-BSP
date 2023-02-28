@@ -227,11 +227,12 @@ protected:
     int _CamPhyId;
     AntiTmoFlicker_t AntiTmoFlicker;
     Mutex _mutex;
-
+    
     virtual bool convert3aResultsToIspCfg(SmartPtr<cam3aResult> &result, void* isp_cfg_p);
     SmartPtr<cam3aResult> get_3a_result (cam3aResultList &results, int32_t type);
     // std::map<int, std::list<SmartPtr<cam3aResult>>> _cam3aConfig;
     SmartPtr<cam3aResult> mBlcResult;
+    bool _lsc_en;
 };
 };
 #endif

@@ -29,17 +29,45 @@ typedef struct AblcSelect_s {
     // M4_BOOL_DESC("enable", "1")
     bool enable;
 
-    // M4_NUMBER_DESC("blc_r", "s16", M4_RANGE(0, 4095), "0", M4_DIGIT(0))
-    int16_t blc_r;
-    // M4_NUMBER_DESC("blc_gr", "s16", M4_RANGE(0, 4095), "0", M4_DIGIT(0))
-    int16_t blc_gr;
-    // M4_NUMBER_DESC("blc_gb", "s16", M4_RANGE(0, 4095), "0", M4_DIGIT(0))
-    int16_t blc_gb;
-    // M4_NUMBER_DESC("blc_b", "s16", M4_RANGE(0, 4095), "0", M4_DIGIT(0))
-    int16_t blc_b;
+    // M4_NUMBER_DESC("blc_r", "f32", M4_RANGE(0, 4095), "0", M4_DIGIT(3))
+    float blc_r;
+    // M4_NUMBER_DESC("blc_gr", "f32", M4_RANGE(0, 4095), "0", M4_DIGIT(3))
+    float blc_gr;
+    // M4_NUMBER_DESC("blc_gb", "f32", M4_RANGE(0, 4095), "0", M4_DIGIT(3))
+    float blc_gb;
+    // M4_NUMBER_DESC("blc_b", "f32", M4_RANGE(0, 4095), "0", M4_DIGIT(3))
+    float blc_b;
 } AblcSelect_t;
 
 typedef AblcSelect_t AblcManualAttr_t;
+
+typedef struct AblcExpInfo_s {
+    // M4_NUMBER_DESC("hdr_mode", "u8", M4_RANGE(0, 2), "0", M4_DIGIT(0))
+    int hdr_mode;
+
+    // M4_ARRAY_DESC("time", "f32", M4_SIZE(1,3), M4_RANGE(0, 1024), "0.01", M4_DIGIT(6))
+    float arTime[3];
+    // M4_ARRAY_DESC("again", "f32", M4_SIZE(1,3), M4_RANGE(0, 204800), "1", M4_DIGIT(3))
+    float arAGain[3];
+    // M4_ARRAY_DESC("dgain", "f32", M4_SIZE(1,3), M4_RANGE(0, 204800), "1", M4_DIGIT(3))
+    float arDGain[3];
+    // M4_ARRAY_DESC("iso", "u32", M4_SIZE(1,3), M4_RANGE(0, 204800), "1", M4_DIGIT(0))
+    int   arIso[3];
+
+    // M4_NUMBER_DESC("isoLow", "u32", M4_RANGE(0, 204800), "50", M4_DIGIT(0))
+    int isoLow;
+    // M4_NUMBER_DESC("isoHigh", "u32", M4_RANGE(0, 204800), "50", M4_DIGIT(0))
+    int isoHigh;
+} AblcExpInfo_t;
+
+typedef struct rk_aiq_ablc_info_s {
+    // M4_ARRAY_TABLE_DESC("sync", "array_table_ui", "none", "1")
+    rk_aiq_uapi_sync_t sync;
+    // M4_NUMBER_DESC("iso", "u32", M4_RANGE(0, 204800), "50", M4_DIGIT(0), "0", "0")
+    int iso;
+    // M4_ARRAY_TABLE_DESC("expo_info", "normal_ui_style", "none", "0", "0")
+    AblcExpInfo_t expo_info;
+} rk_aiq_ablc_info_t;
 
 
 RKAIQ_END_DECLARE

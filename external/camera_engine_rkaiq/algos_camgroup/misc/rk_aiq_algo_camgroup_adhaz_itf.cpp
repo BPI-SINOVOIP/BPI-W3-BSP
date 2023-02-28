@@ -86,23 +86,21 @@ prepare(RkAiqAlgoCom* params)
         LOGD_ADEHAZE("%s: Adehaze Reload Para!\n", __FUNCTION__);
 
         if(pAdehazeGrpHandle->HWversion == ADEHAZE_ISP21) {
-            CalibDbV2_dehaze_V20_t* calibv2_adehaze_calib_V20 =
-                (CalibDbV2_dehaze_V20_t*)(CALIBDBV2_GET_MODULE_PTR((void*)pCalibDb, adehaze_calib_v20));
-            if (calibv2_adehaze_calib_V20)
-                memcpy(&pAdehazeGrpHandle->Calib.Dehaze_v20, calibv2_adehaze_calib_V20, sizeof(CalibDbV2_dehaze_V20_t));
+            // todo
         }
         else if(pAdehazeGrpHandle->HWversion == ADEHAZE_ISP21) {
             CalibDbV2_dehaze_V21_t* calibv2_adehaze_calib_V21 =
                 (CalibDbV2_dehaze_V21_t*)(CALIBDBV2_GET_MODULE_PTR((void*)pCalibDb, adehaze_calib_v21));
-            if (calibv2_adehaze_calib_V21)
-                memcpy(&pAdehazeGrpHandle->Calib.Dehaze_v21, calibv2_adehaze_calib_V21, sizeof(CalibDbV2_dehaze_V21_t));
+            if (calibv2_adehaze_calib_V21) pAdehazeGrpHandle->pCalib = calibv2_adehaze_calib_V21;
         }
         else if(pAdehazeGrpHandle->HWversion == ADEHAZE_ISP30) {
-            CalibDbV2_dehaze_V30_t* calibv2_adehaze_calib_V30 =
-                (CalibDbV2_dehaze_V30_t*)(CALIBDBV2_GET_MODULE_PTR((void*)pCalibDb, adehaze_calib_v30));
-            if (calibv2_adehaze_calib_V30)
-                memcpy(&pAdehazeGrpHandle->Calib.Dehaze_v30, calibv2_adehaze_calib_V30, sizeof(CalibDbV2_dehaze_V30_t));
+            CalibDbV2_dehaze_V21_t* calibv2_adehaze_calib_V30 =
+                (CalibDbV2_dehaze_V21_t*)(CALIBDBV2_GET_MODULE_PTR((void*)pCalibDb,
+                                                                   adehaze_calib_v30));
+
+            if (calibv2_adehaze_calib_V30) pAdehazeGrpHandle->pCalib = calibv2_adehaze_calib_V30;
         }
+        Calib2stAuto(pAdehazeGrpHandle);
     }
 
     LOG1_ADEHAZE("EIXT: %s \n", __func__);
@@ -122,8 +120,10 @@ processing(const RkAiqAlgoCom* inparams, RkAiqAlgoResCom* outparams)
 
     LOGD_ADEHAZE("/*************************Adehaze Group Start******************/ \n");
 
-    AdehazeGetCurrDataGroup(pAdehazeGrpHandle, &pGrpProcPara->camgroupParmasArray[0]->aec._effAecExpInfo,
-                            pGrpProcPara->camgroupParmasArray[0]->aec._aePreRes);
+    AdehazeGetCurrDataGroup(pAdehazeGrpHandle,
+                            &pGrpProcPara->camgroupParmasArray[0]->aec._effAecExpInfo,
+                            pGrpProcPara->camgroupParmasArray[0]->aec._aePreRes,
+                            pGrpProcPara->camgroupParmasArray[0]->aynr._aynr_procRes_v3._sigma);
 
     //process
     if(!(AdehazeByPassProcessing(pAdehazeGrpHandle)))

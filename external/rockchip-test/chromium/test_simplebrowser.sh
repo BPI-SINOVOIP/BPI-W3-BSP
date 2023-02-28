@@ -1,5 +1,14 @@
 #!/bin/bash -e
 
+export mpp_syslog_perror=1
+
+KERNEL_VERSION=$(cat /proc/version)
+if [[ $KERNEL_VERSION =~ "4.4" ]]; then
+    echo 0x100 > /sys/module/rk_vcodec/parameters/debug
+else
+    echo 0x100 > /sys/module/rk_vcodec/parameters/mpp_dev_debug
+fi
+
 echo performance | tee $(find /sys/ -name *governor)
 
 if [ -e "/usr/lib/qt/examples/webenginewidgets/simplebrowser" ] ;

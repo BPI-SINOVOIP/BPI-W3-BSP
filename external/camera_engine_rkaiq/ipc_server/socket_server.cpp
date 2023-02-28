@@ -292,6 +292,8 @@ void rkaiq_params_tuning(aiq_tunning_ctx *tunning_ctx) {
     printf("---> read:\n%s\n", out_data);
 #endif
     rkaiq_ipc_send(sockfd, AIQ_IPC_CMD_READ, 0, 0, out_data, strlen(out_data));
+    if (out_data)
+      free(out_data);
   } break;
   default:
     break;
@@ -307,23 +309,24 @@ void rkaiq_params_tuning(aiq_tunning_ctx *tunning_ctx) {
 int SocketServer::packetHandle(void *packet, MessageType type) {
   if (type == RKAIQ_MESSAGE_NEW) {
     RkAiqSocketPacket_t *aiq_data = (RkAiqSocketPacket_t *)packet;
+
+    if (this->tunning_thread && this->tunning_thread->joinable()) {
+      this->tunning_thread->join();
+      this->tunning_thread.reset();
+      this->tunning_thread = nullptr;
+    }
+
     aiq_tunning_ctx *tunning_ctx =
         (aiq_tunning_ctx *)calloc(1, sizeof(aiq_tunning_ctx));
     tunning_ctx->aiq_data = aiq_data;
     tunning_ctx->aiq_ctx = aiq_ctx;
     tunning_ctx->socketfd = client_socket;
 
-    if (this->tunning_thread && this->tunning_thread->joinable()) {
-      this->tunning_thread->join();
-    }
-
     this->tunning_thread = std::make_shared<std::thread>(
         std::thread(rkaiq_params_tuning, tunning_ctx));
-    this->tunning_thread->detach();
   } else {
     RkAiqSocketPacket *aiq_data = (RkAiqSocketPacket *)packet;
     ProcessText(client_socket, aiq_ctx, aiq_data);
-    RkMSG::MessageParser::freePacket(aiq_data, RKAIQ_MESSAGE_OLD);
   }
 
   return 0;
@@ -455,7 +458,7 @@ int SocketServer::getAndroidLocalSocket() {
 }
 #endif
 
-int SocketServer::Process(rk_aiq_sys_ctx_t *ctx) {
+int SocketServer::Process(rk_aiq_sys_ctx_t *ctx, int camid) {
   LOGW("SocketServer::Process\n");
   int opt = 1;
   aiq_ctx = ctx;
@@ -472,9 +475,9 @@ int SocketServer::Process(rk_aiq_sys_ctx_t *ctx) {
   memset(&serverAddress, 0, sizeof(serverAddress));
 
   serverAddress.sun_family = AF_LOCAL;
-  strncpy(serverAddress.sun_path, UNIX_DOMAIN,
-          sizeof(serverAddress.sun_path) - 1);
-  unlink(UNIX_DOMAIN);
+  snprintf(serverAddress.sun_path, sizeof(serverAddress.sun_path),
+           "%s%d", UNIX_DOMAIN, camid);
+  unlink(serverAddress.sun_path);
 
   if ((::bind(sockfd, (struct sockaddr *)&serverAddress,
               sizeof(serverAddress))) < 0) {
@@ -516,7 +519,7 @@ void SocketServer::Deinit() {
     this->tunning_thread->join();
   // shutdown(client_socket, SHUT_RDWR);
   // close(client_socket);
-  unlink(UNIX_DOMAIN);
+  unlink(serverAddress.sun_path);
   close(sockfd);
   this->accept_threads_ = nullptr;
   this->tunning_thread = nullptr;

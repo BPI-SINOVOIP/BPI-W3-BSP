@@ -118,7 +118,7 @@ XCamReturn RkAiqAdrcHandleInt::getAttrib(drc_attrib_t* att) {
         mCfgMutex.unlock();
     } else {
         if (updateAtt) {
-            memcpy(att, &mNewAtt, sizeof(updateAtt));
+            memcpy(att, &mNewAtt, sizeof(drc_attrib_t));
             att->sync.done = false;
         } else {
             rk_aiq_uapi_adrc_GetAttrib(mAlgoCtx, att);
@@ -229,13 +229,7 @@ XCamReturn RkAiqAdrcHandleInt::genIspResult(RkAiqFullParams* params, RkAiqFullPa
             drc_param->frame_id = shared->frameId;
         }
         drc_param->result.DrcProcRes = ahdr_rk->AdrcProcRes.DrcProcRes;
-
-        drc_param->result.CompressMode = ahdr_rk->AdrcProcRes.CompressMode;
-        drc_param->result.update = ahdr_rk->AdrcProcRes.update;
-        drc_param->result.LongFrameMode = ahdr_rk->AdrcProcRes.LongFrameMode;
-        drc_param->result.isHdrGlobalTmo = ahdr_rk->AdrcProcRes.isHdrGlobalTmo;
-        drc_param->result.bTmoEn = ahdr_rk->AdrcProcRes.bTmoEn;
-        drc_param->result.isLinearTmo = ahdr_rk->AdrcProcRes.isLinearTmo;
+        drc_param->result.bDrcEn     = ahdr_rk->AdrcProcRes.bDrcEn;
     }
 
     cur_params->mDrcParams = params->mDrcParams;

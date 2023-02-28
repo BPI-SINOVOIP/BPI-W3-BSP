@@ -100,6 +100,18 @@ rk_aiq_uapi_acnrV2_GetChromaSFStrength(const RkAiqAlgoContext *ctx,
     return XCAM_RETURN_NO_ERROR;
 }
 
+XCamReturn
+rk_aiq_uapi_acnrV2_GetInfo(const RkAiqAlgoContext *ctx,
+                           rk_aiq_cnr_info_v2_t *pInfo)
+{
+    Acnr_Context_V2_t* pCtx = (Acnr_Context_V2_t*)ctx;
+
+    pInfo->iso = pCtx->stExpInfo.arIso[pCtx->stExpInfo.hdr_mode];
+    pInfo->expo_info = pCtx->stExpInfo;
+
+    return XCAM_RETURN_NO_ERROR;
+}
+
 
 #endif
 

@@ -25,7 +25,7 @@ void PdafStreamProcUnit::set_devices(CamHwIsp20* camHw)
 }
 
 XCamReturn
-PdafStreamProcUnit::prepare(CalibDbV2_Af_Pdaf_t *pdaf_calib, rk_sensor_pdaf_info_t *pdaf_inf)
+PdafStreamProcUnit::prepare(rk_sensor_pdaf_info_t *pdaf_inf)
 {
     XCamReturn ret = XCAM_RETURN_NO_ERROR;
     uint32_t pixelformat;
@@ -36,10 +36,9 @@ PdafStreamProcUnit::prepare(CalibDbV2_Af_Pdaf_t *pdaf_calib, rk_sensor_pdaf_info
     mPdafStream = new RKPdafStream(mPdafDev, ISP_POLL_PDAF_STATS);
     mPdafStream->setPollCallback (this);
 
-    mPdafMeas.pdMirrorInCalib = pdaf_calib->pdMirrorInCalib;
-    mPdafMeas.pdWidth = pdaf_calib->pdWidth;
-    mPdafMeas.pdHeight = pdaf_calib->pdHeight;
-
+    mPdafMeas.pdLRInDiffLine = pdaf_inf->pdaf_lrdiffline;
+    mPdafMeas.pdWidth = pdaf_inf->pdaf_width;
+    mPdafMeas.pdHeight = pdaf_inf->pdaf_height;
     ret = mPdafDev->set_format(pdaf_inf->pdaf_width, pdaf_inf->pdaf_height,
             pdaf_inf->pdaf_pixelformat, V4L2_FIELD_NONE, 0);
 

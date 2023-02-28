@@ -22,19 +22,13 @@ static void sample_adrc_usage()
     printf("Usage : \n");
     printf("\t 0) ADRC:         test rk_aiq_user_api2_adrc_SetAttrib stManualV30 Sync.\n");
     printf("\t 1) ADRC:         test rk_aiq_user_api2_adrc_SetAttrib stManualV30 Async.\n");
-    printf("\t 2) ADRC:         test rk_aiq_user_api2_adrc_SetAttrib stDrcGain Sync.\n");
-    printf("\t 3) ADRC:         test rk_aiq_user_api2_adrc_SetAttrib stDrcGain Async.\n");
-    printf("\t 4) ADRC:         test rk_aiq_user_api2_adrc_SetAttrib stHiLit Sync.\n");
-    printf("\t 5) ADRC:         test rk_aiq_user_api2_adrc_SetAttrib stHiLit Async.\n");
-    printf("\t 6) ADRC:         test rk_aiq_user_api2_adrc_SetAttrib stLocalDataV30 Sync.\n");
-    printf("\t 7) ADRC:         test rk_aiq_user_api2_adrc_SetAttrib stLocalDataV30 Async.\n");
-    printf("\t 8) ADRC:         test rk_aiq_user_api2_adrc_GetAttrib.\n");
-    printf("\t 9) ADRC:         test rk_aiq_uapi2_getDrcGain.\n");
-    printf("\t a) ADRC:         test rk_aiq_uapi2_setDrcGain.\n");
-    printf("\t b) ADRC:         test rk_aiq_uapi2_getDrcHiLit.\n");
-    printf("\t c) ADRC:         test rk_aiq_uapi2_setDrcHiLit.\n");
-    printf("\t d) ADRC:         test rk_aiq_uapi2_getDrcLocalData.\n");
-    printf("\t e) ADRC:         test rk_aiq_uapi2_setDrcLocalData.\n");
+    printf("\t 2) ADRC:         test rk_aiq_user_api2_adrc_GetAttrib.\n");
+    printf("\t 3) ADRC:         test rk_aiq_uapi2_getDrcGain.\n");
+    printf("\t 4) ADRC:         test rk_aiq_uapi2_setDrcGain.\n");
+    printf("\t 5) ADRC:         test rk_aiq_uapi2_getDrcHiLit.\n");
+    printf("\t 6) ADRC:         test rk_aiq_uapi2_setDrcHiLit.\n");
+    printf("\t 7) ADRC:         test rk_aiq_uapi2_getDrcLocalData.\n");
+    printf("\t 8) ADRC:         test rk_aiq_uapi2_setDrcLocalData.\n");
     printf("\t q) ADRC:         return to main sample screen.\n");
 
     printf("\n");
@@ -202,84 +196,14 @@ XCamReturn sample_adrc_module(const void *arg)
             break;
         }
         case '2': {
-            printf("\t ADRC test rk_aiq_user_api2_adrc_SetAttrib stDrcGain Sync\n\n");
-            attr.sync.sync_mode = RK_AIQ_UAPI_MODE_DEFAULT;
-            attr.sync.done = false;
-            attr.opMode = DRC_OPMODE_DRC_GAIN;
-            attr.stDrcGain.DrcGain = 3;
-            attr.stDrcGain.Clip = 3.2;
-            attr.stDrcGain.Alpha = 0.2;
-            rk_aiq_user_api2_adrc_SetAttrib(ctx, attr);
-            break;
-        }
-        case '3': {
-            printf("\t ADRC test rk_aiq_user_api2_adrc_SetAttrib stDrcGain Async\n\n");
-            attr.sync.sync_mode = RK_AIQ_UAPI_MODE_ASYNC;
-            attr.sync.done = false;
-            attr.opMode = DRC_OPMODE_DRC_GAIN;
-            attr.stDrcGain.DrcGain = 3;
-            attr.stDrcGain.Clip = 3;
-            attr.stDrcGain.Alpha = 0.2;
-            rk_aiq_user_api2_adrc_SetAttrib(ctx, attr);
-            break;
-        }
-        case '4': {
-            printf("\t ADRC test rk_aiq_user_api2_adrc_SetAttrib stHiLit Sync\n\n");
-            attr.sync.sync_mode = RK_AIQ_UAPI_MODE_DEFAULT;
-            attr.sync.done = false;
-            attr.opMode = DRC_OPMODE_HILIT;
-            attr.stHiLit.Strength = 0.51;
-            rk_aiq_user_api2_adrc_SetAttrib(ctx, attr);
-            break;
-        }
-        case '5': {
-            printf("\t ADRC test rk_aiq_user_api2_adrc_SetAttrib stHiLit Async\n\n");
-            attr.sync.sync_mode = RK_AIQ_UAPI_MODE_ASYNC;
-            attr.sync.done = false;
-            attr.opMode = DRC_OPMODE_HILIT;
-            attr.stHiLit.Strength = 0.5;
-            rk_aiq_user_api2_adrc_SetAttrib(ctx, attr);
-            break;
-        }
-        case '6': {
-            printf("\t ADRC test rk_aiq_user_api2_adrc_SetAttrib stLocalDataV30 Sync\n\n");
-            attr.sync.sync_mode = RK_AIQ_UAPI_MODE_DEFAULT;
-            attr.sync.done = false;
-            attr.opMode = DRC_OPMODE_LOCAL_TMO;
-            attr.stLocalDataV30.LocalWeit = 1;
-            attr.stLocalDataV30.LocalAutoEnable = 1;
-            attr.stLocalDataV30.LocalAutoWeit = 0.6;
-            attr.stLocalDataV30.GlobalContrast = 0.5;
-            attr.stLocalDataV30.LoLitContrast = 0.5;
-            rk_aiq_user_api2_adrc_SetAttrib(ctx, attr);
-            break;
-        }
-        case '7': {
-            printf("\t ADRC test rk_aiq_user_api2_adrc_SetAttrib stLocalDataV30 Async\n\n");
-            attr.sync.sync_mode = RK_AIQ_UAPI_MODE_ASYNC;
-            attr.sync.done = false;
-            attr.opMode = DRC_OPMODE_LOCAL_TMO;
-            attr.stLocalDataV30.LocalWeit = 1;
-            attr.stLocalDataV30.LocalAutoEnable = 1;
-            attr.stLocalDataV30.LocalAutoWeit = 0.5;
-            attr.stLocalDataV30.GlobalContrast = 0.5;
-            attr.stLocalDataV30.LoLitContrast = 0.5;
-            rk_aiq_user_api2_adrc_SetAttrib(ctx, attr);
-            break;
-        }
-        case '8': {
             printf("\t ADRC test rk_aiq_user_api2_adrc_GetAttrib\n\n");
             rk_aiq_user_api2_adrc_GetAttrib(ctx, &attr);
             printf("\t sync = %d, done = %d\n", attr.sync.sync_mode, attr.sync.done);
-            printf("\t opMode:%d EnvLv:%f\n\n", attr.opMode, attr.Info.EnvLv);
+            printf("\t opMode:%d EnvLv:%f\n\n", attr.opMode, attr.Info.CtrlInfo.EnvLv);
             printf("\t stManualV30 DrcGain:%f Alpha:%f Clip:%f\n\n", attr.stManualV30.DrcGain.DrcGain, attr.stManualV30.DrcGain.Alpha, attr.stManualV30.DrcGain.Clip);
-            printf("\t stDrcGain DrcGain:%f Alpha:%f Clip:%f\n\n", attr.stDrcGain.DrcGain, attr.stDrcGain.Alpha, attr.stDrcGain.Clip);
-            printf("\t stHiLit Strength:%f\n\n", attr.stHiLit.Strength);
-            printf("\t stLocalDataV30 LocalWeit:%f LocalAutoEnable:%d LocalAutoWeit:%f GlobalContrast:%f LoLitContrast:%f\n\n", attr.stLocalDataV30.LocalWeit,
-                   attr.stLocalDataV30.LocalAutoEnable, attr.stLocalDataV30.LocalAutoWeit, attr.stLocalDataV30.GlobalContrast, attr.stLocalDataV30.LoLitContrast);
             break;
         }
-        case '9': {
+        case '3': {
             printf("\t ADRC test rk_aiq_uapi2_getDrcGain\n\n");
             float Gain = 0;
             float Alpha = 0;
@@ -288,24 +212,24 @@ XCamReturn sample_adrc_module(const void *arg)
             printf("\t ADRC rk_aiq_uapi2_getDrcGain: Gain:%f Alpha:%f Clip:%f\n\n", Gain, Alpha, Clip);
             break;
         }
-        case 'a': {
+        case '4': {
             printf("\t ADRC test rk_aiq_uapi2_setDrcGain\n\n");
             rk_aiq_uapi2_setDrcGain(ctx, 3.5, 0.4, 3);
             break;
         }
-        case 'b': {
+        case '5': {
             printf("\t ADRC test rk_aiq_uapi2_getDrcHiLit\n\n");
             float Strength = 0;
             rk_aiq_uapi2_getDrcHiLit(ctx, &Strength);
             printf("\t ADRC rk_aiq_uapi2_getDrcHiLit: Strength:%f\n\n", Strength);
             break;
         }
-        case 'c': {
+        case '6': {
             printf("\t ADRC test rk_aiq_uapi2_setDrcHiLit\n\n");
             rk_aiq_uapi2_setDrcHiLit(ctx, 0.8);
             break;
         }
-        case 'd': {
+        case '7': {
             printf("\t ADRC test rk_aiq_uapi2_getDrcLocalData\n\n");
             float LocalWeit = 0;
             float GlobalContrast = 0;
@@ -317,7 +241,7 @@ XCamReturn sample_adrc_module(const void *arg)
                    LocalWeit, GlobalContrast, LoLitContrast, LocalAutoEnable, LocalAutoWeit);
             break;
         }
-        case 'e': {
+        case '8': {
             printf("\t ADRC test rk_aiq_uapi2_setDrcLocalData\n\n");
             rk_aiq_uapi2_setDrcLocalData(ctx, 1.0, 0.5, 0.5, 1, 0.9);
             break;

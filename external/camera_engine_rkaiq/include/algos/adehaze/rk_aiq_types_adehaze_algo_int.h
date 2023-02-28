@@ -32,21 +32,17 @@ typedef enum AdehazeVersion_e {
 } AdehazeVersion_t;
 
 typedef enum dehaze_api_mode_s {
-    DEHAZE_API_BYPASS                  = 0,        /**< api bypass */
-    DEHAZE_API_MANUAL                  = 1,        /**< run manual mode*/
-    DEHAZE_API_DEHAZE_AUTO             = 2,        /**< run auto dehaze */
-    DEHAZE_API_DEHAZE_MANUAL           = 3,        /**< run manual dehaze */
-    DEHAZE_API_DEHAZE_OFF              = 4,        /**< dehaze off, enhance follow IQ setting*/
-    DEHAZE_API_ENHANCE_MANUAL          = 5,        /**< dehaze enhance Manual*/
-    DEHAZE_API_ENHANCE_AUTO            = 6,        /**< dehaze enhance follow IQ setting*/
-    DEHAZE_API_ENHANCE_OFF             = 7,        /**< dehaze enhance off, dehaze enable fellow IQ setting*/
+    DEHAZE_API_AUTO   = 0, /**< run auto mode */
+    DEHAZE_API_MANUAL = 1, /**< run manual mode*/
 } dehaze_api_mode_t;
 
 typedef struct DehazeManuAttr_s {
+    bool update;
     int level;//0~100
 } DehazeManuAttr_t;
 
 typedef struct EnhanceManuAttr_s {
+    bool update;
     int level;//0~100
 } EnhanceManuAttr_t;
 
@@ -54,6 +50,7 @@ typedef struct adehaze_sw_V2_s {
     rk_aiq_uapi_sync_t sync;
 
     dehaze_api_mode_t mode;
+    aDehazeAttr_t stAuto;
     mDehazeAttr_t stManual;
     DehazeManuAttr_t stDehazeManu;
     EnhanceManuAttr_t stEnhanceManu;

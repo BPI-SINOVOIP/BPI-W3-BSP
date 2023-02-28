@@ -73,7 +73,7 @@ XCamReturn RkAiqCamGroupAdrcHandleInt::getAttrib(drcAttr_t* att) {
         mCfgMutex.unlock();
     } else {
         if (updateAtt) {
-            memcpy(att, &mNewAtt, sizeof(updateAtt));
+            memcpy(att, &mNewAtt, sizeof(drcAttr_t));
             att->sync.done = false;
         } else {
             rk_aiq_uapi_adrc_GetAttrib(mAlgoCtx, att);

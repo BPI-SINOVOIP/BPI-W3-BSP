@@ -20,18 +20,18 @@
 #ifndef __CALIBDBV2_AMERGE_HEADER_H__
 #define __CALIBDBV2_AMERGE_HEADER_H__
 
-#include "rk_aiq_comm.h"
+#include "adehaze_head.h"
 
 RKAIQ_BEGIN_DECLARE
 
 typedef struct MergeOECurveV20_s {
-    // M4_ARRAY_DESC("EnvLv", "f32", M4_SIZE(1,100), M4_RANGE(0,1), "0",M4_DIGIT(4), M4_DYNAMIC(1))
-    float* EnvLv;
-    int EnvLv_len;
+    // M4_ARRAY_DESC("CtrlData", "f32", M4_SIZE(1,100), M4_RANGE(0,1000000000), "0",M4_DIGIT(4), M4_DYNAMIC(1))
+    float* CtrlData;
+    int CtrlData_len;
     // M4_ARRAY_DESC("Smooth", "f32", M4_SIZE(1,100), M4_RANGE(0,1), "0.4",M4_DIGIT(4), M4_DYNAMIC(1))
     float* Smooth;
     int Smooth_len;
-    // M4_ARRAY_DESC("Offset", "f32", M4_SIZE(1,100), M4_RANGE(108,300), "210",M4_DIGIT(4), M4_DYNAMIC(1))
+    // M4_ARRAY_DESC("Offset", "f32", M4_SIZE(1,100), M4_RANGE(108,280), "210",M4_DIGIT(4), M4_DYNAMIC(1))
     float* Offset;
     int Offset_len;
 } MergeOECurveV20_t;
@@ -55,6 +55,8 @@ typedef struct MergeMDCurveV20_s {
 } MergeMDCurveV20_t;
 
 typedef struct MergeV20_s {
+    // M4_ENUM_DESC("CtrlDataType", "CtrlDataType_t", "CTRLDATATYPE_ENVLV")
+    CtrlDataType_t CtrlDataType;
     // M4_ARRAY_TABLE_DESC("OECurve", "array_table_ui", "none")
     MergeOECurveV20_t OECurve;
     // M4_ARRAY_TABLE_DESC("MDCurve", "array_table_ui", "none")
@@ -121,6 +123,8 @@ typedef struct ShortFrameModeData_s {
 typedef struct MergeV21_s {
     // M4_ENUM_DESC("BaseFrm", "MergeBaseFrame_t", "BASEFRAME_LONG")
     MergeBaseFrame_t BaseFrm;
+    // M4_ENUM_DESC("CtrlDataType", "CtrlDataType_t", "CTRLDATATYPE_ENVLV")
+    CtrlDataType_t CtrlDataType;
     // M4_NUMBER_DESC("ByPassThr", "f32", M4_RANGE(0,1), "0", M4_DIGIT(4))
     float ByPassThr;
     // M4_STRUCT_DESC("LongFrmModeData", "normal_ui_style")

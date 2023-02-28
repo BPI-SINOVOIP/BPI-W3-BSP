@@ -25,7 +25,7 @@
 namespace RkCam {
 
 class RkAiqAbayer2dnrV2HandleInt : virtual public RkAiqHandle {
- public:
+public:
     explicit RkAiqAbayer2dnrV2HandleInt(RkAiqAlgoDesComm* des, RkAiqCore* aiqCore)
         : RkAiqHandle(des, aiqCore) {
         updateStrength = false;
@@ -37,7 +37,9 @@ class RkAiqAbayer2dnrV2HandleInt : virtual public RkAiqHandle {
         memset(&mCurAtt, 0x00, sizeof(mCurAtt));
         memset(&mNewAtt, 0x00, sizeof(mNewAtt));
     };
-    virtual ~RkAiqAbayer2dnrV2HandleInt() { RkAiqHandle::deInit(); };
+    virtual ~RkAiqAbayer2dnrV2HandleInt() {
+        RkAiqHandle::deInit();
+    };
     virtual XCamReturn updateConfig(bool needSync);
     virtual XCamReturn prepare();
     virtual XCamReturn preProcess();
@@ -49,12 +51,15 @@ class RkAiqAbayer2dnrV2HandleInt : virtual public RkAiqHandle {
     XCamReturn getAttrib(rk_aiq_bayer2dnr_attrib_v2_t* att);
     XCamReturn setStrength(rk_aiq_bayer2dnr_strength_v2_t* pStrength);
     XCamReturn getStrength(rk_aiq_bayer2dnr_strength_v2_t* pStrength);
+    XCamReturn getInfo(rk_aiq_bayer2dnr_info_v2_t* pInfo);
 
- protected:
+protected:
     virtual void init();
-    virtual void deInit() { RkAiqHandle::deInit(); };
+    virtual void deInit() {
+        RkAiqHandle::deInit();
+    };
 
- private:
+private:
     // TODO
     rk_aiq_bayer2dnr_attrib_v2_t mCurAtt;
     rk_aiq_bayer2dnr_attrib_v2_t mNewAtt;
@@ -62,7 +67,7 @@ class RkAiqAbayer2dnrV2HandleInt : virtual public RkAiqHandle {
     rk_aiq_bayer2dnr_strength_v2_t mNewStrength;
     mutable std::atomic<bool> updateStrength;
 
- private:
+private:
     DECLARE_HANDLE_REGISTER_TYPE(RkAiqAbayer2dnrV2HandleInt);
 };
 

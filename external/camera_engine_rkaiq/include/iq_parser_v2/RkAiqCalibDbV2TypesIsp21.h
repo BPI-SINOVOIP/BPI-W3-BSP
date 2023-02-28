@@ -24,8 +24,12 @@
 #include "adrc_head.h"
 #include "bayernr_head_v2.h"
 #include "cnr_head_v1.h"
+#include "ccm_head.h"
+#include "cgc_head.h"
 #include "ynr_head_v2.h"
 #include "sharp_head_v3.h"
+#include "csm_head.h"
+#include "cgc_head.h"
 
 
 RKAIQ_BEGIN_DECLARE
@@ -84,9 +88,10 @@ typedef struct CamCalibDbV2ContextIsp21_s {
     CalibDbV2_YnrV2_t ynr_v2;
     // M4_STRUCT_DESC("sharp_v3", "normal_ui_style")
     CalibDbV2_SharpV3_t sharp_v3;
-
-
-
+    // M4_STRUCT_DESC("csm", "normal_ui_style")
+    CalibDbV2_csm_t csm;
+    // M4_STRUCT_DESC("cgc", "normal_ui_style")
+    CalibDbV2_cgc_t cgc;
 } CamCalibDbV2ContextIsp21_t;
 
 RKAIQ_END_DECLARE

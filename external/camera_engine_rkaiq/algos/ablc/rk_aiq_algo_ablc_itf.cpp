@@ -90,6 +90,12 @@ prepare(RkAiqAlgoCom* params)
         pAblcCtx->isReCalculate |= 1;
     }
 
+	if(pAblcCtx->isUpdateParam) {
+        AblcParamsUpdate(pAblcCtx, &pAblcCtx->stBlcCalib);
+        pAblcCtx->isReCalculate |= 1;
+        pAblcCtx->isUpdateParam = false;
+    }
+
     LOG1_ABLC("%s: (exit)\n", __FUNCTION__ );
     return result;
 }
@@ -100,12 +106,6 @@ pre_process(const RkAiqAlgoCom* inparams, RkAiqAlgoResCom* outparams)
     LOG1_ABLC("%s: (enter)\n", __FUNCTION__ );
     XCamReturn result = XCAM_RETURN_NO_ERROR;
     AblcContext_t* pAblcCtx = (AblcContext_t *)inparams->ctx;
-
-    if(pAblcCtx->isUpdateParam) {
-        AblcParamsUpdate(pAblcCtx, &pAblcCtx->stBlcCalib);
-        pAblcCtx->isReCalculate |= 1;
-        pAblcCtx->isUpdateParam = false;
-    }
 
     LOG1_ABLC("%s: (exit)\n", __FUNCTION__ );
     return result;
@@ -159,7 +159,13 @@ processing(const RkAiqAlgoCom* inparams, RkAiqAlgoResCom* outparams)
             } else {
                 stExpInfo.arDGain[0] = curExp->LinearExp.exp_real_params.digital_gain;
             }
-            stExpInfo.arDGain[0] = curExp->LinearExp.exp_real_params.digital_gain;
+            if(curExp->LinearExp.exp_real_params.isp_dgain < 1.0) {
+                stExpInfo.arDGain[0] *= 1.0;
+                LOGW_ANR("leanr mode dgain is wrong, use 1.0 instead\n");
+            } else {
+                stExpInfo.arDGain[0] *= curExp->LinearExp.exp_real_params.isp_dgain;
+            }
+            //stExpInfo.arDGain[0] = curExp->LinearExp.exp_real_params.digital_gain;
             stExpInfo.arTime[0] = curExp->LinearExp.exp_real_params.integration_time;
             stExpInfo.arIso[0] = stExpInfo.arAGain[0] * stExpInfo.arDGain[0] * 50;
         } else {

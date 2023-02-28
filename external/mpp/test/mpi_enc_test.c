@@ -292,6 +292,9 @@ MPP_RET test_mpp_enc_cfg_setup(MpiEncMultiCtxInfo *info)
     MppEncCfg cfg = p->cfg;
     RK_U32 quiet = cmd->quiet;
     MPP_RET ret;
+    RK_U32 rotation;
+    RK_U32 mirroring;
+    RK_U32 flip;
 
     /* setup default parameter */
     if (p->fps_in_den == 0)
@@ -405,6 +408,8 @@ MPP_RET test_mpp_enc_cfg_setup(MpiEncMultiCtxInfo *info)
     mpp_enc_cfg_set_s32(cfg, "codec:type", p->type);
     switch (p->type) {
     case MPP_VIDEO_CodingAVC : {
+        RK_U32 constraint_set;
+
         /*
          * H.264 profile_idc parameter
          * 66  - Baseline profile
@@ -424,6 +429,10 @@ MPP_RET test_mpp_enc_cfg_setup(MpiEncMultiCtxInfo *info)
         mpp_enc_cfg_set_s32(cfg, "h264:cabac_en", 1);
         mpp_enc_cfg_set_s32(cfg, "h264:cabac_idc", 0);
         mpp_enc_cfg_set_s32(cfg, "h264:trans8x8", 1);
+
+        mpp_env_get_u32("constraint_set", &constraint_set, 0);
+        if (constraint_set & 0x3f0000)
+            mpp_enc_cfg_set_s32(cfg, "h264:constraint_set", constraint_set);
     } break;
     case MPP_VIDEO_CodingHEVC :
     case MPP_VIDEO_CodingMJPEG :
@@ -450,6 +459,14 @@ MPP_RET test_mpp_enc_cfg_setup(MpiEncMultiCtxInfo *info)
         mpp_enc_cfg_set_s32(cfg, "split:out", p->split_out);
     }
 
+    mpp_env_get_u32("mirroring", &mirroring, 0);
+    mpp_env_get_u32("rotation", &rotation, 0);
+    mpp_env_get_u32("flip", &flip, 0);
+
+    mpp_enc_cfg_set_s32(cfg, "prep:mirroring", mirroring);
+    mpp_enc_cfg_set_s32(cfg, "prep:rotation", rotation);
+    mpp_enc_cfg_set_s32(cfg, "prep:flip", flip);
+
     ret = mpi->control(ctx, MPP_ENC_SET_CFG, cfg);
     if (ret) {
         mpp_err("mpi control enc set cfg failed ret %d\n", ret);
@@ -457,11 +474,16 @@ MPP_RET test_mpp_enc_cfg_setup(MpiEncMultiCtxInfo *info)
     }
 
     /* optional */
-    p->sei_mode = MPP_ENC_SEI_MODE_ONE_FRAME;
-    ret = mpi->control(ctx, MPP_ENC_SET_SEI_CFG, &p->sei_mode);
-    if (ret) {
-        mpp_err("mpi control enc set sei cfg failed ret %d\n", ret);
-        goto RET;
+    {
+        RK_U32 sei_mode;
+
+        mpp_env_get_u32("sei_mode", &sei_mode, MPP_ENC_SEI_MODE_ONE_FRAME);
+        p->sei_mode = sei_mode;
+        ret = mpi->control(ctx, MPP_ENC_SET_SEI_CFG, &p->sei_mode);
+        if (ret) {
+            mpp_err("mpi control enc set sei cfg failed ret %d\n", ret);
+            goto RET;
+        }
     }
 
     if (p->type == MPP_VIDEO_CodingAVC || p->type == MPP_VIDEO_CodingHEVC) {
@@ -892,6 +914,12 @@ void *enc_test(void *arg)
     ret = mpp_enc_cfg_init(&p->cfg);
     if (ret) {
         mpp_err_f("mpp_enc_cfg_init failed ret %d\n", ret);
+        goto MPP_TEST_OUT;
+    }
+
+    ret = p->mpi->control(p->ctx, MPP_ENC_GET_CFG, p->cfg);
+    if (ret) {
+        mpp_err_f("get enc cfg failed ret %d\n", ret);
         goto MPP_TEST_OUT;
     }
 

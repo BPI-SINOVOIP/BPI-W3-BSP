@@ -23,6 +23,7 @@
 #define  __GST_MPP_H__
 
 #include <gst/video/video.h>
+#include <gst/allocators/gstdmabuf.h>
 
 #ifdef HAVE_RGA
 #include <rga/rga.h>

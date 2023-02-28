@@ -36,12 +36,13 @@ public:
     virtual XCamReturn stop();
     XCamReturn setIspParamsSync(int frameId);
 protected:
-    virtual XCamReturn setIspConfig();
+    virtual XCamReturn setIspConfig(uint32_t triggeredId = 0);
 private:
     void gen_full_isp_params(const struct isp3x_isp_params_cfg* update_params,
                              struct isp3x_isp_params_cfg* full_params,
                              uint64_t* module_en_update_partial,
-                             uint64_t* module_cfg_update_partial);
+                             uint64_t* module_cfg_update_partial,
+                             uint32_t triggeredId);
     struct isp3x_isp_params_cfg _full_active_isp3x_params;
 };
 

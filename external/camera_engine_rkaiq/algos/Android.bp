@@ -248,6 +248,7 @@ cc_library_static {
         "alsc/rk_aiq_algo_alsc_itf.cpp",
         "alsc/rk_aiq_alsc_algo.cpp",
         "alsc/rk_aiq_uapi_alsc_int.cpp",
+        "alsc/rk_aiq_alsc_convert_otp.cpp",
     ],
 }
 

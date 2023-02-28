@@ -53,10 +53,12 @@ typedef enum {
     OPTION_ZAPHOD_HEADS,
     OPTION_DOUBLE_SHADOW,
     OPTION_ATOMIC,
+    OPTION_USE_GAMMA_LUT,
     OPTION_FLIP_FB,
     OPTION_FLIP_FB_RATE,
     OPTION_NO_EDID,
     OPTION_HOTPLUG_RESET,
+    OPTION_WARM_UP,
 } modesettingOpts;
 
 typedef struct
@@ -127,6 +129,8 @@ typedef struct _modesettingRec {
 
     Bool kms_has_modifiers;
     Bool async_pageflip;
+
+    Bool warm_up;
 
     XF86VideoAdaptorPtr adaptor;
 } modesettingRec, *modesettingPtr;

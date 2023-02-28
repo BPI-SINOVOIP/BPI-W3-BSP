@@ -82,24 +82,6 @@ typedef enum Again_ParamMode_V2_e {
     AGAINV2_PARAM_MODE_MAX                                      /**< max */
 } Again_ParamMode_V2_t;
 
-typedef struct Again_ExpInfo_V2_s {
-    int hdr_mode;
-    float arTime[3];
-    float arAGain[3];
-    float arDGain[3];
-    int   arIso[3];
-    int   arDcgMode[3];
-    int   snr_mode;
-
-    float preTime[3];
-    float preAGain[3];
-    float preDGain[3];
-    int preIso[3];
-    int   preDcgMode[3];
-    int pre_snr_mode;
-
-    int mfnr_mode_3to1;
-} Again_ExpInfo_V2_t;
 
 
 #if 0

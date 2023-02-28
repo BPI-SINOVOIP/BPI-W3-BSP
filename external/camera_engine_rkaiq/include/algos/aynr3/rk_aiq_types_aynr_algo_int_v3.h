@@ -79,16 +79,7 @@ typedef enum Aynr_ParamMode_V3_e {
     AYNRV3_PARAM_MODE_MAX                                      /**< max */
 } Aynr_ParamMode_V3_t;
 
-typedef struct Aynr_ExpInfo_V3_s {
-    int hdr_mode;
-    float arTime[3];
-    float arAGain[3];
-    float arDGain[3];
-    int   arIso[3];
-    int   snr_mode;
-    int rawWidth;
-    int rawHeight;
-} Aynr_ExpInfo_V3_t;
+
 
 #if 0
 typedef struct RK_YNR_Params_V3_Select_s
@@ -143,14 +134,18 @@ typedef struct RK_YNR_Params_V3_Select_s
 } RK_YNR_Params_V3_Select_t;
 #endif
 
+typedef struct RK_YNR_Sigma_formula_s {
+    double sigma_curve[5];
+} RK_YNR_Sigma_formula_t;
 
 typedef struct RK_YNR_Params_V3_s
 {
     int enable;
+    bool sigma_use_point;
     char version[64];
     float iso[RK_YNR_V3_MAX_ISO_NUM];
     RK_YNR_Params_V3_Select_t arYnrParamsISO[RK_YNR_V3_MAX_ISO_NUM];
-
+    RK_YNR_Sigma_formula_t arSigmaFormulaISO[RK_YNR_V3_MAX_ISO_NUM];
 } RK_YNR_Params_V3_t;
 
 

@@ -59,7 +59,10 @@ typedef struct MppDecHwCap_t {
     RK_U32          cap_hw_vp9_prob : 1;
     RK_U32          cap_jpg_pp_out  : 1;
     RK_U32          cap_10bit       : 1;
-    RK_U32          reserved        : 13;
+    RK_U32          cap_down_scale  : 1;
+    RK_U32          cap_lmt_linebuf : 1;
+    RK_U32          cap_core_num    : 3;
+    RK_U32          reserved        : 9;
 } MppDecHwCap;
 
 typedef struct MppEncHwCap_t {
@@ -92,7 +95,6 @@ extern "C" {
 
 const char *mpp_get_soc_name(void);
 RockchipSocType mpp_get_soc_type(void);
-RK_U32 mpp_get_vcodec_type(void);
 
 const MppSocInfo *mpp_get_soc_info(void);
 RK_U32 mpp_check_soc_cap(MppCtxType type, MppCodingType coding);

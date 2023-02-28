@@ -1116,7 +1116,8 @@ V4l2Device::dequeue_buffer(SmartPtr<V4l2Buffer> &buf)
     buf->set_timestamp (v4l2_buf.timestamp);
     buf->set_timecode (v4l2_buf.timecode);
     buf->set_sequence (v4l2_buf.sequence);
-    if (!V4L2_TYPE_IS_OUTPUT(buf->get_buf ().type))
+    if (!V4L2_TYPE_IS_OUTPUT(_buf_type) &&
+            (_buf_type != V4L2_BUF_TYPE_META_OUTPUT))
         buf->set_queued(false);
     if (V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE == _buf_type ||
             V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE == _buf_type) {
@@ -1139,6 +1140,7 @@ V4l2Device::get_buffer (SmartPtr<V4l2Buffer> &buf, int index) const
 
     if (index != -1 && !(_buf_pool[index]->get_queued())) {
         buf = _buf_pool[index];
+        buf->set_queued(true);
         return XCAM_RETURN_NO_ERROR;
     }
 
@@ -1147,6 +1149,7 @@ V4l2Device::get_buffer (SmartPtr<V4l2Buffer> &buf, int index) const
     for (i = 0; i < _buf_pool.size(); i++) {
         if (!(_buf_pool[i]->get_queued())) {
             buf = _buf_pool[i];
+            buf->set_queued(true);
             break;
         }
     }

@@ -20,6 +20,7 @@
 */
 /* for rockchip v2.0.0*/
 
+#include "rk_aiq_algo_types.h"
 #include "alsc/rk_aiq_alsc_algo.h"
 #include "xcam_log.h"
 #include "interpolation.h"
@@ -469,6 +470,76 @@ static void ClearContext(alsc_handle_t hAlsc)
 
 }
 
+XCamReturn convertSensorLscOTP(alsc_handle_t hAlsc)
+{
+    XCamReturn ret = XCAM_RETURN_NO_ERROR;
+
+    if (!hAlsc->alscSwInfo.otpInfo.flag || \
+        !hAlsc->alscSwInfo.otpInfo.lsc_r || !hAlsc->alscSwInfo.otpInfo.lsc_b || \
+        !hAlsc->alscSwInfo.otpInfo.lsc_gr || !hAlsc->alscSwInfo.otpInfo.lsc_gb || \
+        (hAlsc->alscSwInfo.ispAcqWidth == hAlsc->alscSwInfo.otpInfo.width && \
+         hAlsc->alscSwInfo.ispAcqHeight == hAlsc->alscSwInfo.otpInfo.height))
+        return XCAM_RETURN_BYPASS;
+
+    convertLscTableParameter(&hAlsc->alscSwInfo.otpInfo, hAlsc->alscSwInfo.bayerPattern,
+            hAlsc->alscSwInfo.ispAcqWidth, hAlsc->alscSwInfo.ispAcqHeight);
+
+    return ret;
+}
+
+XCamReturn alscGetOtpInfo(RkAiqAlgoCom* params)
+{
+    if (!params)
+        return XCAM_RETURN_BYPASS;
+
+    alsc_handle_t hAlsc = (alsc_handle_t)(params->ctx->alsc_para);
+    RkAiqAlgoConfigAlsc *para = (RkAiqAlgoConfigAlsc *)params;
+
+    alsc_sw_info_t *alscSwInfo = &para->alsc_sw_info;
+    hAlsc->alscSwInfo.bayerPattern = alscSwInfo->bayerPattern;
+    hAlsc->alscSwInfo.ispAcqWidth = alscSwInfo->ispAcqWidth;
+    hAlsc->alscSwInfo.ispAcqHeight = alscSwInfo->ispAcqHeight;
+    if (alscSwInfo->otpInfo.flag) {
+        hAlsc->alscSwInfo.otpInfo.flag = alscSwInfo->otpInfo.flag;
+        hAlsc->alscSwInfo.otpInfo.width = alscSwInfo->otpInfo.width;
+        hAlsc->alscSwInfo.otpInfo.height = alscSwInfo->otpInfo.height;
+        hAlsc->alscSwInfo.otpInfo.table_size = alscSwInfo->otpInfo.table_size;
+        hAlsc->alscSwInfo.otpInfo.lsc_r = alscSwInfo->otpInfo.lsc_r;
+        hAlsc->alscSwInfo.otpInfo.lsc_b = alscSwInfo->otpInfo.lsc_b;
+        hAlsc->alscSwInfo.otpInfo.lsc_gr = alscSwInfo->otpInfo.lsc_gr;
+        hAlsc->alscSwInfo.otpInfo.lsc_gb = alscSwInfo->otpInfo.lsc_gb;
+    } else {
+        hAlsc->alscSwInfo.otpInfo.flag = 0;
+    }
+
+    return XCAM_RETURN_NO_ERROR;
+}
+
+static XCamReturn applySensorLscOTP(pLscTableProfile_t pLscTableProfile, AlscOtpInfo_t *otpInfo)
+{
+    XCamReturn ret = XCAM_RETURN_NO_ERROR;
+
+    if (!pLscTableProfile || !otpInfo || !otpInfo->flag || \
+        !otpInfo->lsc_r || !otpInfo->lsc_b || \
+        !otpInfo->lsc_gr || !otpInfo->lsc_gb)
+        return XCAM_RETURN_BYPASS;
+
+    Cam17x17UShortMatrix_t *pMatrix = const_cast<Cam17x17UShortMatrix_t*>(&pLscTableProfile->lsc_samples_red);
+
+    for (int32_t i = 0; i < LSC_DATA_TBL_SIZE; i++) {
+        pMatrix[CAM_4CH_COLOR_COMPONENT_RED].uCoeff[i]       = pMatrix[CAM_4CH_COLOR_COMPONENT_RED].uCoeff[i] * \
+                                                               (float(otpInfo->lsc_r[i]) / 1024) + 0.5;
+        pMatrix[CAM_4CH_COLOR_COMPONENT_BLUE].uCoeff[i]      = pMatrix[CAM_4CH_COLOR_COMPONENT_BLUE].uCoeff[i] * \
+                                                               (float(otpInfo->lsc_b[i]) / 1024) + 0.5;
+        pMatrix[CAM_4CH_COLOR_COMPONENT_GREENR].uCoeff[i]    = pMatrix[CAM_4CH_COLOR_COMPONENT_GREENR].uCoeff[i] * \
+                                                               (float(otpInfo->lsc_gr[i]) / 1024) + 0.5;
+        pMatrix[CAM_4CH_COLOR_COMPONENT_GREENB].uCoeff[i]    = pMatrix[CAM_4CH_COLOR_COMPONENT_GREENB].uCoeff[i] * \
+                                                               (float(otpInfo->lsc_gb[i]) / 1024) + 0.5;
+    }
+
+    return ret;
+}
+
 /** @brief called to arrange data to fill alsc_mode_data_t from CalibDb */
 static XCamReturn UpdateLscCalibPara(alsc_handle_t hAlsc)
 {
@@ -514,6 +585,7 @@ static XCamReturn UpdateLscCalibPara(alsc_handle_t hAlsc)
                     LOGE_ALSC("%s: CamCalibDbGetLscProfileByName failed\n", __func__);
                     return ret;
                 }
+                applySensorLscOTP(illu_case_res.lsc_table_group[used_id], &hAlsc->alscSwInfo.otpInfo);
             }
             OrderLscProfilesByVignetting(illu_case_res.lsc_table_group, illu_case_res.lsc_table_count);
         }
@@ -745,6 +817,10 @@ XCamReturn AlscManualConfig
 
     XCamReturn ret = XCAM_RETURN_NO_ERROR;
 
+    memcpy(hAlsc->lscHwConf.x_size_tbl, hAlsc->mCurAtt.stManual.lsc_sect_size_x,
+           sizeof(hAlsc->mCurAtt.stManual.lsc_sect_size_x));
+    memcpy(hAlsc->lscHwConf.y_size_tbl, hAlsc->mCurAtt.stManual.lsc_sect_size_y,
+           sizeof(hAlsc->mCurAtt.stManual.lsc_sect_size_y));
     memcpy(hAlsc->lscHwConf.r_data_tbl, hAlsc->mCurAtt.stManual.r_data_tbl,
            sizeof(hAlsc->mCurAtt.stManual.r_data_tbl));
     memcpy(hAlsc->lscHwConf.gr_data_tbl, hAlsc->mCurAtt.stManual.gr_data_tbl,
@@ -757,6 +833,38 @@ XCamReturn AlscManualConfig
     LOG1_ALSC("%s: (exit)\n", __FUNCTION__);
     return ret;
 
+}
+
+XCamReturn AlscManualGrad(alsc_handle_t hAlsc) {
+    LOG1_ALSC("%s: (enter)\n", __FUNCTION__);
+    XCamReturn ret = XCAM_RETURN_NO_ERROR;
+
+    uint32_t x_size = sizeof(hAlsc->mCurAtt.stManual.lsc_sect_size_x) /
+                      sizeof(hAlsc->mCurAtt.stManual.lsc_sect_size_x[0]);
+    uint32_t y_size = sizeof(hAlsc->mCurAtt.stManual.lsc_sect_size_y) /
+                      sizeof(hAlsc->mCurAtt.stManual.lsc_sect_size_y[0]);
+
+    for (uint32_t i = 0; i < x_size; i++) {
+        if (0 < hAlsc->mCurAtt.stManual.lsc_sect_size_x[i]) {
+            hAlsc->lscHwConf.x_grad_tbl[i] =
+                (uint16_t)((double)(1UL << 15) / hAlsc->mCurAtt.stManual.lsc_sect_size_x[i] + 0.5);
+        } else {
+            LOGE_ALSC("%s: src.lsc_sect_size_x[%d]=0\n", __func__, i);
+            return XCAM_RETURN_ERROR_PARAM;
+        }
+    }
+    for (uint32_t i = 0; i < y_size; i++) {
+        if (0 < hAlsc->mCurAtt.stManual.lsc_sect_size_y[i]) {
+            hAlsc->lscHwConf.y_grad_tbl[i] =
+                (uint16_t)((double)(1UL << 15) / hAlsc->mCurAtt.stManual.lsc_sect_size_y[i] + 0.5);
+        } else {
+            LOGE_ALSC("%s: src.lsc_sect_size_y[%d]=0\n", __func__, i);
+            return XCAM_RETURN_ERROR_PARAM;
+        }
+    }
+
+    LOG1_ALSC("%s: (exit)\n", __FUNCTION__);
+    return ret;
 }
 
 XCamReturn AlscConfig
@@ -778,11 +886,15 @@ XCamReturn AlscConfig
     }
     if(hAlsc->updateAtt) {
         hAlsc->mCurAtt = hAlsc->mNewAtt;
+        AlscAutoParamFree(hAlsc);
+        AlscAutoParamClone(hAlsc);
+        AlscPrepare(hAlsc);
+        AlscManualGrad(hAlsc);
     }
     LOGD_ALSC("%s: byPass: %d  mode:%d used for case: %d\n", __FUNCTION__,
         hAlsc->mCurAtt.byPass, hAlsc->mCurAtt.mode,hAlsc->alscRest.caseIndex);
     if(hAlsc->mCurAtt.byPass != true ) {
-        hAlsc->lscHwConf.lsc_en = hAlsc->calibLscV2->common.enable;
+        hAlsc->lscHwConf.lsc_en = true;
         if(hAlsc->mCurAtt.mode == RK_AIQ_LSC_MODE_AUTO) {
             if (hAlsc->auto_mode_need_run_algo) {
                 AlscAutoConfig(hAlsc);
@@ -792,6 +904,10 @@ XCamReturn AlscConfig
         } else {
             LOGE_ALSC("%s: hAlsc->mCurAtt.mode(%d) is invalid \n", __FUNCTION__, hAlsc->mCurAtt.mode);
         }
+        memcpy(hAlsc->mCurAtt.stManual.lsc_sect_size_x, hAlsc->lscHwConf.x_size_tbl,
+               sizeof(hAlsc->mCurAtt.stManual.lsc_sect_size_x));
+        memcpy(hAlsc->mCurAtt.stManual.lsc_sect_size_y, hAlsc->lscHwConf.y_size_tbl,
+               sizeof(hAlsc->mCurAtt.stManual.lsc_sect_size_y));
         memcpy(hAlsc->mCurAtt.stManual.r_data_tbl, hAlsc->lscHwConf.r_data_tbl,
                sizeof(hAlsc->mCurAtt.stManual.r_data_tbl));
         memcpy(hAlsc->mCurAtt.stManual.gr_data_tbl, hAlsc->lscHwConf.gr_data_tbl,
@@ -853,12 +969,12 @@ XCamReturn AlscInit(alsc_handle_t *hAlsc, const CamCalibDbV2Context_t* calib2)
 
     alsc_context->alscRest.caseIndex = USED_FOR_CASE_NORMAL;
     alsc_context->updateAtt = false;
-    alsc_context->mCurAtt.byPass = false;
+    alsc_context->mCurAtt.byPass = !calib2_lsc->common.enable;
     alsc_context->count = 0;
     alsc_context->mCurAtt.mode = RK_AIQ_LSC_MODE_AUTO;
-    alsc_context->alscSwInfo.prepare_type = RK_AIQ_ALGO_CONFTYPE_UPDATECALIB | RK_AIQ_ALGO_CONFTYPE_NEEDRESET;
+    //alsc_context->alscSwInfo.prepare_type = RK_AIQ_ALGO_CONFTYPE_UPDATECALIB | RK_AIQ_ALGO_CONFTYPE_NEEDRESET;
     alsc_context->auto_mode_need_run_algo = true;
-    ret = UpdateLscCalibPara(alsc_context);
+    //ret = UpdateLscCalibPara(alsc_context);
     //print_alsc(alsc_context);
     LOGI_ALSC("%s: (exit)\n", __FUNCTION__);
     return(ret);
@@ -934,6 +1050,73 @@ XCamReturn AlscPrepare(alsc_handle_t hAlsc)
     LOGI_ALSC("%s: (exit)\n", __FUNCTION__);
     return ret;
 }
+
+XCamReturn AlscAutoParamClone(alsc_handle_t hAlsc)
+{
+    LOGI_ALSC("%s: (enter)\n", __FUNCTION__);
+    XCamReturn ret = XCAM_RETURN_NO_ERROR;
+
+    hAlsc->fixed_calib.common.enable            = hAlsc->mCurAtt.stAuto.common.enable;
+    hAlsc->fixed_calib.common.resolutionAll     = (CalibDbV2_Lsc_Resolution_t*)hAlsc->mCurAtt.stAuto.common.resolutionAll;
+    hAlsc->fixed_calib.common.resolutionAll_len = hAlsc->mCurAtt.stAuto.common.resolutionAll_len;
+
+    hAlsc->fixed_calib.alscCoef.damp_enable = hAlsc->mCurAtt.stAuto.alscCoef.damp_enable;
+    hAlsc->fixed_calib.alscCoef.illAll_len  = hAlsc->mCurAtt.stAuto.alscCoef.illAll_len;
+    if (!hAlsc->fixed_calib.alscCoef.illAll_len) {
+      return XCAM_RETURN_ERROR_PARAM;
+    }
+    hAlsc->fixed_calib.alscCoef.illAll      = (CalibDbV2_AlscCof_ill_t*)malloc(
+        sizeof(CalibDbV2_AlscCof_ill_t) * hAlsc->fixed_calib.alscCoef.illAll_len);
+
+    for (int i = 0; i < hAlsc->fixed_calib.alscCoef.illAll_len; i++) {
+        hAlsc->fixed_calib.alscCoef.illAll[i].usedForCase =
+            hAlsc->mCurAtt.stAuto.alscCoef.illAll[i].usedForCase;
+
+        memcpy(hAlsc->fixed_calib.alscCoef.illAll[i].name,
+               hAlsc->mCurAtt.stAuto.alscCoef.illAll[i].name,
+               sizeof(hAlsc->fixed_calib.alscCoef.illAll[i].name));
+
+        memcpy(hAlsc->fixed_calib.alscCoef.illAll[i].wbGain,
+               hAlsc->mCurAtt.stAuto.alscCoef.illAll[i].wbGain,
+               sizeof(hAlsc->fixed_calib.alscCoef.illAll[i].wbGain));
+
+        hAlsc->fixed_calib.alscCoef.illAll[i].tableUsed =
+            hAlsc->mCurAtt.stAuto.alscCoef.illAll[i].tableUsed;
+        hAlsc->fixed_calib.alscCoef.illAll[i].tableUsed_len =
+            hAlsc->mCurAtt.stAuto.alscCoef.illAll[i].tableUsed_len;
+        hAlsc->fixed_calib.alscCoef.illAll[i].gains =
+            hAlsc->mCurAtt.stAuto.alscCoef.illAll[i].gains;
+        hAlsc->fixed_calib.alscCoef.illAll[i].gains_len =
+            hAlsc->mCurAtt.stAuto.alscCoef.illAll[i].gains_len;
+        hAlsc->fixed_calib.alscCoef.illAll[i].vig = hAlsc->mCurAtt.stAuto.alscCoef.illAll[i].vig;
+        hAlsc->fixed_calib.alscCoef.illAll[i].vig_len =
+            hAlsc->mCurAtt.stAuto.alscCoef.illAll[i].vig_len;
+    }
+
+    hAlsc->fixed_calib.alscCoef.damp_enable = hAlsc->mCurAtt.stAuto.alscCoef.damp_enable;
+    hAlsc->fixed_calib.tbl.tableAll = hAlsc->mCurAtt.stAuto.tbl.tableAll;
+    hAlsc->fixed_calib.tbl.tableAll_len = hAlsc->mCurAtt.stAuto.tbl.tableAll_len;
+
+    hAlsc->calibLscV2 = &hAlsc->fixed_calib;
+
+    LOGI_ALSC("%s: (exit)\n", __FUNCTION__);
+    return ret;
+}
+
+XCamReturn AlscAutoParamFree(alsc_handle_t hAlsc)
+{
+    LOGI_ALSC("%s: (enter)\n", __FUNCTION__);
+    XCamReturn ret = XCAM_RETURN_NO_ERROR;
+
+    if (hAlsc->fixed_calib.alscCoef.illAll) {
+      free(hAlsc->fixed_calib.alscCoef.illAll);
+      hAlsc->fixed_calib.alscCoef.illAll = NULL;
+    }
+
+    LOGI_ALSC("%s: (exit)\n", __FUNCTION__);
+    return ret;
+}
+
 XCamReturn AlscPreProc(alsc_handle_t hAlsc)
 {
 

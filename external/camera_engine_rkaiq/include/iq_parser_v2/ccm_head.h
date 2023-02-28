@@ -116,23 +116,18 @@ typedef struct CalibDbV2_Ccm_Tuning_Para_s {
     int matrixAll_len;
 } CalibDbV2_Ccm_Tuning_Para_t;
 
+#if 0
 typedef struct CalibDbV2_Ccm_Manual_Para_s {
     // M4_ARRAY_DESC("ccMatrix", "f32", M4_SIZE(3,3), M4_RANGE(-8,7.992), "[1.0000,0.0000,0.0000,0.0000,1.0000,0.0000,0.0000,0.0000,1.0000]", M4_DIGIT(4), M4_DYNAMIC(0))
     float    ccMatrix[9];
     // M4_ARRAY_DESC("ccOffsets", "f32", M4_SIZE(1,3), M4_RANGE(-4095,4095), "[0.0,0.0,0.0]", M4_DIGIT(1), M4_DYNAMIC(0))
     float    ccOffsets[3];
 } CalibDbV2_Ccm_Manual_Para_t;
-
-typedef enum CalibDbV2_Ccm_Op_Mode_t {
-    CALIB_CCM_MODE_MANUAL                      = 1,        /**< run manual lens shading correction */
-    CALIB_CCM_MODE_AUTO                        = 2,        /**< run auto lens shading correction */
-} CalibDbV2_Ccm_Op_Mode_t;
+#endif
 
 typedef struct CalibDbV2_Ccm_Control_Para_t {
   // M4_BOOL_DESC("enable", "0")
   bool enable;
-  // M4_ENUM_DESC("mode", "CalibDbV2_Ccm_Op_Mode_t", "CALIB_CCM_MODE_AUTO");
-  CalibDbV2_Ccm_Op_Mode_t mode;
    // M4_NUMBER_DESC("wbgain tolerance", "f32", M4_RANGE(0.0, 1), "0.1", M4_DIGIT(4))
   float wbgain_tolerance;
    // M4_NUMBER_DESC("gain tolerance", "f32", M4_RANGE(0.0, 1), "0.2", M4_DIGIT(4))
@@ -144,8 +139,6 @@ typedef struct CalibDbV2_Ccm_Para_V2_s {
     CalibDbV2_Ccm_Control_Para_t control;
     // M4_STRUCT_DESC("lumaCCM", "normal_ui_style")
     CalibDbV2_Ccm_Luma_Ccm_Para_t lumaCCM;
-    // M4_STRUCT_DESC("manualCCM", "normal_ui_style")
-    CalibDbV2_Ccm_Manual_Para_t manualPara;
     // M4_STRUCT_DESC("autoCCM", "normal_ui_style")
     CalibDbV2_Ccm_Tuning_Para_t TuningPara;
 } CalibDbV2_Ccm_Para_V2_t;

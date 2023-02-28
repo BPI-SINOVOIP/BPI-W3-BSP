@@ -591,6 +591,12 @@ MPP_RET mt_test_res_init(MpiEncMtCtxInfo *info)
         return ret;
     }
 
+    ret = p->mpi->control(p->ctx, MPP_ENC_GET_CFG, p->cfg);
+    if (ret) {
+        mpp_err_f("get enc cfg failed ret %d\n", ret);
+        return ret;
+    }
+
     ret = test_mt_cfg_setup(info);
     if (ret) {
         mpp_err_f("test mpp setup failed ret %d\n", ret);
@@ -952,9 +958,8 @@ void *enc_test_output(void *arg)
 
                 mpp_assert(frm);
                 frm_buf = mpp_frame_get_buffer(frm);
-                mpp_assert(frm_buf);
 
-                {
+                if (frm_buf) {
                     AutoMutex autolock(list_buf->mutex());
                     list_buf->add_at_tail(&frm_buf, sizeof(frm_buf));
                     list_buf->signal();

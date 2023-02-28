@@ -33,6 +33,8 @@ rk_aiq_user_api2_againV2_SetAttrib(const rk_aiq_sys_ctx_t* sys_ctx, rk_aiq_gain_
 XCamReturn
 rk_aiq_user_api2_againV2_GetAttrib(const rk_aiq_sys_ctx_t* sys_ctx, rk_aiq_gain_attrib_v2_t* attr);
 
+XCamReturn
+rk_aiq_user_api2_againV2_GetInfo(const rk_aiq_sys_ctx_t* sys_ctx, rk_aiq_gain_info_v2_t* pInfo);
 
 RKAIQ_END_DECLARE
 

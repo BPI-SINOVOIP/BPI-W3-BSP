@@ -278,7 +278,11 @@ XCamReturn RkAiqA3dlutHandleInt::genIspResult(RkAiqFullParams* params,
     }
 
     RkAiqAlgoProcResA3dlut* a3dlut_rk = (RkAiqAlgoProcResA3dlut*)a3dlut_com;
-    lut3d_param->result               = a3dlut_rk->lut3d_hw_conf;
+    if (!a3dlut_rk->lut3d_hw_conf.enable || a3dlut_rk->lut3d_hw_conf.bypass_en) {
+        lut3d_param->result.enable = a3dlut_rk->lut3d_hw_conf.enable;
+        lut3d_param->result.bypass_en = a3dlut_rk->lut3d_hw_conf.bypass_en;
+    } else
+        lut3d_param->result               = a3dlut_rk->lut3d_hw_conf;
 
     if (!this->getAlgoId()) {
         RkAiqAlgoProcResA3dlut* a3dlut_rk_int = (RkAiqAlgoProcResA3dlut*)a3dlut_com;

@@ -17,6 +17,8 @@
 
 #include "sample_comm.h"
 
+#define UAPI_INTERP_DEBAYER(x0, x1, ratio)    ((ratio) * ((x1) - (x0)) + x0)
+
 static void sample_adebayer_usage()
 {
     printf("Usage : \n");
@@ -106,7 +108,7 @@ XCamReturn sample_adebayer_setLowFreqThresh(const rk_aiq_sys_ctx_t* ctx, __u8 th
     ret = rk_aiq_user_api2_adebayer_GetAttrib(ctx, &attr);
     RKAIQ_SAMPLE_CHECK_RET(ret, "get debayer attrib failed!");
     attr.mode = RK_AIQ_DEBAYER_MODE_AUTO;
-    attr.stAuto.low_freq_thresh = thresh;
+    memset(attr.stAuto.debayer_thed1, thresh, sizeof(attr.stAuto.debayer_thed1));
     rk_aiq_user_api2_adebayer_SetAttrib(ctx, attr);
 
     ret = rk_aiq_user_api2_adebayer_GetAttrib(ctx, &attr);
@@ -129,7 +131,7 @@ XCamReturn sample_adebayer_setHighFreqThresh(const rk_aiq_sys_ctx_t* ctx, __u8 t
     ret = rk_aiq_user_api2_adebayer_GetAttrib(ctx, &attr);
     RKAIQ_SAMPLE_CHECK_RET(ret, "get debayer attrib failed!");
     attr.mode = RK_AIQ_DEBAYER_MODE_AUTO;
-    attr.stAuto.high_freq_thresh = thresh;
+    memset(attr.stAuto.debayer_thed0, thresh, sizeof(attr.stAuto.debayer_thed0));
     rk_aiq_user_api2_adebayer_SetAttrib(ctx, attr);
 
     printf ("mode: %d, sync_mode: %d, done: %d\n", attr.mode, attr.sync.sync_mode, attr.sync.done);
@@ -137,81 +139,58 @@ XCamReturn sample_adebayer_setHighFreqThresh(const rk_aiq_sys_ctx_t* ctx, __u8 t
     return ret;
 }
 
-/* debayer json params from os04a10_DH3588AVS6_default.json*/
 XCamReturn
-sample_adebayer_translate_params(adebayer_attrib_manual_t& stManual, int32_t ISO)
+sample_adebayer_translate_params(adebayer_attrib_auto_t& stAuto, adebayer_attrib_manual_t& stManual, int32_t ISO)
 {
-    int8_t filter1_coe[5] = {2, -6, 0, 6, -2};
-    int8_t filter2_coe[5] = {2, -4, 4, -4, 2};
-
-    for (int i = 0; i < 5; i++)
-    {
-        stManual.filter1[i] =  filter1_coe[i];
-        stManual.filter2[i] =  filter2_coe[i];
-    }
-    stManual.gain_offset = 4;
-
-    int sharp_strength_tmp[9];
-    uint16_t iso[9]           = {50, 100, 200, 400, 800, 1600, 3200, 6400, 12800};
-    uint8_t sharp_strength[9] = {1, 4, 4, 4, 4, 4, 4, 4, 4};
-    uint8_t hf_offset[9]      = {1, 1, 1, 1, 1, 1, 1, 1, 1};
-
-    for (int i = 0; i < 9; i ++)
-    {
-        float iso_index = iso[i];
-        int gain = (int)(log((float)iso_index / 50) / log((float)2));
-        sharp_strength_tmp[gain] = sharp_strength[i];
-    }
-    stManual.offset = 1;
-
-    int hfOffset_tmp[9];
-    for (int i = 0; i < 9; i ++)
-    {
-        float iso_index = iso[i];
-        int gain = (int)(log((float)iso_index / 50) / log((float)2));
-        hfOffset_tmp[gain]  = hf_offset[i];
-    }
-    stManual.clip_en        = 1;
-    stManual.filter_g_en    = 1;
-    stManual.filter_c_en    = 1;
-    stManual.thed0          = 3;
-    stManual.thed1          = 6;
-    stManual.dist_scale     = 8;
-    stManual.shift_num      = 2;
-
-    //select sharp params
-    int iso_low = ISO, iso_high = ISO;
-    int gain_high, gain_low;
+    int iso_low = 0, iso_high = 0, iso_low_index = 0, iso_high_index = 0;
     float ratio = 0.0f;
-    int iso_div             = 50;
-    int max_iso_step        = 9;
-    for (int i = max_iso_step - 1; i >= 0; i--)
-    {
-        if (ISO < iso_div * (2 << i))
+    int i = 0;
+
+    for(int j = 0; j < 5; j++) {
+
+        stManual.filter1[i] = stAuto.debayer_filter1[i];
+        stManual.filter2[i] = stAuto.debayer_filter2[i];
+
+    }
+
+    for(i = 0; i < UAPI_DEBAYER_ISO_LEN; i++) {
+        if (ISO < stAuto.ISO[i])
         {
-            iso_low = iso_div * (2 << (i)) / 2;
-            iso_high = iso_div * (2 << i);
+
+            iso_low = stAuto.ISO[MAX(0, i - 1)];
+            iso_high = stAuto.ISO[i];
+            iso_low_index = MAX(0, i - 1);
+            iso_high_index = i;
+
+            if(i == 0)
+                ratio = 0.0f;
+            else
+                ratio = (float)(ISO - iso_low) / (iso_high - iso_low);
+
+            break;
         }
     }
-    ratio = (float)(ISO - iso_low) / (iso_high - iso_low);
-    if (iso_low == ISO)
-    {
-        iso_high = ISO;
-        ratio = 0;
-    }
-    if (iso_high == ISO )
-    {
-        iso_low = ISO;
+
+    if(i == UAPI_DEBAYER_ISO_LEN) {
+        iso_low = stAuto.ISO[i - 1];
+        iso_high = stAuto.ISO[i - 1];
+        iso_low_index = i - 1;
+        iso_high_index = i - 1;
         ratio = 1;
     }
-    gain_high = (int)(log((float)iso_high / 50) / log((float)2));
-    gain_low = (int)(log((float)iso_low / 50) / log((float)2));
 
-    gain_low = MIN(MAX(gain_low, 0), 8);
-    gain_high = MIN(MAX(gain_high, 0), 8);
-
-    stManual.sharp_strength = ((ratio) * (sharp_strength_tmp[gain_high] - sharp_strength_tmp[gain_low]) + sharp_strength_tmp[gain_low]);
-    stManual.hf_offset = ((ratio) * (hfOffset_tmp[gain_high] - hfOffset_tmp[gain_low]) + hfOffset_tmp[gain_low]);
+    stManual.offset = ROUND_F(UAPI_INTERP_DEBAYER(stAuto.debayer_offset[iso_low_index], stAuto.debayer_offset[iso_high_index], ratio));
+    stManual.gain_offset = ROUND_F(UAPI_INTERP_DEBAYER(stAuto.debayer_gain_offset[iso_low_index], stAuto.debayer_gain_offset[iso_high_index], ratio));
+    stManual.clip_en = ROUND_F(UAPI_INTERP_DEBAYER(stAuto.debayer_clip_en[iso_low_index], stAuto.debayer_clip_en[iso_high_index], ratio));
+    stManual.filter_g_en = ROUND_F(UAPI_INTERP_DEBAYER(stAuto.debayer_filter_g_en[iso_low_index], stAuto.debayer_filter_g_en[iso_high_index], ratio));
+    stManual.filter_c_en = ROUND_F(UAPI_INTERP_DEBAYER(stAuto.debayer_filter_c_en[iso_low_index], stAuto.debayer_filter_c_en[iso_high_index], ratio));
+    stManual.thed0 = ROUND_F(UAPI_INTERP_DEBAYER(stAuto.debayer_thed0[iso_low_index], stAuto.debayer_thed0[iso_high_index], ratio));
+    stManual.thed1 = ROUND_F(UAPI_INTERP_DEBAYER(stAuto.debayer_thed1[iso_low_index], stAuto.debayer_thed1[iso_high_index], ratio));
+    stManual.dist_scale = ROUND_F(UAPI_INTERP_DEBAYER(stAuto.debayer_dist_scale[iso_low_index], stAuto.debayer_dist_scale[iso_high_index], ratio));
+    stManual.shift_num = ROUND_F(UAPI_INTERP_DEBAYER(stAuto.debayer_shift_num[iso_low_index], stAuto.debayer_shift_num[iso_high_index], ratio));
+    stManual.sharp_strength = ROUND_F(UAPI_INTERP_DEBAYER(stAuto.sharp_strength[iso_low_index], stAuto.sharp_strength[iso_high_index], ratio));
+    stManual.hf_offset = ROUND_F(UAPI_INTERP_DEBAYER(stAuto.debayer_hf_offset[iso_low_index], stAuto.debayer_hf_offset[iso_high_index], ratio));
+    stManual.cnr_strength = ROUND_F(UAPI_INTERP_DEBAYER(stAuto.debayer_cnr_strength[iso_low_index], stAuto.debayer_cnr_strength[iso_high_index], ratio));
 
     printf ("sharp_strength: %d, hf_offset: %d\n", stManual.sharp_strength, stManual.hf_offset);
 
@@ -230,7 +209,7 @@ XCamReturn sample_adebayer_setManualAtrrib(const rk_aiq_sys_ctx_t* ctx, int32_t 
     ret = rk_aiq_user_api2_adebayer_GetAttrib(ctx, &attr);
     RKAIQ_SAMPLE_CHECK_RET(ret, "get debayer attrib failed!");
     attr.mode = RK_AIQ_DEBAYER_MODE_MANUAL;
-    sample_adebayer_translate_params(attr.stManual, ISO);
+    sample_adebayer_translate_params(attr.stAuto, attr.stManual, ISO);
     rk_aiq_user_api2_adebayer_SetAttrib(ctx, attr);
 
     printf ("mode: %d, sync_mode: %d, done: %d\n", attr.mode, attr.sync.sync_mode, attr.sync.done);
@@ -278,13 +257,13 @@ XCamReturn sample_adebayer_module (const void *arg)
             break;
         }
         case '1': {
-            unsigned char sharp_strength[9] = {250,250,250,250,250,250,250,250,250};
+            unsigned char sharp_strength[UAPI_DEBAYER_ISO_LEN] = {250, 250, 250, 250, 250, 250, 250, 250, 250, 250, 250, 250, 250};
             sample_adebayer_setSharpStrength(ctx, sharp_strength);
             printf("test the sharp_strength of 255 in sync mode...\n");
             break;
         }
         case '2': {
-            unsigned char sharp_strength[9] = {0,0,0,0,0,0,0,0,0};
+            unsigned char sharp_strength[UAPI_DEBAYER_ISO_LEN] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
             sample_adebayer_setSharpStrength(ctx, sharp_strength);
             printf("test the sharp_strength of 0 in sync mode...\n");
             break;

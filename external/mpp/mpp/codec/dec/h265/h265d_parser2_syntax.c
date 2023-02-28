@@ -140,7 +140,8 @@ static void fill_picture_parameters(const HEVCContext *h,
 
     pp->IdrPicFlag = (h->first_nal_type == 19 || h->first_nal_type == 20);
     pp->IrapPicFlag = (h->first_nal_type >= 16 && h->first_nal_type <= 23);
-    pp->IntraPicFlag =  (h->first_nal_type >= 16 && h->first_nal_type <= 23);
+    pp->IntraPicFlag =  (h->first_nal_type >= 16 && h->first_nal_type <= 23)
+                        || (h->sh.slice_type == I_SLICE);
     pp->pps_cb_qp_offset            = pps->cb_qp_offset;
     pp->pps_cr_qp_offset            = pps->cr_qp_offset;
     if (pps->tiles_enabled_flag) {
@@ -342,7 +343,7 @@ RK_S32 h265d_syntax_fill_slice(void *ctx, RK_S32 input_index)
         current = (RK_U8 *)mpp_packet_get_data(h->input_packet);
         size = (RK_U32)mpp_packet_get_size(h->input_packet);
         for (i = 0; i < h->nb_nals; i++) {
-            length += h->nals[i].size;
+            length += h->nals[i].size + 4;
         }
         length = MPP_ALIGN(length, 16) + 64;
         if (length > size) {
@@ -353,6 +354,22 @@ RK_S32 h265d_syntax_fill_slice(void *ctx, RK_S32 input_index)
             mpp_packet_set_size(h->input_packet, buff_size);
         }
     }
+    if (ctx_pic->max_slice_num < h->nb_nals) {
+
+        MPP_FREE(ctx_pic->slice_short);
+
+        ctx_pic->slice_short = (DXVA_Slice_HEVC_Short *)mpp_malloc(DXVA_Slice_HEVC_Short, h->nb_nals);
+        if (!ctx_pic->slice_short)
+            return MPP_ERR_NOMEM;
+
+        MPP_FREE(ctx_pic->slice_cut_param);
+
+        ctx_pic->slice_cut_param = (DXVA_Slice_HEVC_Cut_Param *)mpp_malloc(DXVA_Slice_HEVC_Cut_Param, h->nb_nals);
+        if (!ctx_pic->slice_cut_param)
+            return MPP_ERR_NOMEM;
+
+        ctx_pic->max_slice_num = h->nb_nals;
+    }
     for (i = 0; i < h->nb_nals; i++) {
         static const RK_U8 start_code[] = {0, 0, 1 };
         static const RK_U32 start_code_size = sizeof(start_code);
@@ -362,7 +379,7 @@ RK_S32 h265d_syntax_fill_slice(void *ctx, RK_S32 input_index)
 
         mpp_set_bitread_ctx(&gb_cxt, (RK_U8 *)h->nals[i].data,
                             h->nals[i].size);
-        mpp_set_pre_detection(&gb_cxt);
+        mpp_set_bitread_pseudo_code_type(&gb_cxt, PSEUDO_CODE_H264_H265);
 
         gb = &gb_cxt;
 

@@ -40,6 +40,31 @@ rk_aiq_cif_hw_info_t CamHwIsp20::mCifHwInfos;
 bool CamHwIsp20::mIsMultiIspMode = false;
 uint16_t CamHwIsp20::mMultiIspExtendedPixel = 0;
 
+// TODO: Sync 1608 sensor start streaming
+XCam::Mutex     CamHwIsp20::_sync_1608_mutex;
+bool            CamHwIsp20::_sync_1608_done = false;
+
+// TODO: Init static struct.
+sensor_info_share_t CamHwIsp20::rk1608_share_inf = {
+    { NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL },
+    { NULL },
+    { 0, 0, 0, 0, 0, 0, 0, 0,
+      0, 0, 0, 0, 0, 0, 0, 0,
+      0, 0, 0, 0, 0, 0, 0, 0,
+      0, 0, 0, 0, 0, 0, 0, 0,
+      0, 0, 0, 0, 0, 0, 0, 0,
+      0, 0, 0, 0, 0, 0, 0, 0,
+      0, 0, 0, 0, 0, 0, 0, 0,
+      0, 0, 0, 0, 0, 0, 0, 0 },
+    NULL,
+    0,
+    0,
+    0,
+    0,
+    0,
+    { 1, 1, 1, 1, 1, 1, 1, 1 }
+};
+
 CamHwIsp20::CamHwIsp20()
     : _is_exit(false)
     , _state(CAM_HW_STATE_INVALID)
@@ -47,6 +72,7 @@ CamHwIsp20::CamHwIsp20()
     , _ispp_module_init_ens(0)
     , _sharp_fbc_rotation(RK_AIQ_ROTATION_0)
     , _linked_to_isp(false)
+    , _linked_to_1608(false)
 {
     mNoReadBack = false;
 #ifndef ANDROID_OS
@@ -84,6 +110,7 @@ CamHwIsp20::CamHwIsp20()
     mIsGroupMode = false;
     mIsMain = false;
     _isp_stream_status = ISP_STREAM_STATUS_INVALID;
+    _module_cfg_update_frome_drv = 0;
 }
 
 CamHwIsp20::~CamHwIsp20()
@@ -883,10 +910,10 @@ CamHwIsp20::selectIqFile(const char* sns_ent_name, char* iqfile_name)
     module_name = base_inf->module;
     lens_name = base_inf->lens;
     if (strlen(module_name) && strlen(lens_name)) {
-        sprintf(iqfile_name, "%s_%s_%s.xml",
+        sprintf(iqfile_name, "%s_%s_%s.json",
                 sensor_name_full, module_name, lens_name);
     } else {
-        sprintf(iqfile_name, "%s.xml", sensor_name_full);
+        sprintf(iqfile_name, "%s.json", sensor_name_full);
     }
 
     return XCAM_RETURN_NO_ERROR;
@@ -1023,9 +1050,11 @@ CamHwIsp20::initCamHwInfos()
                 strcmp(device->info.model, "rkispp2") == 0 ||
                 strcmp(device->info.model, "rkispp3") == 0 ||
                 strcmp(device->info.model, "rkispp") == 0) {
+#if defined(ISP_HW_V20)
             rk_aiq_ispp_t* ispp_info = get_ispp_subdevs(device, sys_path, CamHwIsp20::mIspHwInfos.ispp_info);
             if (ispp_info)
                 ispp_info->valid = true;
+#endif
             goto media_unref;
         } else if (strcmp(device->info.model, "rkisp0") == 0 ||
                    strcmp(device->info.model, "rkisp1") == 0 ||
@@ -1033,7 +1062,7 @@ CamHwIsp20::initCamHwInfos()
                    strcmp(device->info.model, "rkisp3") == 0 ||
                    strcmp(device->info.model, "rkisp") == 0) {
             isp_info = get_isp_subdevs(device, sys_path, CamHwIsp20::mIspHwInfos.isp_info);
-            if (strcmp(device->info.driver, "rkisp-unite") == 0) {
+            if (strstr(device->info.driver, "rkisp-unite")) {
                 isp_info->is_multi_isp_mode = true;
                 mIsMultiIspMode = true;
                 mMultiIspExtendedPixel = RKMOUDLE_UNITE_EXTEND_PIXEL;
@@ -1062,6 +1091,13 @@ CamHwIsp20::initCamHwInfos()
             entity = media_get_entity (device, j);
             entity_info = media_entity_get_info(entity);
             if ((NULL != entity_info) && (entity_info->type == MEDIA_ENT_T_V4L2_SUBDEV_SENSOR)) {
+                if (strstr(entity_info->name, "1608")) {
+                    // [baron] skip psy-sensor(m_09_RK1608Dphy), save cif inf addr.
+                    if (cif_info) {
+                        CamHwIsp20::rk1608_share_inf.reference_mipi_cif = cif_info;
+                    }
+                    continue;
+                }
                 rk_aiq_static_info_t *info = new rk_aiq_static_info_t();
                 rk_sensor_full_info_t *s_full_info = new rk_sensor_full_info_t();
                 s_full_info->media_node_index = node_index;
@@ -1077,14 +1113,36 @@ CamHwIsp20::initCamHwInfos()
                     s_full_info->cif_info = cif_info;
                     s_full_info->isp_info = NULL;
                     s_full_info->dvp_itf = dvp_itf;
+                    // [baron] add flag for 1608 sensor
+                    s_full_info->linked_to_1608 = false;
+                    info->_is_1608_sensor = false;
                 } else if (isp_info) {
                     s_full_info->linked_to_isp = true;
                     isp_info->linked_sensor = true;
                     isp_info->isMultiplex = false;
                     s_full_info->isp_info = isp_info;
+#if defined(ISP_HW_V30)
+                    // FIXME: Just support isp3x(rk3588-8/9camera).
+                    for (int vi_idx = 0; vi_idx < MAX_ISP_LINKED_VICAP_CNT; vi_idx++) {
+                        if (strlen(isp_info->linked_vicap[vi_idx]) > 0) {
+                            strcpy(CamHwIsp20::rk1608_share_inf.reference_name, isp_info->linked_vicap[vi_idx]);
+                            s_full_info->cif_info = CamHwIsp20::rk1608_share_inf.reference_mipi_cif;
+                            info->_is_1608_sensor = true;
+                            s_full_info->linked_to_1608 = true;
+                        }
+                    }
+#endif
                 } else {
                     LOGE_CAMHW_SUBM(ISP20HW_SUBM, "sensor device mount error!\n");
                 }
+#if 0
+                printf("  >>>>>>>>> sensor(%s): cif addr(%p), link_to_1608[%d], share_vi(%s)\n",
+                    entity_info->name,
+                    s_full_info->cif_info,
+                    s_full_info->linked_to_1608,
+                    CamHwIsp20::rk1608_share_inf.reference_name
+                );
+#endif
 
                 findAttachedSubdevs(device, nents, s_full_info);
                 SensorInfoCopy(s_full_info, info);
@@ -1122,7 +1180,7 @@ media_unref:
         }
     }
 
-    std::map<std::string, SmartPtr<rk_sensor_full_info_t>>::iterator iter;
+    std::map<std::string, SmartPtr<rk_sensor_full_info_t> >::iterator iter;
     for(iter = CamHwIsp20::mSensorHwInfos.begin(); \
             iter != CamHwIsp20::mSensorHwInfos.end(); iter++) {
         LOGI_CAMHW_SUBM(ISP20HW_SUBM, "match the sensor_name(%s) media link\n", (iter->first).c_str());
@@ -1245,6 +1303,7 @@ media_unref:
     get_isp_ver(&CamHwIsp20::mIspHwInfos);
     for (auto &item : mCamHwInfos)
         item.second->isp_hw_ver = mIspHwInfos.hw_ver_info.isp_ver;
+
     return XCAM_RETURN_NO_ERROR;
 }
 
@@ -1254,10 +1313,14 @@ CamHwIsp20::getBindedSnsEntNmByVd(const char* vd)
     if (!vd)
         return NULL;
 
-    std::map<std::string, SmartPtr<rk_sensor_full_info_t>>::iterator iter;
+    std::map<std::string, SmartPtr<rk_sensor_full_info_t> >::iterator iter;
     for(iter = CamHwIsp20::mSensorHwInfos.begin(); \
             iter != CamHwIsp20::mSensorHwInfos.end(); iter++) {
         SmartPtr<rk_sensor_full_info_t> s_full_info = iter->second;
+
+        // skip 1608-dphy 'sensor'
+        if (strstr(s_full_info->sensor_name.c_str(), "1608"))
+            continue;
         if (!s_full_info->isp_info)
             continue;
 
@@ -1351,13 +1414,13 @@ CamHwIsp20::init(const char* sns_ent_name)
 
     ENTER_CAMHW_FUNCTION();
 
-
-    std::map<std::string, SmartPtr<rk_sensor_full_info_t>>::iterator it;
+    std::map<std::string, SmartPtr<rk_sensor_full_info_t> >::iterator it;
     if ((it = mSensorHwInfos.find(sensor_name)) == mSensorHwInfos.end()) {
         LOGE_CAMHW_SUBM(ISP20HW_SUBM, "can't find sensor %s", sns_ent_name);
         return XCAM_RETURN_ERROR_SENSOR;
     }
     rk_sensor_full_info_t *s_info = it->second.ptr();
+
     sensorHw = new SensorHw(s_info->device_name.c_str());
     sensorHw->setCamPhyId(mCamPhyId);
     mSensorDev = sensorHw;
@@ -1367,8 +1430,22 @@ CamHwIsp20::init(const char* sns_ent_name)
 
     strncpy(sns_name, sns_ent_name, sizeof(sns_name));
 
-    if (s_info->linked_to_isp)
-        _linked_to_isp = true;
+    // normal env.
+    if (s_info->linked_to_isp) {
+        _linked_to_isp  = true;
+        _linked_to_1608 = false;
+    } else {
+        _linked_to_isp  = false;
+        _linked_to_1608 = false;
+    }
+
+    // 1608 sensor env.
+    if (s_info->linked_to_1608) {
+        _linked_to_isp  = false;
+        _linked_to_1608 = true;
+        // [baron] Record the number of use sensors(valid 1608 sensor)
+        CamHwIsp20::rk1608_share_inf.en_sns_num++;
+    }
 
     mIspCoreDev = new V4l2SubDevice(s_info->isp_info->isp_dev_path);
     mIspCoreDev->open();
@@ -1391,6 +1468,13 @@ CamHwIsp20::init(const char* sns_ent_name)
         mLensDev = lensHw;
         mLensDev->open();
     }
+#if defined(ISP_HW_V20) || defined(ISP_HW_V21)
+    else {
+        // af soft stats need this device on 356x 1126
+        lensHw = new LensHw(NULL);
+        mLensDev = lensHw;
+    }
+#endif
 
     if(!s_info->module_ircut_dev_name.empty()) {
         mIrcutDev = new V4l2SubDevice(s_info->module_ircut_dev_name.c_str());
@@ -1419,12 +1503,38 @@ CamHwIsp20::init(const char* sns_ent_name)
     mPdafStreamUnit = new PdafStreamProcUnit(ISP_POLL_PDAF_STATS);
     mPdafStreamUnit->set_devices(this);
 
-    mRawCapUnit = new RawStreamCapUnit(s_info, _linked_to_isp);
-    mRawProcUnit = new RawStreamProcUnit(s_info, _linked_to_isp);
-    mRawProcUnit->set_devices(mIspCoreDev, this);
+    if (!_linked_to_1608) {
+        mRawCapUnit = new RawStreamCapUnit(s_info, _linked_to_isp, mNoReadBack);
+        mRawProcUnit = new RawStreamProcUnit(s_info, _linked_to_isp, mNoReadBack);
+
+        // set sensor stream flag.
+        mRawCapUnit->setSensorCategory(false);
+        mRawProcUnit->setSensorCategory(false);
+    } else {
+        // 1608 sensor
+        if (NULL == CamHwIsp20::rk1608_share_inf.raw_cap_unit.ptr()) {
+            // [baron] just new buffer in 1st.
+            mRawCapUnit = new RawStreamCapUnit(s_info, _linked_to_isp, mNoReadBack);
+            CamHwIsp20::rk1608_share_inf.raw_cap_unit = mRawCapUnit;
+        }
+
+        mRawProcUnit = new RawStreamProcUnit(s_info, _linked_to_isp, mNoReadBack);
+        if (mRawProcUnit.ptr()) {
+            // [baron] save multi rx addr for 1 tx.
+            CamHwIsp20::rk1608_share_inf.raw_proc_unit[mCamPhyId] = mRawProcUnit.ptr();
+        }
+
+        // update tx by bakeup tx.
+        mRawCapUnit = CamHwIsp20::rk1608_share_inf.raw_cap_unit;
+        mRawCapUnit->setSensorCategory(true);
+        mRawProcUnit->setSensorCategory(true);
+    }
+
     mRawCapUnit->set_devices(mIspCoreDev, this, mRawProcUnit.ptr());
-    mRawProcUnit->setCamPhyId(mCamPhyId);
+    mRawProcUnit->set_devices(mIspCoreDev, this);
     mRawCapUnit->setCamPhyId(mCamPhyId);
+    mRawProcUnit->setCamPhyId(mCamPhyId);
+
     //isp stats
     mIspStatsStream = new RKStatsStream(mIspStatsDev, ISP_POLL_3A_STATS);
     mIspStatsStream->setPollCallback (this);
@@ -1442,6 +1552,7 @@ CamHwIsp20::init(const char* sns_ent_name)
     //isp params
     mIspParamStream = new RKStream(mIspParamsDev, ISP_POLL_PARAMS);
     mIspParamStream->setCamPhyId(mCamPhyId);
+    mIspParamStream->setPollCallback (this);
 
     if (s_info->flash_num) {
         mFlashLight = new FlashLightHw(s_info->module_flash_dev_name, s_info->flash_num);
@@ -1470,7 +1581,7 @@ CamHwIsp20::deInit()
     if (mFlashLightIr.ptr())
         mFlashLightIr->deinit();
 
-    std::map<std::string, SmartPtr<rk_sensor_full_info_t>>::iterator it;
+    std::map<std::string, SmartPtr<rk_sensor_full_info_t> >::iterator it;
     if (strlen(sns_name) == 0 || (it = mSensorHwInfos.find(sns_name)) == mSensorHwInfos.end()) {
         LOGE_CAMHW_SUBM(ISP20HW_SUBM, "can't find sensor %s", strlen(sns_name) ? sns_name : "");
         return XCAM_RETURN_ERROR_SENSOR;
@@ -1485,6 +1596,23 @@ CamHwIsp20::deInit()
         setupHdrLink_vidcap(_hdr_mode, isp_index, false);
     }
 
+    {
+        // TODO: These parameters only deinited when the first sensor deinit!
+        if (CamHwIsp20::rk1608_share_inf.raw_cap_unit.ptr()) {
+            CamHwIsp20::rk1608_share_inf.raw_cap_unit = NULL;
+            for (int i = 0; i < CAM_INDEX_FOR_1608; i++) {
+                CamHwIsp20::rk1608_share_inf.raw_proc_unit[i] = NULL;
+            }
+            // [Stage 01] {init} <-> {deinit}.
+            CamHwIsp20::rk1608_share_inf.en_sns_num = 0;     // last sensor valid!
+            CamHwIsp20::rk1608_share_inf.us_open_cnt = 0;
+
+            // [Stage 02] {Prepare} <-> {deinit}
+            CamHwIsp20::rk1608_share_inf.us_prepare_cnt = 0;    // prepare stage use
+        }
+        CamHwIsp20::rk1608_share_inf.first_en[mCamPhyId] = 1;   // prepare stage use
+    }
+
     _state = CAM_HW_STATE_INVALID;
     return XCAM_RETURN_NO_ERROR;
 }
@@ -1496,6 +1624,14 @@ CamHwIsp20::poll_buffer_ready (SmartPtr<VideoBuffer> &buf)
         // stats is comming, means that next params should be ready
         if (mNoReadBack)
             mParamsAssembler->forceReady(buf->get_sequence() + 1);
+    } else if (buf->_buf_type == ISP_POLL_PARAMS) {
+        const SmartPtr<V4l2BufferProxy> v4lbuf = buf.dynamic_cast_ptr<V4l2BufferProxy>();
+        struct isp2x_isp_params_cfg* data = (struct isp2x_isp_params_cfg*)(v4lbuf->get_v4l2_userptr());
+        {
+            SmartLock locker (_isp_params_cfg_mutex);
+            _module_cfg_update_frome_drv |= data->module_cfg_update;
+        }
+        return XCAM_RETURN_NO_ERROR;
     }
     return CamHwBase::poll_buffer_ready(buf);
 }
@@ -1507,10 +1643,20 @@ CamHwIsp20::setupPipelineFmtCif(struct v4l2_subdev_selection& sns_sd_sel,
 {
     XCamReturn ret = XCAM_RETURN_NO_ERROR;
 
+    int8_t bpp = 0;
+    pixFmt2Bpp(sns_v4l_pix_fmt, bpp);
     // TODO: set cif crop according to sensor crop bounds
+    if (!_linked_to_1608) {
+        mRawCapUnit->set_tx_format(sns_sd_sel, sns_v4l_pix_fmt, bpp);
+    } else {
+        // [baron] Only processed the first time
+        if (CamHwIsp20::rk1608_share_inf.first_en[mCamPhyId]) {
+            // [baron] Timing issue, for 1608.
+            mRawCapUnit->set_tx_format(sns_sd_sel, sns_v4l_pix_fmt, bpp);
+        }
+    }
 
-    mRawCapUnit->set_tx_format(sns_sd_sel, sns_v4l_pix_fmt);
-    mRawProcUnit->set_rx_format(sns_sd_sel, sns_v4l_pix_fmt);
+    mRawProcUnit->set_rx_format(sns_sd_sel, sns_v4l_pix_fmt, bpp);
 
     // set isp sink fmt, same as sensor bounds - crop
     struct v4l2_subdev_format isp_sink_fmt;
@@ -1605,8 +1751,17 @@ CamHwIsp20::setupPipelineFmtIsp(struct v4l2_subdev_selection& sns_sd_sel,
 {
     XCamReturn ret = XCAM_RETURN_NO_ERROR;
 
-    mRawCapUnit->set_tx_format(sns_sd_fmt, sns_v4l_pix_fmt);
-    mRawProcUnit->set_rx_format(sns_sd_fmt, sns_v4l_pix_fmt);
+    int8_t bpp = 0;
+    pixFmt2Bpp(sns_v4l_pix_fmt, bpp);
+    if (!_linked_to_1608) {
+        mRawCapUnit->set_tx_format(sns_sd_fmt, sns_v4l_pix_fmt, bpp);
+    } else {
+        if (CamHwIsp20::rk1608_share_inf.first_en[mCamPhyId]) {
+            mRawCapUnit->set_tx_format(sns_sd_fmt, sns_v4l_pix_fmt, bpp);
+        }
+    }
+
+    mRawProcUnit->set_rx_format(sns_sd_fmt, sns_v4l_pix_fmt, bpp);
 #ifndef ANDROID_OS // Android camera hal will set pipeline itself
     // set isp sink fmt, same as sensor fmt
     struct v4l2_subdev_format isp_sink_fmt;
@@ -1743,10 +1898,24 @@ CamHwIsp20::setupPipelineFmt()
         memset(&mipi_tx_fmt, 0, sizeof(mipi_tx_fmt));
         LOGD_CAMHW_SUBM(ISP20HW_SUBM, "vicap get_crop %dx%d@%d,%d\n",
                         _crop_rect.width, _crop_rect.height, _crop_rect.left, _crop_rect.top);
-        ret = mRawCapUnit->get_tx_device(0)->get_format(mipi_tx_fmt);
+        if (!_linked_to_1608) {
+            ret = mRawCapUnit->get_tx_device(0)->get_format(mipi_tx_fmt);
+        } else {
+            if (CamHwIsp20::rk1608_share_inf.first_en[mCamPhyId]) {
+                ret = mRawCapUnit->get_tx_device(0)->get_format(mipi_tx_fmt);
+            }
+        }
+
         mipi_tx_fmt.fmt.pix.width = _crop_rect.width;
         mipi_tx_fmt.fmt.pix.height = _crop_rect.height;
-        ret = mRawCapUnit->get_tx_device(0)->set_format(mipi_tx_fmt);
+        if (!_linked_to_1608) {
+            ret = mRawCapUnit->get_tx_device(0)->set_format(mipi_tx_fmt);
+        } else {
+            if (CamHwIsp20::rk1608_share_inf.first_en[mCamPhyId]) {
+                ret = mRawCapUnit->get_tx_device(0)->set_format(mipi_tx_fmt);
+            }
+        }
+
         sns_sd_sel.r.width = _crop_rect.width;
         sns_sd_sel.r.height = _crop_rect.height;
         sns_sd_fmt.format.width = _crop_rect.width;
@@ -2104,10 +2273,14 @@ CamHwIsp20::setLensVcmCfg(struct rkmodule_inf& mod_info)
     ENTER_CAMHW_FUNCTION();
     SmartPtr<LensHw> lensHw = mLensDev.dynamic_cast_ptr<LensHw>();
     rk_aiq_lens_vcmcfg old_cfg, new_cfg;
+    int old_maxpos, new_maxpos;
     XCamReturn ret = XCAM_RETURN_NO_ERROR;
 
     if (lensHw.ptr()) {
         ret = lensHw->getLensVcmCfg(old_cfg);
+        if (ret != XCAM_RETURN_NO_ERROR)
+            return ret;
+        ret = lensHw->getLensVcmMaxlogpos(old_maxpos);
         if (ret != XCAM_RETURN_NO_ERROR)
             return ret;
 
@@ -2144,8 +2317,18 @@ CamHwIsp20::setLensVcmCfg(struct rkmodule_inf& mod_info)
             }
         }
 
-        if (memcmp(&new_cfg, &old_cfg, sizeof(new_cfg)) != 0) {
+        if ((new_cfg.start_ma != old_cfg.start_ma) ||
+            (new_cfg.rated_ma != old_cfg.rated_ma) ||
+            (new_cfg.step_mode != old_cfg.step_mode)) {
             ret = lensHw->setLensVcmCfg(new_cfg);
+        }
+
+        new_maxpos = old_maxpos;
+        if (vcmcfg->max_logical_pos > 0) {
+            new_maxpos = vcmcfg->max_logical_pos;
+        }
+        if (old_maxpos != new_maxpos) {
+            ret = lensHw->setLensVcmMaxlogpos(new_maxpos);
         }
     }
     EXIT_CAMHW_FUNCTION();
@@ -2310,7 +2493,7 @@ CamHwIsp20::prepare(uint32_t width, uint32_t height, int mode, int t_delay, int 
 
     Isp20Params::set_working_mode(_hdr_mode);
 
-    std::map<std::string, SmartPtr<rk_sensor_full_info_t>>::iterator it;
+    std::map<std::string, SmartPtr<rk_sensor_full_info_t> >::iterator it;
     if ((it = mSensorHwInfos.find(sns_name)) == mSensorHwInfos.end()) {
         LOGE_CAMHW_SUBM(ISP20HW_SUBM, "can't find sensor %s", sns_name);
         return XCAM_RETURN_ERROR_SENSOR;
@@ -2341,7 +2524,7 @@ CamHwIsp20::prepare(uint32_t width, uint32_t height, int mode, int t_delay, int 
             if (_linked_to_isp)
                 mIspSofStream = new RKSofEventStream(mIspCoreDev, ISP_POLL_SOF);
             else
-                mIspSofStream = new RKSofEventStream(_cif_csi2_sd, ISP_POLL_SOF);
+                mIspSofStream = new RKSofEventStream(_cif_csi2_sd, ISP_POLL_SOF, _linked_to_1608);
         }
         mIspSofStream->setPollCallback (this);
     }
@@ -2422,8 +2605,16 @@ CamHwIsp20::prepare(uint32_t width, uint32_t height, int mode, int t_delay, int 
     }
 
 
-    if (!_linked_to_isp && !mNoReadBack)
-        mRawCapUnit->prepare_cif_mipi();
+    if (!_linked_to_isp && !mNoReadBack) {
+        if (!_linked_to_1608) {
+            mRawCapUnit->prepare_cif_mipi();
+        } else {
+            if (CamHwIsp20::rk1608_share_inf.first_en[mCamPhyId]) {
+                mRawCapUnit->prepare_cif_mipi();
+                CamHwIsp20::rk1608_share_inf.first_en[mCamPhyId] = 0;
+            }
+        }
+    }
 
     if ((_cur_calib_infos.mfnr.enable && _cur_calib_infos.mfnr.motion_detect_en) || _cur_calib_infos.af.ldg_param.enable) {
         mSpStreamUnit->prepare(&_cur_calib_infos.af.ldg_param, &_cur_calib_infos.af.highlight);
@@ -2442,12 +2633,14 @@ CamHwIsp20::prepare(uint32_t width, uint32_t height, int mode, int t_delay, int 
 
     get_sensor_pdafinfo(s_info, &mPdafInfo);
     if (mPdafInfo.pdaf_support && pdaf->enable) {
-        mPdafStreamUnit->prepare(pdaf, &mPdafInfo);
+        mPdafInfo.pdaf_lrdiffline = pdaf->pdLRInDiffLine;
+        mPdafStreamUnit->prepare(&mPdafInfo);
     } else {
         mPdafInfo.pdaf_support = false;
     }
 
     _state = CAM_HW_STATE_PREPARED;
+
     EXIT_CAMHW_FUNCTION();
     return ret;
 }
@@ -2460,6 +2653,7 @@ CamHwIsp20::start()
     SmartPtr<LensHw> lensHw;
 
     ENTER_CAMHW_FUNCTION();
+
     sensorHw = mSensorDev.dynamic_cast_ptr<BaseSensorHw>();
     lensHw = mLensDev.dynamic_cast_ptr<LensHw>();
 
@@ -2560,14 +2754,42 @@ CamHwIsp20::hdr_mipi_prepare_mode(int mode)
     int new_mode = RK_AIQ_HDR_GET_WORKING_MODE(mode);
 
     if (!mNoReadBack) {
+        bool init_state = true;
+        if (_linked_to_1608) {
+            if (CamHwIsp20::rk1608_share_inf.us_prepare_cnt > 0) {
+                init_state = false;
+            }
+            CamHwIsp20::rk1608_share_inf.us_prepare_cnt++;
+            if (CamHwIsp20::rk1608_share_inf.us_prepare_cnt > 10)
+                CamHwIsp20::rk1608_share_inf.us_prepare_cnt = 10;
+        }
+
         if (new_mode == RK_AIQ_WORKING_MODE_NORMAL) {
-            ret = mRawCapUnit->prepare(MIPI_STREAM_IDX_0);
+            if (!_linked_to_1608) {
+                ret = mRawCapUnit->prepare(MIPI_STREAM_IDX_0);
+            } else {
+                if (init_state) {
+                    ret = mRawCapUnit->prepare(MIPI_STREAM_IDX_0);
+                }
+            }
             ret = mRawProcUnit->prepare(MIPI_STREAM_IDX_0);
         } else if (new_mode == RK_AIQ_WORKING_MODE_ISP_HDR2) {
-            ret = mRawCapUnit->prepare(MIPI_STREAM_IDX_0 | MIPI_STREAM_IDX_1);
+            if (!_linked_to_1608) {
+                ret = mRawCapUnit->prepare(MIPI_STREAM_IDX_0 | MIPI_STREAM_IDX_1);
+            } else {
+                if (init_state) {
+                    ret = mRawCapUnit->prepare(MIPI_STREAM_IDX_0 | MIPI_STREAM_IDX_1);
+                }
+            }
             ret = mRawProcUnit->prepare(MIPI_STREAM_IDX_0 | MIPI_STREAM_IDX_1);
         } else {
-            ret = mRawCapUnit->prepare(MIPI_STREAM_IDX_ALL);
+            if (!_linked_to_1608) {
+                ret = mRawCapUnit->prepare(MIPI_STREAM_IDX_ALL);
+            } else {
+                if (init_state) {
+                    ret = mRawCapUnit->prepare(MIPI_STREAM_IDX_ALL);
+                }
+            }
             ret = mRawProcUnit->prepare(MIPI_STREAM_IDX_ALL);
         }
         if (ret < 0) {
@@ -2584,8 +2806,30 @@ CamHwIsp20::hdr_mipi_start_mode(int mode)
     XCamReturn ret = XCAM_RETURN_NO_ERROR;
     LOGD_CAMHW_SUBM(ISP20HW_SUBM, "%s enter", __FUNCTION__);
     if (!mNoReadBack) {
-        mRawCapUnit->start(mode);
-        mRawProcUnit->start(mode);
+        if (!_linked_to_1608) {
+            mRawCapUnit->start(mode);
+            mRawProcUnit->start(mode);
+        } else {
+            SmartLock locker(_sync_1608_mutex);
+            bool stream_on = false;
+            CamHwIsp20::rk1608_share_inf.us_stream_cnt++;
+            if (CamHwIsp20::rk1608_share_inf.us_stream_cnt > 10)
+                CamHwIsp20::rk1608_share_inf.us_stream_cnt = 10;
+            if (CamHwIsp20::rk1608_share_inf.us_stream_cnt >= CamHwIsp20::rk1608_share_inf.en_sns_num) {
+                // only processed the last streaming
+                stream_on = true;
+            }
+            if (stream_on) {
+                mRawCapUnit->start(mode);
+            }
+            mRawProcUnit->start(mode);
+            if (stream_on) {
+                _sync_1608_done = true;
+                _sync_done_cond.broadcast();
+            } else {
+                _sync_1608_done = false;
+            }
+        }
     }
     LOGD_CAMHW_SUBM(ISP20HW_SUBM, "%s exit", __FUNCTION__);
     return ret;
@@ -2597,7 +2841,22 @@ CamHwIsp20::hdr_mipi_stop()
     XCamReturn ret = XCAM_RETURN_NO_ERROR;
 
     mRawProcUnit->stop();
-    mRawCapUnit->stop();
+
+    if (!_linked_to_1608) {
+        mRawCapUnit->stop();
+    } else {
+        bool stop_en = false;
+        CamHwIsp20::rk1608_share_inf.us_stop_cnt++;
+        if (CamHwIsp20::rk1608_share_inf.us_stop_cnt > 10)
+            CamHwIsp20::rk1608_share_inf.us_stop_cnt = 10;
+        if (CamHwIsp20::rk1608_share_inf.us_stop_cnt == CamHwIsp20::rk1608_share_inf.en_sns_num) {
+            stop_en = true;
+        }
+        if (stop_en) {
+            mRawCapUnit->stop();
+        }
+    }
+
     return ret;
 }
 
@@ -2698,7 +2957,19 @@ XCamReturn CamHwIsp20::stop()
         SmartLock locker (_isp_params_cfg_mutex);
         _camIsp3aResult.clear();
         _effecting_ispparam_map.clear();
+        _module_cfg_update_frome_drv = 0;
     }
+
+    {
+        // TODO: [baron] PAL/NTSC mode convert[Start / Stop]. recovery cnt.
+        // [Stage 02] {start} <-> {stop}
+        CamHwIsp20::rk1608_share_inf.us_stream_cnt = 0;
+        if (CamHwIsp20::rk1608_share_inf.us_stop_cnt >= CamHwIsp20::rk1608_share_inf.en_sns_num) {
+            // ensure all valid 1608-sensor stoped.
+            CamHwIsp20::rk1608_share_inf.us_stop_cnt = 0;
+        }
+    }
+
     _state = CAM_HW_STATE_STOPPED;
 
     EXIT_CAMHW_FUNCTION();
@@ -2816,11 +3087,13 @@ XCamReturn CamHwIsp20::swWorkingModeDyn(int mode)
     }
 #endif
     _hdr_mode = mode;
+
     mRawCapUnit->set_working_mode(mode);
     mRawProcUnit->set_working_mode(mode);
     // remap _mipi_tx_devs for cif
-    if (!_linked_to_isp && !mNoReadBack)
+    if (!_linked_to_isp && !mNoReadBack) {
         mRawCapUnit->prepare_cif_mipi();
+    }
 
     return ret;
 }
@@ -3565,10 +3838,11 @@ CamHwIsp20::getSensorModeData(const char* sns_ent_name,
         LOGW_CAMHW_SUBM(ISP20HW_SUBM, "can't find sensor %s", sns_name);
     } else {
         struct rkmodule_inf *minfo = &(iter_sns_info->second->mod_info);
-        if (minfo->awb.flag)
+        if (minfo->awb.flag) {
             memcpy(&sns_des.otp_awb, &minfo->awb, sizeof(minfo->awb));
-        else
-            minfo->awb.flag = 0;
+        } else {
+            sns_des.otp_awb.flag = 0;
+        }
 
         if (minfo->lsc.flag)
             sns_des.otp_lsc = &minfo->lsc;
@@ -3868,8 +4142,8 @@ CamHwIsp20::getEffectiveIspParams(rkisp_effect_params_v20& ispParams, int frame_
     SmartLock locker (_isp_params_cfg_mutex);
 
     if (_effecting_ispparam_map.size() == 0) {
-        LOGE_CAMHW_SUBM(ISP20HW_SUBM, "can't search id %d,  _effecting_exp_mapsize is %d\n",
-                        frame_id, _effecting_ispparam_map.size());
+        LOGE_CAMHW_SUBM(ISP20HW_SUBM, "camId: %d, can't search id %d,  _effecting_exp_mapsize is %d\n",
+                         mCamPhyId, frame_id, _effecting_ispparam_map.size());
         return  XCAM_RETURN_ERROR_PARAM;
     }
 
@@ -3881,17 +4155,19 @@ CamHwIsp20::getEffectiveIspParams(rkisp_effect_params_v20& ispParams, int frame_
 
         rit = _effecting_ispparam_map.rbegin();
         do {
-            LOGD_CAMHW_SUBM(ISP20HW_SUBM, "traverse _effecting_ispparam_map to find id %d, current id is [%d]\n",
-                            search_id, rit->first);
+            LOGV_CAMHW_SUBM(ISP20HW_SUBM, "camId: %d, traverse _effecting_ispparam_map to find id %d, current id is [%d]\n",
+                            mCamPhyId, search_id, rit->first);
             if (search_id >= rit->first ) {
-                LOGD_CAMHW_SUBM(ISP20HW_SUBM, "exp-sync: can't find id %d, get latest id %d in _effecting_ispparam_map\n",
-                                search_id, rit->first);
+                LOGD_CAMHW_SUBM(ISP20HW_SUBM, "camId: %d, can't find id %d, get latest id %d in _effecting_ispparam_map\n",
+                                mCamPhyId, search_id, rit->first);
                 break;
             }
         } while (++rit != _effecting_ispparam_map.rend());
 
         if (rit == _effecting_ispparam_map.rend()) {
-            LOGE_CAMHW_SUBM(ISP20HW_SUBM, "can't find the latest effecting exposure for id %d, impossible case !", frame_id);
+            LOGE_CAMHW_SUBM(ISP20HW_SUBM,
+                            "camId: %d, can't find the latest effecting exposure for id %d, impossible case !",
+                            mCamPhyId, frame_id);
             return XCAM_RETURN_ERROR_PARAM;
         }
 
@@ -4658,8 +4934,9 @@ XCamReturn CamHwIsp20::setSensorFlip(bool mirror, bool flip, int skip_frm_cnt)
     /* clock_gettime(CLOCK_MONOTONIC, &tp); */
     /* int64_t skip_ts = (int64_t)(tp.tv_sec) * 1000 * 1000 * 1000 + (int64_t)(tp.tv_nsec); */
 
-    if (_state == CAM_HW_STATE_STARTED && skip_frame_sequence != -1)
+    if (_state == CAM_HW_STATE_STARTED && skip_frame_sequence != -1) {
         mRawCapUnit->skip_frames(skip_frm_cnt, skip_frame_sequence);
+    }
 
     return ret;
 }
@@ -4674,6 +4951,7 @@ XCamReturn CamHwIsp20::getSensorFlip(bool& mirror, bool& flip)
 XCamReturn CamHwIsp20::setSensorCrop(rk_aiq_rect_t& rect)
 {
     XCamReturn ret;
+
     struct v4l2_crop crop;
     for (int i = 0; i < 3; i++) {
         SmartPtr<V4l2Device> mipi_tx = mRawCapUnit->get_tx_device(i).dynamic_cast_ptr<V4l2Device>();
@@ -4694,6 +4972,7 @@ XCamReturn CamHwIsp20::getSensorCrop(rk_aiq_rect_t& rect)
 {
     XCamReturn ret;
     struct v4l2_crop crop;
+
     SmartPtr<V4l2Device> mipi_tx = mRawCapUnit->get_tx_device(0).dynamic_cast_ptr<V4l2Device>();
     memset(&crop, 0, sizeof(crop));
     ret = mipi_tx->get_crop(crop);
@@ -4701,6 +4980,7 @@ XCamReturn CamHwIsp20::getSensorCrop(rk_aiq_rect_t& rect)
     rect.top = crop.c.top;
     rect.width = crop.c.width;
     rect.height = crop.c.height;
+
     return ret;
 }
 
@@ -4747,6 +5027,7 @@ void CamHwIsp20::allocMemResource(uint8_t id, void *ops_ctx, void *config, void 
         ldchbuf_size.module_id = ISP3X_MODULE_LDCH;
         ldchbuf_size.meas_width = share_mem_cfg->alloc_param.width;
         ldchbuf_size.meas_height = share_mem_cfg->alloc_param.height;
+        ldchbuf_size.buf_cnt = ISP2X_MESH_BUF_NUM;
         ret = isp20->mIspCoreDev->io_control(RKISP_CMD_SET_MESHBUF_SIZE, &ldchbuf_size);
         if (ret < 0) {
             LOGE_CAMHW_SUBM(ISP20HW_SUBM, "alloc ldch buf failed!");
@@ -4821,6 +5102,7 @@ void CamHwIsp20::allocMemResource(uint8_t id, void *ops_ctx, void *config, void 
         cacbuf_size.module_id = ISP3X_MODULE_CAC;
         cacbuf_size.meas_width = share_mem_cfg->alloc_param.width;
         cacbuf_size.meas_height = share_mem_cfg->alloc_param.height;
+        cacbuf_size.buf_cnt = 1;
         ret = isp20->mIspCoreDev->io_control(RKISP_CMD_SET_MESHBUF_SIZE, &cacbuf_size);
         if (ret < 0) {
             LOGE_CAMHW_SUBM(ISP20HW_SUBM, "alloc cac buf failed!");
@@ -4838,7 +5120,7 @@ void CamHwIsp20::allocMemResource(uint8_t id, void *ops_ctx, void *config, void 
         }
         rk_aiq_cac_share_mem_info_t* mem_info_array =
             (rk_aiq_cac_share_mem_info_t*)(isp20->_cac_drv_mem_ctx.mem_info);
-        for (int i = 0; i < ISP3X_MESH_BUF_NUM; i++) {
+        for (int i = 0; i < cacbuf_size.buf_cnt; i++) {
             mem_info_array[offset + i].map_addr =
                 mmap(NULL, cacbuf_info.buf_size[i], PROT_READ | PROT_WRITE, MAP_SHARED, cacbuf_info.buf_fd[i], 0);
             if (MAP_FAILED == mem_info_array[offset + i].map_addr) {
@@ -5087,14 +5369,17 @@ CamHwIsp20::handleIsp3aReslut(cam3aResultList& list)
     mParamsAssembler->queue(list);
 
     // set all ready params to drv
-    while (_state == CAM_HW_STATE_STARTED &&
-           mParamsAssembler->ready()) {
-        SmartLock locker(_stop_cond_mutex);
-        if (_isp_stream_status != ISP_STREAM_STATUS_STREAM_OFF) {
-            if (setIspConfig() != XCAM_RETURN_NO_ERROR)
+    if (mNoReadBack) {
+        while (_state == CAM_HW_STATE_STARTED &&
+               mParamsAssembler->ready()) {
+            SmartLock locker(_stop_cond_mutex);
+            if (_isp_stream_status != ISP_STREAM_STATUS_STREAM_OFF) {
+                ret = setIspConfig();
+                if (ret != XCAM_RETURN_NO_ERROR)
+                    break;
+            } else {
                 break;
-        } else {
-            break;
+            }
         }
     }
 
@@ -5247,10 +5532,18 @@ CamHwIsp20::handleIsp3aReslut(SmartPtr<cam3aResult> &result)
     mParamsAssembler->queue(result);
 
     // set all ready params to drv
-    while (_state == CAM_HW_STATE_STARTED &&
-            mParamsAssembler->ready()) {
-        if (setIspConfig() != XCAM_RETURN_NO_ERROR)
-            break;
+    if (mNoReadBack) {
+        while (_state == CAM_HW_STATE_STARTED &&
+               mParamsAssembler->ready()) {
+            SmartLock locker(_stop_cond_mutex);
+            if (_isp_stream_status != ISP_STREAM_STATUS_STREAM_OFF) {
+                ret = setIspConfig();
+                if (ret != XCAM_RETURN_NO_ERROR)
+                    break;
+            } else {
+                break;
+            }
+        }
     }
 
     EXIT_CAMHW_FUNCTION();
@@ -5333,7 +5626,7 @@ CamHwIsp20::handlePpReslut(SmartPtr<cam3aResult> &result)
 }
 
 XCamReturn
-CamHwIsp20::setIspConfig()
+CamHwIsp20::setIspConfig(uint32_t triggeredId)
 {
     XCamReturn ret = XCAM_RETURN_NO_ERROR;
 
@@ -5428,6 +5721,19 @@ CamHwIsp20::setIspConfig()
             } else {
                 LOGW_CAMHW_SUBM(ISP20HW_SUBM, "get awb params from 3a result failed for frame %d !\n", frameId);
             }
+        }
+    }
+
+    // add isp dgain results to ready results
+    SmartPtr<SensorHw> mSensorSubdev = mSensorDev.dynamic_cast_ptr<SensorHw>();
+    if (mSensorSubdev.ptr()) {
+        SmartPtr<RkAiqExpParamsProxy> expParam;
+
+        if (mSensorSubdev->getEffectiveExpParams(expParam, frameId) < 0) {
+            LOGE_CAMHW_SUBM(ISP20HW_SUBM, "frame_id(%d), get exposure failed!!!\n", frameId);
+        } else {
+            expParam->setType(RESULT_TYPE_EXPOSURE_PARAM);
+            ready_results.push_back(expParam);
         }
     }
 
@@ -5642,7 +5948,13 @@ void CamHwIsp20::notify_isp_stream_status(bool on)
             ispEvtbuf->_buf_type = VICAP_STREAM_ON_EVT;
             SmartPtr<VideoBuffer> vbuf = ispEvtbuf.dynamic_cast_ptr<VideoBuffer>();
 
-            mHwResLintener->hwResCb(vbuf);
+            // FIXME: [Baron] 2022-06-29, all rx started, tx start
+            if (!_linked_to_1608) {
+                mHwResLintener->hwResCb(vbuf);
+            } else {
+                waitLastSensorDone();
+                mHwResLintener->hwResCb(vbuf);
+            }
         }
     } else {
         LOGI_CAMHW_SUBM(ISP20HW_SUBM, "camId:%d, %s off", mCamPhyId, __func__);
@@ -5657,6 +5969,98 @@ void CamHwIsp20::notify_isp_stream_status(bool on)
         hdr_mipi_stop();
         LOGI_CAMHW_SUBM(ISP20HW_SUBM, "camId:%d, %s off done", mCamPhyId, __func__);
     }
+}
+
+XCamReturn
+CamHwIsp20::setAllReadyIspParams(uint32_t triggeredId)
+{
+    XCamReturn ret = XCAM_RETURN_NO_ERROR;
+
+    LOGV_CAMHW_SUBM(ISP20HW_SUBM, "camId:%d, triggeredId %d",  mCamPhyId, triggeredId);
+
+    if (_is_exit) {
+        LOGD_CAMHW_SUBM(ISP20HW_SUBM, "set 3a config bypass since ia engine has stop");
+        return XCAM_RETURN_BYPASS;
+    }
+
+    // set all ready params to drv
+    while (_state == CAM_HW_STATE_STARTED && mParamsAssembler->ready()) {
+        SmartLock locker(_stop_cond_mutex);
+        if (_isp_stream_status != ISP_STREAM_STATUS_STREAM_OFF) {
+            ret = setIspConfig(triggeredId);
+            if (ret < 0)
+                break;
+        } else {
+            break;
+        }
+    }
+
+    return XCAM_RETURN_NO_ERROR;
+}
+
+XCamReturn CamHwIsp20::reset_hardware()
+{
+    XCamReturn ret = XCAM_RETURN_NO_ERROR;
+
+    if (mRawCapUnit.ptr()) {
+        ret = mRawCapUnit->reset_hardware();
+    }
+
+    return ret;
+}
+
+XCamReturn
+CamHwIsp20::waitLastSensorDone()
+{
+    SmartLock lock (_sync_1608_mutex);
+
+    while (!_sync_1608_done) {
+        _sync_done_cond.timedwait(_sync_1608_mutex, 100000ULL);
+    }
+
+    return XCamReturn();
+}
+
+XCamReturn
+CamHwIsp20::pixFmt2Bpp(uint32_t pixFmt, int8_t& bpp)
+{
+    switch (pixFmt) {
+    case V4L2_PIX_FMT_SBGGR8:
+    case V4L2_PIX_FMT_SGBRG8:
+    case V4L2_PIX_FMT_SGRBG8:
+    case V4L2_PIX_FMT_SRGGB8:
+        bpp = 8;
+        break;
+    case V4L2_PIX_FMT_SBGGR10:
+    case V4L2_PIX_FMT_SGBRG10:
+    case V4L2_PIX_FMT_SGRBG10:
+    case V4L2_PIX_FMT_SRGGB10:
+        bpp = 10;
+        break;
+    case V4L2_PIX_FMT_SBGGR12:
+    case V4L2_PIX_FMT_SGBRG12:
+    case V4L2_PIX_FMT_SGRBG12:
+    case V4L2_PIX_FMT_SRGGB12:
+        bpp = 12;
+        break;
+    case V4L2_PIX_FMT_SBGGR14:
+    case V4L2_PIX_FMT_SGBRG14:
+    case V4L2_PIX_FMT_SGRBG14:
+    case V4L2_PIX_FMT_SRGGB14:
+        bpp = 14;
+        break;
+    case V4L2_PIX_FMT_SBGGR16:
+    case V4L2_PIX_FMT_SGBRG16:
+    case V4L2_PIX_FMT_SGRBG16:
+    case V4L2_PIX_FMT_SRGGB16:
+        bpp = 16;
+        break;
+    default:
+        LOGE_CAMHW_SUBM(ISP20HW_SUBM, "unknown format");
+        return XCAM_RETURN_ERROR_PARAM;
+    }
+
+    return XCAM_RETURN_NO_ERROR;
 }
 
 }; //namspace RkCam

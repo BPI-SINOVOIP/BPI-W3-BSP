@@ -23,7 +23,7 @@ SPStreamProcUnit::~SPStreamProcUnit ()
 
 void SPStreamProcUnit::start()
 {
-    if (_isp_ver == 0) {
+    if (_isp_ver == ISP_V20) {
         struct rkispp_trigger_mode tnr_trigger;
         tnr_trigger.module = ISPP_MODULE_TNR;
         tnr_trigger.on = 1;
@@ -40,7 +40,7 @@ void SPStreamProcUnit::start()
 
 void SPStreamProcUnit::stop()
 {
-    if (_isp_ver == 0) {
+    if (_isp_ver == ISP_V20) {
         struct rkispp_trigger_mode tnr_trigger;
         tnr_trigger.module = ISPP_MODULE_TNR;
         tnr_trigger.on = 0;
@@ -48,7 +48,7 @@ void SPStreamProcUnit::stop()
     }
 
     RKStream::stop();//stopDeviceOnly&stopThreadOnly
-    if (_isp_ver == 0)
+    if (_isp_ver == ISP_V20)
         deinit_fbcbuf_fd();
     if (pAfTmp) {
         free(pAfTmp);
@@ -60,8 +60,12 @@ SmartPtr<VideoBuffer>
 SPStreamProcUnit::new_video_buffer(SmartPtr<V4l2Buffer> buf,
                                        SmartPtr<V4l2Device> dev)
 {
-    if (_isp_ver != 0)
-        return NULL;
+    if (_isp_ver == ISP_V21) {
+        SmartPtr<V4l2BufferProxy> img_buf = new V4l2BufferProxy (buf, dev);
+        img_buf->_buf_type = _dev_type;
+
+        return img_buf;
+    }
 
     if (_first) {
         init_fbcbuf_fd();
@@ -123,10 +127,12 @@ SPStreamProcUnit::poll_buffer_ready (SmartPtr<VideoBuffer> &buf)
         get_lowpass_fv(buf->get_sequence(), buf_proxy);
     }
 
-    if (_camHw->mHwResLintener) {
-        _camHw->mHwResLintener->hwResCb(buf);
-        SmartPtr<VideoBuffer> vbuf = _ispgain.dynamic_cast_ptr<VideoBuffer>();
-        _camHw->mHwResLintener->hwResCb(vbuf);
+    if (_isp_ver == ISP_V20) {
+        if (_camHw->mHwResLintener) {
+            _camHw->mHwResLintener->hwResCb(buf);
+            SmartPtr<VideoBuffer> vbuf = _ispgain.dynamic_cast_ptr<VideoBuffer>();
+            _camHw->mHwResLintener->hwResCb(vbuf);
+        }
     }
 
     return ret;
@@ -139,7 +145,7 @@ XCamReturn SPStreamProcUnit::prepare(CalibDbV2_Af_LdgParam_t *ldg_param, CalibDb
     uint32_t ds_size_w = 4;
     uint32_t ds_size_h = 4;
 
-    if (_isp_ver == 0) {
+    if (_isp_ver == ISP_V20) {
         pixelformat = V4L2_PIX_FMT_FBCG;
         plane_cnt = 2;
     } else {
@@ -160,9 +166,9 @@ XCamReturn SPStreamProcUnit::prepare(CalibDbV2_Af_LdgParam_t *ldg_param, CalibDb
         _src_height          = isp_src_fmt.format.height;
         _ds_width            = (_src_width + ds_size_w - 1) / ds_size_w;
         _ds_height           = (_src_height + ds_size_h - 1) / ds_size_h;
-        _ds_width_align      = (_ds_width  + 1) & (~1);
-        _ds_height_align     = (_ds_height + 1) & (~1);
-        int _stride          = XCAM_ALIGN_UP(_ds_width_align, 32);
+        _ds_width_align      = (_ds_width  + 7) & (~7);
+        _ds_height_align     = (_ds_height + 7) & (~7);
+        int _stride          = XCAM_ALIGN_UP(_ds_width_align, 64);
         img_ds_size_x        = ds_size_w;
         img_ds_size_y        = ds_size_h;
         LOGD( "set sp format: _src_width %d, _src_height %d, width %d %d height %d %d, stride %d\n",

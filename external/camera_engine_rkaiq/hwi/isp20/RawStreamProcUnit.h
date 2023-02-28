@@ -34,7 +34,7 @@ class RawStreamProcUnit : public PollCallback
 {
 public:
     explicit RawStreamProcUnit      ();
-    explicit RawStreamProcUnit (const rk_sensor_full_info_t *s_info, bool linked_to_isp);
+    explicit RawStreamProcUnit (const rk_sensor_full_info_t *s_info, bool linked_to_isp, bool noReadBack);
     virtual ~RawStreamProcUnit ();
     virtual XCamReturn start        (int mode);
     virtual XCamReturn stop         ();
@@ -42,8 +42,8 @@ public:
     XCamReturn prepare(int idx);
     void set_rx_devices             (SmartPtr<V4l2Device> mipi_rx_devs[3]);
     SmartPtr<V4l2Device> get_rx_device (int index);
-    void set_rx_format              (const struct v4l2_subdev_format& sns_sd_fmt, uint32_t sns_v4l_pix_fmt);
-    void set_rx_format              (const struct v4l2_subdev_selection& sns_sd_sel, uint32_t sns_v4l_pix_fmt);
+    void set_rx_format              (const struct v4l2_subdev_format& sns_sd_fmt, uint32_t sns_v4l_pix_fmt, int8_t sns_bpp);
+    void set_rx_format              (const struct v4l2_subdev_selection& sns_sd_sel, uint32_t sns_v4l_pix_fmt, int8_t sns_bpp);
     void set_devices                (SmartPtr<V4l2SubDevice> ispdev, CamHwIsp20* handle);
     void set_hdr_frame_readback_infos(int frame_id, int times);
     void set_hdr_global_tmo_mode(int frame_id, bool mode);
@@ -70,6 +70,9 @@ public:
     virtual XCamReturn poll_event_failed (int64_t timestamp, const char *msg) { return XCAM_RETURN_ERROR_FAILED; }
     void setCamPhyId(int phyId) {
         mCamPhyId = phyId;
+    }
+    void setSensorCategory(bool sensorState) {
+        _is_1608_sensor = sensorState;
     }
     XCamReturn capture_raw_ctl(capture_raw_t type, int count = 0, const char* capture_dir = nullptr, char* output_dir = nullptr) {
         if (!_rawCap)
@@ -114,6 +117,9 @@ protected:
     SafeList<EmptyClass> _msg_queue;
     PollCallback* _PollCallback;
     CaptureRawData* _rawCap;
+    bool     _is_1608_sensor;
+    bool is_multi_isp_mode; // isp-unit mode, 2 isp to 1
+    bool mNoReadBack;
 };
 
 class RawProcThread

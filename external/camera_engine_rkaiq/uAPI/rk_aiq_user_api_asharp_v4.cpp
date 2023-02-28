@@ -85,6 +85,21 @@ rk_aiq_user_api_asharpV4_GetStrength(const rk_aiq_sys_ctx_t* sys_ctx, rk_aiq_sha
     return ret;
 }
 
+XCamReturn
+rk_aiq_user_api_asharpV4_GetInfo(const rk_aiq_sys_ctx_t* sys_ctx, rk_aiq_sharp_info_v4_t *pInfo)
+{
+    XCamReturn ret = XCAM_RETURN_NO_ERROR;
+    RKAIQ_API_SMART_LOCK(sys_ctx);
+
+
+    RkAiqAsharpV4HandleInt* algo_handle =
+        algoHandle<RkAiqAsharpV4HandleInt>(sys_ctx, RK_AIQ_ALGO_TYPE_ASHARP);
+    if (algo_handle) {
+        ret = algo_handle->getInfo(pInfo);
+    }
+
+    return ret;
+}
 
 
 RKAIQ_END_DECLARE

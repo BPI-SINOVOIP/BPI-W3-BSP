@@ -145,7 +145,8 @@ processing(const RkAiqAlgoCom* inparams, RkAiqAlgoResCom* outparams)
     if(pAERes != NULL) {
         if(pAdpccProcParams->hdr_mode == RK_AIQ_WORKING_MODE_NORMAL) {
             stExpInfo.arPreResAGain[0] = pAERes->LinearExp.exp_real_params.analog_gain;
-            stExpInfo.arPreResDGain[0] = pAERes->LinearExp.exp_real_params.digital_gain;
+            stExpInfo.arPreResDGain[0] = pAERes->LinearExp.exp_real_params.digital_gain *
+                pAERes->LinearExp.exp_real_params.isp_dgain;;
             stExpInfo.arPreResTime[0] = pAERes->LinearExp.exp_real_params.integration_time;
             stExpInfo.arPreResIso[0] = stExpInfo.arPreResAGain[0] * 50;
         } else {

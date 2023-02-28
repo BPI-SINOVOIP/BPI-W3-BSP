@@ -328,6 +328,7 @@ drmmode_prop_info_update(drmmode_ptr drmmode,
         }
 
         info[j].prop_id = props->props[i];
+        info[j].value = props->prop_values[i];
         valid_mask |= 1U << j;
 
         if (info[j].num_enum_values == 0) {
@@ -783,22 +784,21 @@ drmmode_crtc_modeset(xf86CrtcPtr crtc, uint32_t fb_id,
     drmmode_ptr drmmode = drmmode_crtc->drmmode;
     struct dumb_bo *bo = NULL;
     uint32_t old_fb_id = 0;
-    int width, height, ret = -1;
+    int ret = -1;
 
-    width = mode->hdisplay;
-    height = mode->vdisplay;
+    /* prefer using the original FB */
+    ret = drmModeSetCrtc(drmmode->fd, drmmode_crtc->mode_crtc->crtc_id,
+                         fb_id, x, y, output_ids, output_count, mode);
+    if (!ret)
+        return 0;
 
-    /* flip-fb disabled or shadow bo */
-    if (!drmmode_crtc->flip_fb_enabled || fb_id != drmmode->fb_id)
-        return drmModeSetCrtc(drmmode->fd, drmmode_crtc->mode_crtc->crtc_id,
-                              fb_id, x, y, output_ids, output_count, mode);
-
-    /* create dummy bo for modeset */
-    bo = dumb_bo_create(drmmode->fd, width, height, drmmode->kbpp);
+    /* fallback to a new dummy FB */
+    bo = dumb_bo_create(drmmode->fd, mode->hdisplay, mode->vdisplay,
+                        drmmode->kbpp);
     if (!bo)
         goto err;
 
-    ret = drmModeAddFB(drmmode->fd, width, height,
+    ret = drmModeAddFB(drmmode->fd, mode->hdisplay, mode->vdisplay,
                        drmmode->scrn->depth, drmmode->kbpp,
                        bo->pitch, bo->handle, &fb_id);
     if (ret < 0)
@@ -946,15 +946,15 @@ drmmode_crtc_flip(xf86CrtcPtr crtc, uint32_t fb_id, uint32_t flags, void *data)
 {
     modesettingPtr ms = modesettingPTR(crtc->scrn);
     drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
-    int ret, x, y, w, h;
+    int ret, sx, sy, w, h;
 
     if (fb_id == ms->drmmode.fb_id) {
         /* screen FB flip */
-        x = crtc->x;
-        y = crtc->y;
+        sx = crtc->x;
+        sy = crtc->y;
     } else {
         /* single crtc FB flip */
-        x = y = 0;
+        sx = sy = 0;
     }
 
     w = crtc->mode.HDisplay;
@@ -966,7 +966,7 @@ drmmode_crtc_flip(xf86CrtcPtr crtc, uint32_t fb_id, uint32_t flags, void *data)
         if (!req)
             return 1;
 
-        ret = plane_add_props(req, crtc, fb_id, x, y);
+        ret = plane_add_props(req, crtc, fb_id, sx, sy);
         flags |= DRM_MODE_ATOMIC_NONBLOCK;
         if (ret == 0)
             ret = drmModeAtomicCommit(ms->fd, req, flags, data);
@@ -976,7 +976,7 @@ drmmode_crtc_flip(xf86CrtcPtr crtc, uint32_t fb_id, uint32_t flags, void *data)
 
     ret = drmModeSetPlane(ms->fd, drmmode_crtc->plane_id,
                           drmmode_crtc->mode_crtc->crtc_id, fb_id, 0,
-                          x, y, w, h, x << 16, y << 16, w << 16, h << 16);
+                          0, 0, w, h, sx << 16, sy << 16, w << 16, h << 16);
     if (ret)
         return ret;
 
@@ -1515,7 +1515,6 @@ drmmode_copy(uint8_t *src, int src_pitch, int src_x, int src_y, int src_bpp,
 #define RGA_FORMAT(bpp) ({ \
     RgaSURF_FORMAT format = RK_FORMAT_UNKNOWN; \
     if ((bpp) == 16) format = RK_FORMAT_RGB_565; \
-    if ((bpp) == 24) format = RK_FORMAT_RGB_888; \
     if ((bpp) == 32) format = RK_FORMAT_RGBX_8888; \
     format; })
 
@@ -1531,8 +1530,10 @@ drmmode_copy(uint8_t *src, int src_pitch, int src_x, int src_y, int src_bpp,
     if (!src || ! src_pitch || !dst || !dst_pitch)
         return FALSE;
 
-    if (src_bpp != 16 && src_bpp != 24 && src_bpp != 32 &&
-        dst_bpp != 16 && dst_bpp != 24 && dst_bpp != 32)
+    if (src_bpp != 16 && src_bpp != 32)
+        return FALSE;
+
+    if (dst_bpp != 16 && dst_bpp != 32)
         return FALSE;
 
 #ifdef MODESETTING_WITH_RGA
@@ -1653,7 +1654,7 @@ drmmode_crtc_copy_fb(ScrnInfoPtr pScrn, drmmode_ptr drmmode,
     if (!fbcon)
         return FALSE;
 
-    src_bpp = fbcon->depth;
+    src_bpp = fbcon->bpp;
 
     bo = dumb_get_bo_from_handle(drmmode->fd, fbcon->handle, fbcon->pitch,
                                  fbcon->pitch * fbcon->height);
@@ -1910,14 +1911,47 @@ drmmode_show_cursor(xf86CrtcPtr crtc)
 }
 
 static void
+drmmode_set_gamma_lut(drmmode_crtc_private_ptr drmmode_crtc,
+                      uint16_t * red, uint16_t * green, uint16_t * blue,
+                      int size)
+{
+    drmmode_ptr drmmode = drmmode_crtc->drmmode;
+    drmmode_prop_info_ptr gamma_lut_info =
+        &drmmode_crtc->props[DRMMODE_CRTC_GAMMA_LUT];
+    const uint32_t crtc_id = drmmode_crtc->mode_crtc->crtc_id;
+    uint32_t blob_id;
+    struct drm_color_lut lut[size];
+
+    assert(gamma_lut_info->prop_id != 0);
+
+    for (int i = 0; i < size; i++) {
+        lut[i].red = red[i];
+        lut[i].green = green[i];
+        lut[i].blue = blue[i];
+    }
+
+    if (drmModeCreatePropertyBlob(drmmode->fd, lut, sizeof(lut), &blob_id))
+        return;
+
+    drmModeObjectSetProperty(drmmode->fd, crtc_id, DRM_MODE_OBJECT_CRTC,
+                             gamma_lut_info->prop_id, blob_id);
+
+    drmModeDestroyPropertyBlob(drmmode->fd, blob_id);
+}
+
+static void
 drmmode_crtc_gamma_set(xf86CrtcPtr crtc, uint16_t * red, uint16_t * green,
                        uint16_t * blue, int size)
 {
     drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
     drmmode_ptr drmmode = drmmode_crtc->drmmode;
 
-    drmModeCrtcSetGamma(drmmode->fd, drmmode_crtc->mode_crtc->crtc_id,
-                        size, red, green, blue);
+    if (drmmode_crtc->use_gamma_lut) {
+        drmmode_set_gamma_lut(drmmode_crtc, red, green, blue, size);
+    } else {
+        drmModeCrtcSetGamma(drmmode->fd, drmmode_crtc->mode_crtc->crtc_id,
+                            size, red, green, blue);
+    }
 }
 
 static Bool
@@ -2456,6 +2490,8 @@ drmmode_crtc_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, drmModeResPtr mode_res
     static const drmmode_prop_info_rec crtc_props[] = {
         [DRMMODE_CRTC_ACTIVE] = { .name = "ACTIVE" },
         [DRMMODE_CRTC_MODE_ID] = { .name = "MODE_ID" },
+        [DRMMODE_CRTC_GAMMA_LUT] = { .name = "GAMMA_LUT" },
+        [DRMMODE_CRTC_GAMMA_LUT_SIZE] = { .name = "GAMMA_LUT_SIZE" },
     };
     int o, found = 0;
 
@@ -2511,6 +2547,11 @@ drmmode_crtc_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, drmModeResPtr mode_res
     ms_ent->assigned_crtcs |= (1 << num);
     xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, MS_LOGLEVEL_DEBUG,
                    "Allocated crtc nr. %d to this screen.\n", num);
+
+    drmmode_crtc->use_gamma_lut =
+        drmmode_crtc->props[DRMMODE_CRTC_GAMMA_LUT_SIZE].prop_id &&
+        drmmode_crtc->props[DRMMODE_CRTC_GAMMA_LUT_SIZE].value &&
+        xf86ReturnOptValBool(drmmode->Options, OPTION_USE_GAMMA_LUT, TRUE);
 
     return 1;
 }
@@ -3952,14 +3993,63 @@ drmmode_load_palette(ScrnInfoPtr pScrn, int numColors,
     }
 }
 
+static Bool
+drmmode_crtc_upgrade_lut(xf86CrtcPtr crtc, int num)
+{
+    drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
+    uint64_t size;
+
+    if (!drmmode_crtc->use_gamma_lut)
+        return TRUE;
+
+    assert(drmmode_crtc->props[DRMMODE_CRTC_GAMMA_LUT_SIZE].prop_id);
+
+    size = drmmode_crtc->props[DRMMODE_CRTC_GAMMA_LUT_SIZE].value;
+
+    if (size != crtc->gamma_size) {
+        ScrnInfoPtr pScrn = crtc->scrn;
+        uint16_t *gamma = malloc(3 * size * sizeof(uint16_t));
+
+        if (gamma) {
+            free(crtc->gamma_red);
+
+            crtc->gamma_size = size;
+            crtc->gamma_red = gamma;
+            crtc->gamma_green = gamma + size;
+            crtc->gamma_blue = gamma + size * 2;
+
+            xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, MS_LOGLEVEL_DEBUG,
+                           "Gamma ramp set to %ld entries on CRTC %d\n",
+                           size, num);
+        } else {
+            xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+                       "Failed to allocate memory for %ld gamma ramp entries "
+                       "on CRTC %d.\n",
+                       size, num);
+            return FALSE;
+        }
+    }
+
+    return TRUE;
+}
+
 Bool
 drmmode_setup_colormap(ScreenPtr pScreen, ScrnInfoPtr pScrn)
 {
-    xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, 0,
-                   "Initializing kms color map for depth %d, %d bpc.\n",
-                   pScrn->depth, pScrn->rgbBits);
+    xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
+    int i;
+
+    xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+              "Initializing kms color map for depth %d, %d bpc.\n",
+              pScrn->depth, pScrn->rgbBits);
     if (!miCreateDefColormap(pScreen))
         return FALSE;
+
+    /* If the GAMMA_LUT property is available, replace the server's default
+     * gamma ramps with ones of the appropriate size. */
+    for (i = 0; i < xf86_config->num_crtc; i++)
+        if (!drmmode_crtc_upgrade_lut(xf86_config->crtc[i], i))
+            return FALSE;
 
     /* Adapt color map size and depth to color depth of screen. */
     if (!xf86HandleColormaps(pScreen, 1 << pScrn->rgbBits, 10,

@@ -26,6 +26,17 @@ using namespace XCam;
 
 namespace RkCam {
 
+enum rkisp_isp_ver {
+    ISP_V10 = 0x0,
+    ISP_V11 = 0x1,
+    ISP_V12 = 0x2,
+    ISP_V13 = 0x3,
+    ISP_V20 = 0x4,
+    ISP_V21 = 0x5,
+    ISP_V30 = 0x6,
+    ISP_V32 = 0x7,
+};
+
 class SPImagBufferProxy : public SubV4l2BufferProxy
 {
     public:

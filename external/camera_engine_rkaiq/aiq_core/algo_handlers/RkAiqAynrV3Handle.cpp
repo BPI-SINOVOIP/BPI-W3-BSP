@@ -74,7 +74,7 @@ XCamReturn RkAiqAynrV3HandleInt::setAttrib(rk_aiq_ynr_attrib_v3_t* att) {
     // called by RkAiqCore
     bool isChanged = false;
     if (att->sync.sync_mode == RK_AIQ_UAPI_MODE_ASYNC && \
-        memcmp(&mNewAtt, att, sizeof(*att)))
+            memcmp(&mNewAtt, att, sizeof(*att)))
         isChanged = true;
     else if (att->sync.sync_mode != RK_AIQ_UAPI_MODE_ASYNC && \
              memcmp(&mCurAtt, att, sizeof(*att)))
@@ -127,7 +127,7 @@ XCamReturn RkAiqAynrV3HandleInt::setStrength(rk_aiq_ynr_strength_v3_t *pStrength
 
     bool isChanged = false;
     if (pStrength->sync.sync_mode == RK_AIQ_UAPI_MODE_ASYNC && \
-        memcmp(&mNewStrength, pStrength, sizeof(*pStrength)))
+            memcmp(&mNewStrength, pStrength, sizeof(*pStrength)))
         isChanged = true;
     else if (pStrength->sync.sync_mode != RK_AIQ_UAPI_MODE_ASYNC && \
              memcmp(&mCurStrength, pStrength, sizeof(*pStrength)))
@@ -162,6 +162,25 @@ XCamReturn RkAiqAynrV3HandleInt::getStrength(rk_aiq_ynr_strength_v3_t *pStrength
             rk_aiq_uapi_aynrV3_GetLumaSFStrength(mAlgoCtx, pStrength);
             pStrength->sync.done = true;
         }
+    }
+
+    EXIT_ANALYZER_FUNCTION();
+    return ret;
+}
+
+XCamReturn RkAiqAynrV3HandleInt::getInfo(rk_aiq_ynr_info_v3_t *pInfo) {
+    ENTER_ANALYZER_FUNCTION();
+
+    XCamReturn ret = XCAM_RETURN_NO_ERROR;
+
+    if(pInfo->sync.sync_mode == RK_AIQ_UAPI_MODE_SYNC) {
+        mCfgMutex.unlock();
+        rk_aiq_uapi_aynrV3_GetInfo(mAlgoCtx, pInfo);
+        pInfo->sync.done = true;
+        mCfgMutex.unlock();
+    } else {
+        rk_aiq_uapi_aynrV3_GetInfo(mAlgoCtx, pInfo);
+        pInfo->sync.done = true;
     }
 
     EXIT_ANALYZER_FUNCTION();
@@ -238,6 +257,10 @@ XCamReturn RkAiqAynrV3HandleInt::processing() {
     ret                       = des->processing(mProcInParam, mProcOutParam);
     RKAIQCORE_CHECK_RET(ret, "aynr algo processing failed");
 
+    if (SharingAlgosResult(aynr_proc_res_int) != XCAM_RETURN_NO_ERROR)
+        LOGE_ANR("Failed to share Algos Result\n");
+
+
     EXIT_ANALYZER_FUNCTION();
     return ret;
 }
@@ -291,6 +314,7 @@ XCamReturn RkAiqAynrV3HandleInt::genIspResult(RkAiqFullParams* params,
             ynr_param->frame_id = shared->frameId;
         }
         memcpy(&ynr_param->result, &aynr_rk->stAynrProcResult.stFix, sizeof(RK_YNR_Fix_V3_t));
+
         LOGD_ANR("oyyf: %s:%d output isp param end \n", __FUNCTION__, __LINE__);
     }
 

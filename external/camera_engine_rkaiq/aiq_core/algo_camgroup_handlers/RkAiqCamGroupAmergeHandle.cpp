@@ -80,7 +80,7 @@ XCamReturn RkAiqCamGroupAmergeHandleInt::getAttrib(mergeAttr_t* att) {
         mCfgMutex.unlock();
     } else {
         if (updateAtt) {
-            memcpy(att, &mNewAtt, sizeof(updateAtt));
+            memcpy(att, &mNewAtt, sizeof(mergeAttr_t));
             att->sync.done = false;
         } else {
             rk_aiq_uapi_amerge_GetAttrib(mAlgoCtx, att);

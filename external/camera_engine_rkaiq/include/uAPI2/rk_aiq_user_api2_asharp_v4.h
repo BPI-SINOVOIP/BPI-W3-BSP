@@ -39,6 +39,8 @@ rk_aiq_user_api2_asharpV4_SetStrength(const rk_aiq_sys_ctx_t* sys_ctx, rk_aiq_sh
 XCamReturn
 rk_aiq_user_api2_asharpV4_GetStrength(const rk_aiq_sys_ctx_t* sys_ctx, rk_aiq_sharp_strength_v4_t *pStrength);
 
+XCamReturn
+rk_aiq_user_api2_asharpV4_GetInfo(const rk_aiq_sys_ctx_t* sys_ctx, rk_aiq_sharp_info_v4_t *pInfo);
 
 RKAIQ_END_DECLARE
 

@@ -83,6 +83,9 @@
     _IOR('V', BASE_VIDIOC_PRIVATE + 11, struct rk_cam_compat_vcm_tim)
 #endif
 
+#define RK_VIDIOC_SET_VCM_MAX_LOGICALPOS \
+    _IOW('V', BASE_VIDIOC_PRIVATE + 17, unsigned int)
+
 typedef int s32;
 typedef unsigned int u32;
 
@@ -155,6 +158,8 @@ public:
     XCamReturn getLensModeData(rk_aiq_lens_descriptor& lens_des);
     XCamReturn getLensVcmCfg(rk_aiq_lens_vcmcfg& lens_cfg);
     XCamReturn setLensVcmCfg(rk_aiq_lens_vcmcfg& lens_cfg);
+    XCamReturn getLensVcmMaxlogpos(int& max_log_pos);
+    XCamReturn setLensVcmMaxlogpos(int& max_log_pos);
     XCamReturn setPIrisParams(int step);
     XCamReturn setDCIrisParams(int pwmDuty);
     XCamReturn setFocusParams(SmartPtr<RkAiqFocusParamsProxy>& focus_params);
@@ -226,6 +231,7 @@ private:
     float _startCurrent;
     float _endCurrent;
     float _angleZ;
+    int _max_logical_pos;
 };
 
 class LensHwHelperThd
