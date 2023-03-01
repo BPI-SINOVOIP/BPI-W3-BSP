@@ -4,7 +4,7 @@
 #
 ################################################################################
 
-XSERVER_XORG_SERVER_VERSION = 1.20.14_2022_05_23
+XSERVER_XORG_SERVER_VERSION = 21.1.4_2022_09_29
 XSERVER_XORG_SERVER_SITE = $(call github,JeffyCN,xorg-xserver,$(XSERVER_XORG_SERVER_VERSION))
 XSERVER_XORG_SERVER_LICENSE = MIT
 XSERVER_XORG_SERVER_LICENSE_FILES = COPYING
@@ -31,6 +31,7 @@ XSERVER_XORG_SERVER_DEPENDENCIES = \
 	xlib_libXdamage \
 	xlib_libXxf86vm \
 	xlib_libxkbfile \
+	xlib_libxcvt \
 	xlib_xtrans \
 	xdata_xbitmaps \
 	xorgproto \
@@ -39,6 +40,10 @@ XSERVER_XORG_SERVER_DEPENDENCIES = \
 	mcookie \
 	host-pkgconf
 
+ifeq ($(BR2_PREFER_ROCKCHIP_RGA),y)
+XSERVER_XORG_SERVER_DEPENDENCIES += rockchip-rga
+endif
+
 # We force -O2 regardless of the optimization level chosen by the
 # user, as the X.org server is known to trigger some compiler bugs at
 # -Os on several architectures.
@@ -46,7 +51,6 @@ XSERVER_XORG_SERVER_CONF_OPTS = \
 	--disable-config-hal \
 	--enable-record \
 	--disable-xnest \
-	--disable-dmx \
 	--disable-unit-tests \
 	--with-builder-addr=buildroot@buildroot.org \
 	CFLAGS="$(TARGET_CFLAGS) -I$(STAGING_DIR)/usr/include/pixman-1 -O2" \
@@ -64,14 +68,6 @@ else
 XSERVER_XORG_SERVER_CONF_OPTS += \
 	--without-systemd-daemon \
 	--disable-systemd-logind
-endif
-
-# Xwayland support needs libdrm, libepoxy, wayland and libxcomposite
-ifeq ($(BR2_PACKAGE_LIBDRM)$(BR2_PACKAGE_LIBEPOXY)$(BR2_PACKAGE_WAYLAND)$(BR2_PACKAGE_WAYLAND_PROTOCOLS)$(BR2_PACKAGE_XLIB_LIBXCOMPOSITE),yyyyy)
-XSERVER_XORG_SERVER_CONF_OPTS += --enable-xwayland
-XSERVER_XORG_SERVER_DEPENDENCIES += libdrm libepoxy wayland wayland-protocols xlib_libXcomposite
-else
-XSERVER_XORG_SERVER_CONF_OPTS += --disable-xwayland
 endif
 
 ifeq ($(BR2_PACKAGE_XSERVER_XORG_SERVER_MODULAR),y)
@@ -93,6 +89,13 @@ XSERVER_XORG_SERVER_CONF_OPTS += \
 	--disable-glx \
 	--disable-dri
 
+ifeq ($(BR2_PACKAGE_XSERVER_XORG_SERVER_XEPHYR),y)
+XSERVER_XORG_SERVER_DEPENDENCIES += \
+	xcb-util-image \
+	xcb-util-keysyms \
+	xcb-util-renderutil \
+	xcb-util-wm
+endif
 else # modular
 XSERVER_XORG_SERVER_CONF_OPTS += --disable-kdrive
 endif
@@ -167,10 +170,6 @@ else
 XSERVER_XORG_SERVER_CONF_OPTS += --disable-screensaver
 endif
 
-ifneq ($(BR2_PACKAGE_XLIB_LIBDMX),y)
-XSERVER_XORG_SERVER_CONF_OPTS += --disable-dmx
-endif
-
 ifeq ($(BR2_PACKAGE_OPENSSL),y)
 XSERVER_XORG_SERVER_CONF_OPTS += --with-sha1=libcrypto
 XSERVER_XORG_SERVER_DEPENDENCIES += openssl
@@ -194,6 +193,12 @@ define XSERVER_XORG_SERVER_INSTALL_INIT_SYSV
 		$(TARGET_DIR)/etc/init.d/S40xorg
 endef
 endif
+
+define XSERVER_XORG_SERVER_INSTALL_TARGET_ENV
+        $(INSTALL) -D -m 0644 $(XSERVER_XORG_SERVER_PKGDIR)/x11.sh \
+                $(TARGET_DIR)/etc/profile.d/x11.sh
+endef
+XSERVER_XORG_SERVER_POST_INSTALL_TARGET_HOOKS += XSERVER_XORG_SERVER_INSTALL_TARGET_ENV
 
 define XSERVER_XORG_SERVER_INSTALL_MODESETTING_CONFIG
 	$(INSTALL) -D -m 0644 $(XSERVER_XORG_SERVER_PKGDIR)/20-modesetting.conf \

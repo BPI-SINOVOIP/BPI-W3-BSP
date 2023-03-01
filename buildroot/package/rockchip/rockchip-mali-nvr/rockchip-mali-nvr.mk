@@ -50,7 +50,7 @@ ROCKCHIP_MALI_NVR_PKG += OpenCL
 endif
 
 define ROCKCHIP_MALI_NVR_INSTALL_STAGING_CMDS
-        $(INSTALL) -D -m 0755 $(@D)/$(ROCKCHIP_MALI_NVR_SRC) \
+	$(INSTALL) -D -m 0755 $(@D)/$(ROCKCHIP_MALI_NVR_SRC) \
 		$(STAGING_DIR)/usr/lib/libmali.so.1
 
 	for l in $(ROCKCHIP_MALI_NVR_LINKS); do \
@@ -67,7 +67,7 @@ define ROCKCHIP_MALI_NVR_INSTALL_STAGING_CMDS
 endef
 
 define ROCKCHIP_MALI_NVR_INSTALL_TARGET_CMDS
-        $(INSTALL) -D -m 0755 $(@D)/$(ROCKCHIP_MALI_NVR_SRC) \
+	$(INSTALL) -D -m 0755 $(@D)/$(ROCKCHIP_MALI_NVR_SRC) \
 		$(TARGET_DIR)/usr/lib/libmali.so.1
 
 	for l in $(ROCKCHIP_MALI_NVR_LINKS); do \
@@ -75,7 +75,7 @@ define ROCKCHIP_MALI_NVR_INSTALL_TARGET_CMDS
 	done
 endef
 
-ifeq ($(BR2_PACKAGE_RK3588),y)
+ifeq ($(BR2_PACKAGE_ROCKCHIP_MALI_NVR_G610),y)
 define ROCKCHIP_MALI_NVR_INSTALL_G610_FIRMWARE
 	$(INSTALL) -D -m 0644 $(@D)/firmware/g610/mali_csffw.bin \
 		-t $(TARGET_DIR)/lib/firmware/

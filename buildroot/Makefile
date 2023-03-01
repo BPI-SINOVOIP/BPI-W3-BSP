@@ -280,6 +280,9 @@ CONFIG_SHELL := $(SHELL)
 
 export SHELL CONFIG_SHELL Q KBUILD_VERBOSE
 
+CUSTOM_KERNEL := $(CURDIR)/../kernel
+CUSTOM_KERNEL_VERSION := $(shell if [ -f "$(CUSTOM_KERNEL)/Makefile" ]; then grep -A 1 "^VERSION = " "$(CUSTOM_KERNEL)/Makefile" | cut -d' ' -f 3 | paste -sd'.'; fi)
+
 ifndef HOSTAR
 HOSTAR := ar
 endif
@@ -578,12 +581,14 @@ endif
 ifeq ($(BR_FORCE_CHECK_DEPENDENCIES),YES)
 
 define CHECK_ONE_DEPENDENCY
+ifneq ($(2)|$(BR2_LINUX_KERNEL),LINUX|)
 ifeq ($$($(2)_TYPE),target)
 ifeq ($$($(2)_IS_VIRTUAL),)
 ifneq ($$($$($(2)_KCONFIG_VAR)),y)
 $$(error $$($(2)_NAME) is in the dependency chain of $$($(1)_NAME) that \
 has added it to its _DEPENDENCIES variable without selecting it or \
 depending on it from Config.in)
+endif
 endif
 endif
 endif
@@ -992,7 +997,8 @@ COMMON_CONFIG_ENV = \
 	BR2_CONFIG=$(BR2_CONFIG) \
 	HOST_GCC_VERSION="$(HOSTCC_VERSION)" \
 	BASE_DIR=$(BASE_DIR) \
-	SKIP_LEGACY=
+	SKIP_LEGACY= \
+	CUSTOM_KERNEL_VERSION="$(CUSTOM_KERNEL_VERSION)"
 
 xconfig: $(BUILD_DIR)/buildroot-config/qconf outputmakefile
 	@$(COMMON_CONFIG_ENV) $< $(CONFIG_CONFIG_IN)
@@ -1035,24 +1041,24 @@ defconfig: $(BUILD_DIR)/buildroot-config/conf outputmakefile
 define percent_defconfig
 # Override the BR2_DEFCONFIG from COMMON_CONFIG_ENV with the new defconfig
 %_defconfig: $(BUILD_DIR)/buildroot-config/conf $(1)/configs/%_defconfig outputmakefile
-	$(TOPDIR)/build/defconfig_hook.py -m $(1)/configs/$$@ $(BASE_DIR)/.rockchipconfig
+	$(TOPDIR)/build/parse_defconfig.sh $(1)/configs/$$@ \
+		$(BASE_DIR)/.config.in
 	$$(COMMON_CONFIG_ENV) BR2_DEFCONFIG=$(1)/configs/$$@ \
-		$$< --defconfig=$(BASE_DIR)/.rockchipconfig $$(CONFIG_CONFIG_IN)
+		$$< --defconfig=$(BASE_DIR)/.config.in $$(CONFIG_CONFIG_IN)
 endef
 $(eval $(foreach d,$(call reverse,$(TOPDIR) $(BR2_EXTERNAL_DIRS)),$(call percent_defconfig,$(d))$(sep)))
 
-CFG_ := $(if $(DEFCONFIG),$(DEFCONFIG),$(CONFIG_DIR)/defconfig)
+update-defconfig: $(BUILD_DIR)/buildroot-config/conf outputmakefile
+	$(TOPDIR)/build/update_defconfig.sh \
+		$(if $(DEFCONFIG),$(DEFCONFIG),$(CONFIG_DIR)/defconfig)
+
 savedefconfig: $(BUILD_DIR)/buildroot-config/conf outputmakefile
-	grep "#include" $(CFG_) > $(CFG_).split || true
+	@$(COMMON_CONFIG_ENV) $< \
+		--savedefconfig=$(if $(DEFCONFIG),$(DEFCONFIG),$(CONFIG_DIR)/defconfig) \
+		$(CONFIG_CONFIG_IN)
+	@$(SED) '/^BR2_DEFCONFIG=/d' $(if $(DEFCONFIG),$(DEFCONFIG),$(CONFIG_DIR)/defconfig)
 
-	@$(COMMON_CONFIG_ENV) $< --savedefconfig=$(CFG_) $(CONFIG_CONFIG_IN)
-	@$(SED) '/BR2_DEFCONFIG=/d' $(CFG_)
-
-	cat $(CFG_) >> $(CFG_).split
-	$(TOPDIR)/build/defconfig_hook.py -s $(CFG_).split $(CFG_)
-	rm $(CFG_).split
-
-.PHONY: defconfig savedefconfig
+.PHONY: defconfig savedefconfig update-defconfig
 
 ################################################################################
 #
@@ -1129,7 +1135,7 @@ help:
 	@echo '  defconfig              - New config with default answer to all options;'
 	@echo '                             BR2_DEFCONFIG, if set on the command line, is used as input'
 	@echo '  savedefconfig          - Save current config to BR2_DEFCONFIG (minimal config)'
-	@echo '  update-defconfig       - Same as savedefconfig'
+	@echo '  update-defconfig       - Same as savedefconfig, but with fragments'
 	@echo '  allyesconfig           - New config where all options are accepted with yes'
 	@echo '  allnoconfig            - New config where all options are answered with no'
 	@echo '  alldefconfig           - New config where all options are set to default'

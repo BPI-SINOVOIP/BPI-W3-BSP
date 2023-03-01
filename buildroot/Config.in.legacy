@@ -144,6 +144,16 @@ endif
 
 ###############################################################################
 
+comment "Legacy options removed in 2022.02"
+
+config BR2_PACKAGE_PYTHON
+	bool "python2.7 package removed"
+	select BR2_LEGACY
+	help
+	  Python 2.7 is EOL since April 2020 and has been removed.
+
+	  https://www.python.org/dev/peps/pep-0373/
+
 comment "Legacy options removed in 2021.11"
 
 config BR2_OPENJDK_VERSION_LTS
@@ -1125,17 +1135,6 @@ config BR2_PACKAGE_ALLJOYN_TCL
 	select BR2_LEGACY
 	help
 	  The alljoyn framework is dead
-
-config BR2_TOOLCHAIN_EXTRA_EXTERNAL_LIBS
-	string "toolchain-external extra libs option has been renamed"
-	help
-	  The option BR2_TOOLCHAIN_EXTRA_EXTERNAL_LIBS has
-	  been renamed to BR2_TOOLCHAIN_EXTRA_LIBS.
-
-config BR2_TOOLCHAIN_EXTRA_EXTERNAL_LIBS_WRAP
-	bool
-	default y if BR2_TOOLCHAIN_EXTRA_EXTERNAL_LIBS != ""
-	select BR2_LEGACY
 
 config BR2_PACKAGE_PYTHON_PYSNMP_APPS
 	bool "python-pysnmp-apps was removed"

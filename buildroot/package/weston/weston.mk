@@ -4,19 +4,18 @@
 #
 ################################################################################
 
-WESTON_VERSION = 10.0.0
-WESTON_SITE = https://wayland.freedesktop.org/releases
+WESTON_VERSION = 11.0.0
+WESTON_SITE = https://gitlab.freedesktop.org/wayland/weston/-/releases/$(WESTON_VERSION)/downloads
 WESTON_SOURCE = weston-$(WESTON_VERSION).tar.xz
 WESTON_LICENSE = MIT
 WESTON_LICENSE_FILES = COPYING
 WESTON_CPE_ID_VENDOR = wayland
 
 WESTON_DEPENDENCIES = host-pkgconf wayland wayland-protocols \
-	libxkbcommon pixman libpng udev cairo libinput libdrm
+	libxkbcommon pixman libpng udev cairo libinput libdrm seatd
 
 WESTON_CONF_OPTS = \
 	-Dbackend-headless=false \
-	-Dcolor-management-colord=false \
 	-Ddoc=false \
 	-Dremoting=false \
 	-Dtools=calibrator,debug,info,terminal,touch-calibrator
@@ -42,20 +41,6 @@ else
 WESTON_CONF_OPTS += -Dimage-webp=false
 endif
 
-# weston-launch must be u+s root in order to work properly
-ifeq ($(BR2_PACKAGE_LINUX_PAM),y)
-define WESTON_PERMISSIONS
-	/usr/bin/weston-launch f 4755 0 0 - - - - -
-endef
-define WESTON_USERS
-	- - weston-launch -1 - - - - Weston launcher group
-endef
-WESTON_CONF_OPTS += -Ddeprecated-weston-launch=true
-WESTON_DEPENDENCIES += linux-pam
-else
-WESTON_CONF_OPTS += -Ddeprecated-weston-launch=false
-endif
-
 ifeq ($(BR2_PACKAGE_HAS_LIBEGL_WAYLAND)$(BR2_PACKAGE_HAS_LIBGLES),yy)
 WESTON_CONF_OPTS += -Drenderer-gl=true
 WESTON_DEPENDENCIES += libegl libgles
@@ -76,12 +61,6 @@ WESTON_DEPENDENCIES += freerdp
 WESTON_CONF_OPTS += -Dbackend-rdp=true
 else
 WESTON_CONF_OPTS += -Dbackend-rdp=false
-endif
-
-ifeq ($(BR2_PACKAGE_WESTON_FBDEV),y)
-WESTON_CONF_OPTS += -Ddeprecated-backend-fbdev=true
-else
-WESTON_CONF_OPTS += -Ddeprecated-backend-fbdev=false
 endif
 
 ifeq ($(BR2_PACKAGE_WESTON_DRM),y)

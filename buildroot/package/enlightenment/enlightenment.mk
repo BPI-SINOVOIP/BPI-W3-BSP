@@ -4,9 +4,9 @@
 #
 ################################################################################
 
-ENLIGHTENMENT_VERSION = 0.24.2
+ENLIGHTENMENT_VERSION = 0.25.1
 ENLIGHTENMENT_SOURCE = enlightenment-$(ENLIGHTENMENT_VERSION).tar.xz
-ENLIGHTENMENT_SITE = http://download.enlightenment.org/rel/apps/enlightenment
+ENLIGHTENMENT_SITE = https://download.enlightenment.org/rel/apps/enlightenment
 ENLIGHTENMENT_LICENSE = BSD-2-Clause, OFL-1.1 (font)
 ENLIGHTENMENT_LICENSE_FILES = COPYING \
 	src/modules/wl_weekeyboard/themes/default/fonts/LICENSE.txt
@@ -15,18 +15,27 @@ ENLIGHTENMENT_CPE_ID_VENDOR = enlightenment
 ENLIGHTENMENT_DEPENDENCIES = \
 	host-pkgconf \
 	host-efl \
-	efl \
-	xcb-util-keysyms
+	efl
 
 ENLIGHTENMENT_CONF_OPTS = \
 	-Dedje-cc=$(HOST_DIR)/bin/edje_cc \
 	-Deet=$(HOST_DIR)/bin/eet \
 	-Deldbus-codegen=$(HOST_DIR)/bin/eldbus-codegen \
+	-Dlibexif=false \
 	-Dpam=false \
 	-Dpolkit=false
 
 # enlightenment.pc and /usr/lib/enlightenment/modules/*.so
 ENLIGHTENMENT_INSTALL_STAGING = YES
+
+ifeq ($(BR2_PACKAGE_EFL_X_XLIB),)
+ENLIGHTENMENT_CONF_OPTS += -Dwl-x11=false -Dxwayland=false
+endif
+
+ifeq ($(BR2_PACKAGE_WAYLAND),y)
+ENLIGHTENMENT_CONF_OPTS += -Dwl=true
+ENLIGHTENMENT_DEPENDENCIES += wayland wayland-protocols
+endif
 
 ifeq ($(BR2_PACKAGE_SYSTEMD),y)
 ENLIGHTENMENT_CONF_OPTS += -Dsystemd=true

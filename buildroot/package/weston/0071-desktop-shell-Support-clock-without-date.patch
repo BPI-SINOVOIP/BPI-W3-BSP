@@ -1,7 +1,7 @@
-From 417003075bfaacbd2984cc3f95ce69f9c6389d05 Mon Sep 17 00:00:00 2001
+From 7098f2611a5ec85a261b71670cde36e56ad3500a Mon Sep 17 00:00:00 2001
 From: Jeffy Chen <jeffy.chen@rock-chips.com>
 Date: Wed, 15 Jun 2022 11:02:44 +0800
-Subject: [PATCH 71/71] desktop-shell: Support clock without date
+Subject: [PATCH 71/79] desktop-shell: Support clock without date
 
 Tested with:
 [shell]
@@ -13,10 +13,10 @@ Signed-off-by: Jeffy Chen <jeffy.chen@rock-chips.com>
  1 file changed, 50 insertions(+), 23 deletions(-)
 
 diff --git a/clients/desktop-shell.c b/clients/desktop-shell.c
-index a81eb0afe..b2414be1b 100644
+index 2a1e70e0..0ce571a8 100644
 --- a/clients/desktop-shell.c
 +++ b/clients/desktop-shell.c
-@@ -75,6 +75,7 @@ struct desktop {
+@@ -76,6 +76,7 @@ struct desktop {
  	int want_panel;
  	enum weston_desktop_shell_panel_position panel_position;
  	enum clock_format clock_format;
@@ -24,7 +24,7 @@ index a81eb0afe..b2414be1b 100644
  
  	struct window *grab_window;
  	struct widget *grab_widget;
-@@ -108,6 +109,7 @@ struct panel {
+@@ -109,6 +110,7 @@ struct panel {
  	int painted;
  	enum weston_desktop_shell_panel_position panel_position;
  	enum clock_format clock_format;
@@ -32,7 +32,7 @@ index a81eb0afe..b2414be1b 100644
  	uint32_t color;
  	double scale;
  };
-@@ -154,7 +156,7 @@ struct panel_clock {
+@@ -157,7 +159,7 @@ struct panel_clock {
  	struct widget *widget;
  	struct panel *panel;
  	struct toytimer timer;
@@ -41,7 +41,7 @@ index a81eb0afe..b2414be1b 100644
  	time_t refresh_timer;
  };
  
-@@ -167,6 +169,36 @@ struct unlock_dialog {
+@@ -170,6 +172,36 @@ struct unlock_dialog {
  	struct desktop *desktop;
  };
  
@@ -160,7 +160,7 @@ index a81eb0afe..b2414be1b 100644
  	if (panel->clock_format != CLOCK_FORMAT_NONE)
  		panel_add_clock(panel);
  
-@@ -1556,6 +1580,9 @@ parse_clock_format(struct desktop *desktop, struct weston_config_section *s)
+@@ -1522,6 +1546,9 @@ parse_clock_format(struct desktop *desktop, struct weston_config_section *s)
  	else
  		desktop->clock_format = DEFAULT_CLOCK_FORMAT;
  	free(clock_format);

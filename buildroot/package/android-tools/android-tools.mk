@@ -103,10 +103,12 @@ endif
 
 ADBD_AUTH_PASSWORD = $(call qstrip,$(BR2_PACKAGE_ANDROID_TOOLS_AUTH_PASSWORD))
 ifneq ($(ADBD_AUTH_PASSWORD),)
+ADBD_AUTH_PASSWORD_MD5=$(shell echo $(ADBD_AUTH_PASSWORD) | md5sum)
+
 define ANDROID_TOOLS_INSTALL_AUTH
 	$(INSTALL) -D -m 0755 $(ANDROID_TOOLS_PKGDIR)/adb_auth.sh \
 		$(TARGET_DIR)/usr/bin/adb_auth.sh
-	sed -i "s/AUTH_PASSWORD/${ADBD_AUTH_PASSWORD}/g" \
+	sed -i "s/AUTH_PASSWORD/${ADBD_AUTH_PASSWORD_MD5}/g" \
 		$(TARGET_DIR)/usr/bin/adb_auth.sh
 endef
 endif
@@ -117,6 +119,14 @@ define ANDROID_TOOLS_INSTALL_TARGET_CMDS
 	$(ANDROID_TOOLS_INSTALL_AUTH)
 	$(ANDROID_TOOLS_INSTALL_RSAAUTH_ENV)
 endef
+
+ifeq ($(BR2_PACKAGE_BASH),y)
+define ANDROID_TOOLS_INSTALL_TARGET_SHELL_ENV
+        $(INSTALL) -D -m 0644 $(ANDROID_TOOLS_PKGDIR)/adbd_shell.sh \
+                $(TARGET_DIR)/etc/profile.d/adbd_shell.sh
+endef
+ANDROID_TOOLS_POST_INSTALL_TARGET_HOOKS += ANDROID_TOOLS_INSTALL_TARGET_SHELL_ENV
+endif
 
 $(eval $(generic-package))
 $(eval $(host-generic-package))

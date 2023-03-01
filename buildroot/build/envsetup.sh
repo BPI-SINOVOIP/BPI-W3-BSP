@@ -53,6 +53,13 @@ function lunch_rockchip()
 	echo
 	echo "==========================================="
 
+	if [ $RK_DEFCONFIG_ARRAY_LEN -eq 0 ]; then
+		echo "Continue without defconfig..."
+		make -C ${BUILDROOT_DIR} O="$TARGET_OUTPUT_DIR" \
+			olddefconfig &>/dev/null
+		return 0
+	fi
+
 	make -C ${BUILDROOT_DIR} O="$TARGET_OUTPUT_DIR" \
 		"$RK_BUILD_CONFIG"_defconfig
 
@@ -79,7 +86,7 @@ function main()
 
 	RK_DEFCONFIG_ARRAY=(
 		$(cd ${BUILDROOT_DIR}/configs/; ls rockchip_* | \
-			sed "s/_defconfig$//" | grep "$1" | sort)
+			grep "$(basename $1)" | sed "s/_defconfig$//" | sort)
 	)
 
 	unset RK_BUILD_CONFIG
@@ -87,7 +94,14 @@ function main()
 
 	case $RK_DEFCONFIG_ARRAY_LEN in
 		0)
-			echo No available configs${1:+" for: $1"}
+			BOARD="$(echo $1 | \
+				sed "s#^\(output/\|\)rockchip_\([^/]*\).*#\2#")"
+			RK_BUILD_CONFIG="${BOARD:+rockchip_$BOARD}"
+			CONFIG="$BUILDROOT_OUTPUT_DIR/$RK_BUILD_CONFIG/.config"
+			if [ ! -f "$CONFIG" ]; then
+				unset RK_BUILD_CONFIG
+				echo "No available configs${1:+" for: $1"}"
+			fi
 			;;
 		1)
 			RK_BUILD_CONFIG=${RK_DEFCONFIG_ARRAY[0]}
@@ -104,8 +118,6 @@ function main()
 
 	[ -n "$RK_BUILD_CONFIG" ] || return
 
-	source ${TOP_DIR}/device/rockchip/.BoardConfig.mk
-
 	lunch_rockchip
 
 	# Set alias
@@ -113,6 +125,7 @@ function main()
 	alias broot="cd ${BUILDROOT_DIR}"
 	alias bpkg="cd ${BUILDROOT_DIR}/package"
 	alias bout="cd ${TARGET_OUTPUT_DIR}"
+	alias bmake="make -f ${TARGET_OUTPUT_DIR}/Makefile"
 }
 
 if [ "${BASH_SOURCE}" == "$0" ];then

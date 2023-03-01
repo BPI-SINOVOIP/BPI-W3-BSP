@@ -5,14 +5,14 @@
 ################################################################################
 
 LIBDRM_CURSOR_SITE = https://github.com/JeffyCN/drm-cursor.git
-LIBDRM_CURSOR_VERSION = 1.3.0
+LIBDRM_CURSOR_VERSION = 1.4.0
 LIBDRM_CURSOR_SITE_METHOD = git
 LIBDRM_CURSOR_AUTORECONF = YES
 
 LIBDRM_CURSOR_LICENSE = LGPL-2.1
 LIBDRM_CURSOR_LICENSE_FILES = COPYING
 
-LIBDRM_CURSOR_DEPENDENCIES = libdrm
+LIBDRM_CURSOR_DEPENDENCIES = libdrm libgbm
 
 define LIBDRM_CURSOR_PRELOAD
 	cd $(TARGET_DIR)/etc/; \

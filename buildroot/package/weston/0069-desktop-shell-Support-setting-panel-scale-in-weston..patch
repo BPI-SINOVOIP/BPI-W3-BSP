@@ -1,7 +1,7 @@
-From 0e1f339e66d16172bc09e843696a0ada0831630a Mon Sep 17 00:00:00 2001
+From 5ca37afb4480c4042dd1ffc0f2fae0f13baeb195 Mon Sep 17 00:00:00 2001
 From: Jeffy Chen <jeffy.chen@rock-chips.com>
 Date: Thu, 2 Jun 2022 19:00:40 +0800
-Subject: [PATCH 69/69] desktop-shell: Support setting panel scale in
+Subject: [PATCH 69/79] desktop-shell: Support setting panel scale in
  weston.ini
 
 Tested with:
@@ -14,10 +14,10 @@ Signed-off-by: Jeffy Chen <jeffy.chen@rock-chips.com>
  1 file changed, 26 insertions(+), 15 deletions(-)
 
 diff --git a/clients/desktop-shell.c b/clients/desktop-shell.c
-index 6cf21dad7..a81eb0afe 100644
+index a5d59a57..2a1e70e0 100644
 --- a/clients/desktop-shell.c
 +++ b/clients/desktop-shell.c
-@@ -109,6 +109,7 @@ struct panel {
+@@ -110,6 +110,7 @@ struct panel {
  	enum weston_desktop_shell_panel_position panel_position;
  	enum clock_format clock_format;
  	uint32_t color;

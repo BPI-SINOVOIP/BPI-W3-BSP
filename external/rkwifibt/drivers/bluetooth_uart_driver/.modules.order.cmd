@@ -1,1 +1,0 @@
-cmd_/media/jack/data2/3588_linux/3588_linux5.10_v1.0.5/external/rkwifibt/drivers/bluetooth_uart_driver/modules.order := {   echo /media/jack/data2/3588_linux/3588_linux5.10_v1.0.5/external/rkwifibt/drivers/bluetooth_uart_driver/hci_uart.ko; :; } | awk '!x[$$0]++' - > /media/jack/data2/3588_linux/3588_linux5.10_v1.0.5/external/rkwifibt/drivers/bluetooth_uart_driver/modules.order

@@ -1,28 +1,21 @@
-#include "base.config"
-#include "base_extra.config"
-#include "rk3399_arm64.config"
-
-#include "debug.config"
-
+#include "chips/rk3399_aarch64.config"
+#include "base/base.config"
 #include "audio.config"
 #include "audio_gst.config"
 #include "camera.config"
 #include "camera_gst.config"
+#include "weston.config"
+#include "chromium.config"
+#include "gpu.config"
+#include "powermanager.config"
 #include "video_mpp.config"
 #include "video_gst.config"
 #include "video_gst_rtsp.config"
-
-#include "gpu.config"
-#include "weston.config"
-
-#include "network.config"
-#include "wifi.config"
-#include "bt.config"
-
-#include "chromium.config"
-
-#include "test.config"
+#include "ntfs.config"
+#include "exfat.config"
+#include "vfat.config"
 #include "benchmark.config"
-
-BR2_PACKAGE_RKWIFIBT_AP6255=y
-BR2_PACKAGE_RKWIFIBT_BTUART="ttyS0"
+#include "debug.config"
+#include "test.config"
+#include "network.config"
+#include "bt.config"
