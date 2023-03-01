@@ -16,9 +16,6 @@ cd $COMMON_DIR
 cd ../../..
 TOP_DIR=$(pwd)
 
-BOARD_CONFIG=$TOP_DIR/device/rockchip/.BoardConfig.mk
-source $BOARD_CONFIG
-
 TEMPDIR=${OUTPUT}/tempfile
 if [ "$MODE" = "DM-E" ]; then
 	ROOTFS=${OUTPUT}/enc.img
@@ -102,7 +99,7 @@ elif [ "$MODE" = "DM-E" ]; then
 	sed -i "s/CIPHER=/CIPHER=${cipher}/" ${INIT_FILE}
 
 	echo "Generate misc with key"
-	${COMMON_DIR}/mk-misc.sh ${COMMON_DIR}/../rockimg/${RK_MISC} ${COMMON_DIR}/../rockimg/misc.img 64 $(cat ${TOP_DIR}/u-boot/keys/system_enc_key)
+	${COMMON_DIR}/mk-misc.sh ${COMMON_DIR}/images/${RK_MISC} ${COMMON_DIR}/images/misc.img 64 $(cat ${TOP_DIR}/u-boot/keys/system_enc_key)
 fi
 
 sed -i "s/# exec busybox switch_root/exec busybox switch_root/" ${INIT_FILE}

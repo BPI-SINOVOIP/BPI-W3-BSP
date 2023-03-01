@@ -10,7 +10,7 @@
 
     images {
         fdt {
-            data = /incbin/("kernel/arch/arm64/boot/dts/rk3568-evb1-ddr4-v10-linux.dtb");
+            data = /incbin/("@KERNEL_DTB@");
             type = "flat_dt";
             arch = "arm64";
             compression = "none";
@@ -22,7 +22,7 @@
         };
 
         kernel {
-            data = /incbin/("kernel/arch/arm64/boot/Image");
+            data = /incbin/("@KERNEL_IMG@");
             type = "kernel";
             arch = "arm64";
             os = "linux";
@@ -36,7 +36,7 @@
         };
 
         resource {
-            data = /incbin/("kernel/resource.img");
+            data = /incbin/("@RESOURCE_IMG@");
             type = "multi";
             arch = "arm64";
             compression = "none";

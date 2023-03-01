@@ -8,14 +8,14 @@ SIZE=$3
 BUF=$4
 
 COMMON_DIR=$(dirname $(readlink -f $0))
-ROCKIMG_DIR=${COMMON_DIR}/../rockimg
+IMG_DIR=${COMMON_DIR}/images
 
 if [ ! -e ${INPUT} ]; then
 	echo "ERROR: No input file \"${INPUT}\""
 	exit -1
 fi
 
-rm ${ROCKIMG_DIR}/${OUTPUT} || true
+rm ${IMG_DIR}/${OUTPUT} || true
 
 if [ ${SIZE} -gt 1024 ]; then
 	echo "ERROR: SIZE bigger than 1K"

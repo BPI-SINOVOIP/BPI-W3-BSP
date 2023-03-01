@@ -6,7 +6,6 @@ SCRIPT_DIR=$(dirname $(realpath $BASH_SOURCE))
 TOP_DIR=$(realpath $SCRIPT_DIR/../../../../..)
 cd $TOP_DIR
 
-source $TOP_DIR/device/rockchip/.BoardConfig.mk
 BUILD_DIR=build
 TOOLS_OUT_DIR=$TOP_DIR/device/rockchip/rk1808/rk1808_compute_stick_tool/rknputools/$BUILD_DIR
 LIB_OUT_DIR=$TOOLS_OUT_DIR/lib64

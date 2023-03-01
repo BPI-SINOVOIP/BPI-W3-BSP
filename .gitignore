@@ -1,0 +1,13 @@
+br.log
+/rockdev
+/.rootfs
+/.buildroot
+/.recovery
+/debian/binary/
+/debian/linaro-bullseye-alip-20221230-1.tar.gz
+/debian/linaro-rootfs.img
+/rockdev/
+/external/
+/IMAGE
+.buildroot
+.recovery

@@ -1,14 +1,11 @@
 #!/bin/bash
 
-if [ ! -d "$TARGET_OUTPUT_DIR" ]; then
-    echo "Source buildroot/build/envsetup.sh firstly!!!"
-    exit 1
-fi
-
 # Prefer using buildroot host tools for compatible.
-HOST_DIR=$TARGET_OUTPUT_DIR/host
-BUILDROOT_IMAGE_DIR=$HOST_DIR/../images/
-export PATH=$HOST_DIR/usr/sbin:$HOST_DIR/usr/bin:$HOST_DIR/sbin:$HOST_DIR/bin:$PATH
+if [ -d "$TARGET_OUTPUT_DIR" ]; then
+	HOST_DIR=$TARGET_OUTPUT_DIR/host
+	export PATH=$HOST_DIR/usr/sbin:$HOST_DIR/usr/bin:$HOST_DIR/sbin:$HOST_DIR/bin:$PATH
+	echo "Using host tools in $HOST_DIR"
+fi
 
 fatal()
 {
@@ -64,7 +61,7 @@ copy_to_ntfs()
             || break
         find $SRC_DIR -maxdepth $DEPTH -mindepth $DEPTH -type d \
             -exec sh -c 'ntfscp $TARGET "$1" "${1#$SRC_DIR}"' sh {} \; || \
-                fatal "Please update buildroot to: \n83c061e7c9 rockchip: Select host-ntfs-3g"
+	    fatal "Detected non-buildroot ntfscp(doesn't support dir copy)"
         DEPTH=$(($DEPTH + 1))
     done
 
@@ -155,7 +152,7 @@ mkimage_auto_sized()
 
 mk_ubi_image()
 {
-    temp_dir="`dirname $TARGET`"
+    TARGET_DIR="`dirname $TARGET`"
 
     if [ $(( $UBI_BLOCK_SIZE )) -eq $(( 0x20000 )) ]; then
         ubi_block_size_str="128KB"
@@ -184,9 +181,9 @@ mk_ubi_image()
     ubifs_miniosize=$UBI_PAGE_SIZE
 
     partition_size_str="$(( $SIZE_KB / 1024 ))MB"
-    output_image=${temp_dir}/${UBI_VOL_NAME}_${ubi_page_size_str}_${ubi_block_size_str}_${partition_size_str}.ubi
-    temp_ubifs_image=$BUILDROOT_IMAGE_DIR/${UBI_VOL_NAME}_${ubi_page_size_str}_${ubi_block_size_str}_${partition_size_str}.ubifs
-    temp_ubinize_file=$BUILDROOT_IMAGE_DIR/${UBI_VOL_NAME}_${ubi_page_size_str}_${ubi_block_size_str}_${partition_size_str}_ubinize.cfg
+    output_image=${TARGET_DIR}/${UBI_VOL_NAME}_${ubi_page_size_str}_${ubi_block_size_str}_${partition_size_str}.ubi
+    temp_ubifs_image=$TARGET_DIR/${UBI_VOL_NAME}_${ubi_page_size_str}_${ubi_block_size_str}_${partition_size_str}.ubifs
+    temp_ubinize_file=$TARGET_DIR/${UBI_VOL_NAME}_${ubi_page_size_str}_${ubi_block_size_str}_${partition_size_str}_ubinize.cfg
 
     ubifs_maxlebcnt=$(( $SIZE_KB * 1024 / $ubifs_lebsize ))
 

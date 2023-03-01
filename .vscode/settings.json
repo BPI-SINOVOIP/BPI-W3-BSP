@@ -1,0 +1,3 @@
+{
+    "cmake.sourceDirectory": "${workspaceFolder}/buildroot/output/rockchip_rk3588/build/camera-engine-rkaiq-1.0/algos/acsm"
+}

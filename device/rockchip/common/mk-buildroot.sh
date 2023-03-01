@@ -1,26 +1,29 @@
 #!/bin/bash
 
-COMMON_DIR=$(cd `dirname $0`; pwd)
-if [ -h $0 ]
-then
-        CMD=$(readlink $0)
-        COMMON_DIR=$(dirname $CMD)
+set -e
+
+CONFIG=$1
+OUTPUT_DIR="$2"
+BUILDROOT_DIR="${BUILDROOT_DIR:-$(pwd)/buildroot}"
+
+source "$BUILDROOT_DIR"/build/envsetup.sh $CONFIG
+
+# Use buildroot images dir as image output dir
+IMAGE_DIR="$TARGET_OUTPUT_DIR"/images
+rm -rf "$OUTPUT_DIR"
+mkdir -p "$IMAGE_DIR"
+ln -rsf "$IMAGE_DIR" "$OUTPUT_DIR"
+cd "$OUTPUT_DIR"
+
+LOG_FILE="$(pwd)/br.log"
+
+if "$BUILDROOT_DIR"/utils/brmake -C "$BUILDROOT_DIR"; then
+	echo "Log saved on $LOG_FILE"
+	echo "Generated images:"
+	ls rootfs.*
+else
+	echo "Failed to build $CONFIG:"
+	tail -n 100 "$LOG_FILE"
+	echo "Please check details in $LOG_FILE"
+	exit 1
 fi
-cd $COMMON_DIR
-cd ../../..
-TOP_DIR=$(pwd)
-BOARD_CONFIG=$1
-source $BOARD_CONFIG
-if [ -z $RK_CFG_BUILDROOT ]
-then
-        echo "RK_CFG_BUILDROOT is empty, skip building buildroot rootfs!"
-        exit 0
-fi
-source $TOP_DIR/buildroot/build/envsetup.sh $RK_CFG_BUILDROOT
-$TOP_DIR/buildroot/utils/brmake
-if [ $? -ne 0 ]; then
-    echo "log saved on $TOP_DIR/br.log"
-    tail -n 100 $TOP_DIR/br.log
-    exit 1
-fi
-echo "log saved on $TOP_DIR/br.log. pack buildroot image at: $TOP_DIR/buildroot/output/$RK_CFG_BUILDROOT/images/rootfs.$RK_ROOTFS_TYPE"

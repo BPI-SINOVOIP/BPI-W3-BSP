@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Target arch
-export RK_ARCH=arm64
+export RK_KERNEL_ARCH=arm64
 # Uboot defconfig
 export RK_UBOOT_DEFCONFIG=rk3308
 # Kernel defconfig
@@ -18,42 +18,27 @@ export RK_PARAMETER=parameter-64bit.txt
 export RK_CFG_BUILDROOT=rockchip_rk3308_release
 # Recovery config
 export RK_CFG_RECOVERY=rockchip_rk3308_recovery
-# ramboot config
-export RK_CFG_RAMBOOT=
 # Pcba config
 export RK_CFG_PCBA=rockchip_rk3308_pcba
-# Build jobs
-export RK_JOBS=12
 # target chip
-export RK_TARGET_PRODUCT=rk3308
+export RK_CHIP=rk3308
 # Set rootfs type, including ext2 ext4 squashfs
 export RK_ROOTFS_TYPE=squashfs
-# rootfs image path
-export RK_ROOTFS_IMG=rockdev/rootfs.${RK_ROOTFS_TYPE}
-# Set oem partition type, including ext2 squashfs
-export RK_OEM_FS_TYPE=ext2
-# Set userdata partition type, including ext2, fat
-export RK_USERDATA_FS_TYPE=ext2
-#OEM config: /oem/dueros/aispeech-6mic-64bit/aispeech-2mic-64bit/aispeech-4mic-32bit/aispeech-2mic-32bit/aispeech-2mic-kongtiao-32bit/iflytekSDK/CaeDemo_VAD/smart_voice
-export RK_OEM_DIR=oem
-#userdata config
-export RK_USERDATA_DIR=userdata_empty
 MIC_NUM=6
 #misc image
 export RK_MISC=wipe_all-misc.img
-#choose enable distro module
-export RK_DISTRO_MODULE=
-# Define package-file for update_ab.img
-export RK_PACKAGE_FILE_AB=
-# Define package-file for ota update_ota.img
-export RK_PACKAGE_FILE_OTA=
+# Define WiFi BT chip
+# # Compatible with Realtek and AP6XXX WiFi : RK_WIFIBT_CHIP=ALL_AP
+# # Compatible with Realtek and CYWXXX WiFi : RK_WIFIBT_CHIP=ALL_CY
+# # Single WiFi configuration: AP6256 or CYW43455: RK_WIFIBT_CHIP=AP6256
+export RK_WIFIBT_CHIP=AP6255
+# # Define BT ttySX
+export RK_WIFIBT_TTY=ttyS0
 
 ##########################################################
 ### enable build update_sdcard.img
 ### Detail to see docs/Linux/Recovery/Rockchip_Developer_Guide_Linux_Upgrade_CN.pdf
 # export RK_UPDATE_SDCARD_ENABLE_FOR_AB=true
-### Recovery config
-# export RK_UPDATE_SDCARD_CFG_RECOVERY=
-### Recovery image format type: fit(flattened image tree)
-# export RK_RECOVERY_FIT_ITS=
 ##########################################################
+# <dev>:<mount point>:<fs type>:<mount flags>:<source dir>:<image size(M|K|auto)>:[options]
+export RK_EXTRA_PARTITIONS="oem:/oem:ext2:defaults:oem_empty:auto:resize@userdata:/userdata:ext2:defaults:userdata_empty:auto:resize"

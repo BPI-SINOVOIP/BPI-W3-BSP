@@ -2,9 +2,9 @@
 
 export LC_ALL=C
 export LD_LIBRARY_PATH=
-unset RK_CFG_TOOLCHAIN
 
-err_handler() {
+err_handler()
+{
 	ret=$?
 	[ "$ret" -eq 0 ] && return
 
@@ -16,12 +16,14 @@ err_handler() {
 trap 'err_handler' ERR
 set -eE
 
-function finish_build(){
+finish_build()
+{
 	echo "Running ${FUNCNAME[1]} succeeded."
 	cd $TOP_DIR
 }
 
-function check_config(){
+check_config()
+{
 	unset missing
 	for var in $@; do
 		eval [ \$$var ] && continue
@@ -35,68 +37,48 @@ function check_config(){
 	return 1
 }
 
-function choose_target_board()
+choose_board()
 {
+	BOARD_ARRAY=( $(cd ${CHIP_DIR}/; ls BoardConfig*.mk | sort) )
+
+	RK_TARGET_BOARD_ARRAY_LEN=${#BOARD_ARRAY[@]}
+	if [ $RK_TARGET_BOARD_ARRAY_LEN -eq 0 ]; then
+		echo "No available Board Config"
+		return -1
+	fi
+
 	echo
 	echo "You're building on Linux"
 	echo "Lunch menu...pick a combo:"
 	echo ""
 
 	echo "0. default BoardConfig.mk"
-	echo ${RK_TARGET_BOARD_ARRAY[@]} | xargs -n 1 | sed "=" | sed "N;s/\n/. /"
+	echo ${BOARD_ARRAY[@]} | xargs -n 1 | sed "=" | sed "N;s/\n/. /"
 
 	local INDEX
 	read -p "Which would you like? [0]: " INDEX
 	INDEX=$((${INDEX:-0} - 1))
 
 	if echo $INDEX | grep -vq [^0-9]; then
-		RK_BUILD_TARGET_BOARD="${RK_TARGET_BOARD_ARRAY[$INDEX]}"
+		BOARD="${BOARD_ARRAY[$INDEX]}"
 	else
 		echo "Lunching for Default BoardConfig.mk boards..."
-		RK_BUILD_TARGET_BOARD=BoardConfig.mk
-	fi
-}
-
-function build_select_board()
-{
-	RK_TARGET_BOARD_ARRAY=( $(cd ${TARGET_PRODUCT_DIR}/; ls BoardConfig*.mk | sort) )
-
-	RK_TARGET_BOARD_ARRAY_LEN=${#RK_TARGET_BOARD_ARRAY[@]}
-	if [ $RK_TARGET_BOARD_ARRAY_LEN -eq 0 ]; then
-		echo "No available Board Config"
-		return
+		BOARD=BoardConfig.mk
 	fi
 
-	choose_target_board
-
-	ln -rfs $TARGET_PRODUCT_DIR/$RK_BUILD_TARGET_BOARD device/rockchip/.BoardConfig.mk
-	echo "switching to board: `realpath $BOARD_CONFIG`"
+	ln -rsf "$CHIP_DIR/$BOARD" "$BOARD_CONFIG"
+	echo "switching to board: $(realpath $BOARD_CONFIG)"
 }
 
-function unset_board_config_all()
-{
-	local tmp_file=`mktemp`
-	grep -oh "^export.*RK_.*=" `find device -name "Board*.mk"` > $tmp_file
-	source $tmp_file
-	rm -f $tmp_file
-}
+COMMON_DIR="$(dirname "$(realpath "$0")")"
+TOP_DIR="$(realpath "$COMMON_DIR/../../..")"
+cd "$TOP_DIR"
+mkdir -p rockdev
 
-CMD=`realpath $0`
-COMMON_DIR=`dirname $CMD`
-TOP_DIR=$(realpath $COMMON_DIR/../../..)
-cd $TOP_DIR
+BOARD_CONFIG="$TOP_DIR/device/rockchip/.BoardConfig.mk"
+CHIP_DIR="$(realpath $TOP_DIR/device/rockchip/.target_product)"
 
-BOARD_CONFIG=$TOP_DIR/device/rockchip/.BoardConfig.mk
-TARGET_PRODUCT="$TOP_DIR/device/rockchip/.target_product"
-TARGET_PRODUCT_DIR=$(realpath ${TARGET_PRODUCT})
-
-if [ ! -L "$BOARD_CONFIG" -a  "$1" != "lunch" ]; then
-	build_select_board
-fi
-unset_board_config_all
-[ -L "$BOARD_CONFIG" ] && source $BOARD_CONFIG
-
-function prebuild_uboot()
+prebuild_uboot()
 {
 	UBOOT_COMPILE_COMMANDS="\
 			${RK_TRUST_INI_CONFIG:+../rkbin/RKTRUST/$RK_TRUST_INI_CONFIG} \
@@ -104,11 +86,6 @@ function prebuild_uboot()
 			${RK_UBOOT_SIZE_CONFIG:+--sz-uboot $RK_UBOOT_SIZE_CONFIG} \
 			${RK_TRUST_SIZE_CONFIG:+--sz-trust $RK_TRUST_SIZE_CONFIG}"
 	UBOOT_COMPILE_COMMANDS="$(echo $UBOOT_COMPILE_COMMANDS)"
-
-	if [ "$RK_LOADER_UPDATE_SPL" = "true" ]; then
-		UBOOT_COMPILE_COMMANDS="--spl-new $UBOOT_COMPILE_COMMANDS"
-		UBOOT_COMPILE_COMMANDS="$(echo $UBOOT_COMPILE_COMMANDS)"
-	fi
 
 	if [ "$RK_RAMDISK_SECURITY_BOOTUP" = "true" ];then
 		UBOOT_COMPILE_COMMANDS=" \
@@ -118,7 +95,7 @@ function prebuild_uboot()
 	fi
 }
 
-function prebuild_security_uboot()
+prebuild_security_uboot()
 {
 	local mode=$1
 
@@ -153,147 +130,24 @@ function prebuild_security_uboot()
 	fi
 }
 
-function usagekernel()
-{
-	check_config RK_KERNEL_DTS RK_KERNEL_DEFCONFIG || return 0
-
-	echo "cd kernel"
-	echo "make ARCH=$RK_ARCH $RK_KERNEL_DEFCONFIG $RK_KERNEL_DEFCONFIG_FRAGMENT"
-	echo "make ARCH=$RK_ARCH $RK_KERNEL_DTS.img -j$RK_JOBS"
-}
-
-function usageuboot()
-{
-	check_config RK_UBOOT_DEFCONFIG || return 0
-	prebuild_uboot
-	prebuild_security_uboot $1
-
-	cd u-boot
-	echo "cd u-boot"
-	if [ -n "$RK_UBOOT_DEFCONFIG_FRAGMENT" ]; then
-		if [ -f "configs/${RK_UBOOT_DEFCONFIG}_defconfig" ]; then
-			echo "make ${RK_UBOOT_DEFCONFIG}_defconfig $RK_UBOOT_DEFCONFIG_FRAGMENT"
-		else
-			echo "make ${RK_UBOOT_DEFCONFIG}.config $RK_UBOOT_DEFCONFIG_FRAGMENT"
-		fi
-		echo "./make.sh $UBOOT_COMPILE_COMMANDS"
-	else
-		echo "./make.sh $RK_UBOOT_DEFCONFIG $UBOOT_COMPILE_COMMANDS"
-	fi
-
-	if [ "$RK_IDBLOCK_UPDATE_SPL" = "true" ]; then
-		echo "./make.sh --idblock --spl"
-	fi
-
-	finish_build
-}
-
-function usagerootfs()
-{
-	check_config RK_ROOTFS_IMG || return 0
-
-	if [ "${RK_CFG_BUILDROOT}x" != "x" ];then
-		echo "source envsetup.sh $RK_CFG_BUILDROOT"
-	else
-		if [ "${RK_CFG_RAMBOOT}x" != "x" ];then
-			echo "source envsetup.sh $RK_CFG_RAMBOOT"
-		else
-			echo "Not found config buildroot. Please Check !!!"
-		fi
-	fi
-
-	case "${RK_ROOTFS_SYSTEM:-buildroot}" in
-		yocto)
-			;;
-		debian)
-			;;
-		*)
-			echo "make"
-			;;
-	esac
-}
-
-function usagerecovery()
-{
-	check_config RK_CFG_RECOVERY || return 0
-
-	echo "source envsetup.sh $RK_CFG_RECOVERY"
-	echo "$COMMON_DIR/mk-ramdisk.sh recovery.img $RK_CFG_RECOVERY"
-}
-
-function usageramboot()
-{
-	check_config RK_CFG_RAMBOOT || return 0
-
-	echo "source envsetup.sh $RK_CFG_RAMBOOT"
-	echo "$COMMON_DIR/mk-ramdisk.sh ramboot.img $RK_CFG_RAMBOOT"
-}
-
-function usagemodules()
-{
-	check_config RK_KERNEL_DEFCONFIG || return 0
-
-	echo "cd kernel"
-	echo "make ARCH=$RK_ARCH $RK_KERNEL_DEFCONFIG"
-	echo "make ARCH=$RK_ARCH modules -j$RK_JOBS"
-}
-
-function usagesecurity()
-{
-	case "$1" in
-		uboot) usageboot $1;;
-		boot)
-			usageramboot;
-			echo "cp buildroot/output/$RK_CFG_RAMBOOT/images/ramboot.img u-boot/boot.img"
-			usageuboot $1;;
-		recovery)
-			usagerecovery;
-			echo "cp buildroot/output/$RK_CFG_RECOVERY/images/recovery.img u-boot/recovery.img"
-			usageuboot $1;;
-		rootfs)
-			usagerootfs;
-			usagesecurity boot;;
-		*);;
-	esac
-}
-
-function usagesecurity_uboot()
-{
-	usageuboot uboot
-}
-
-function usagesecurity_boot()
-{
-	usagesecurity boot
-}
-
-function usagesecurity_recovery()
-{
-	usagesecurity recovery
-}
-
-function usagesecurity_rootfs()
-{
-	usagesecurity rootfs
-}
-
-function usage()
+usage()
 {
 	echo "Usage: build.sh [OPTIONS]"
 	echo "Available options:"
 	echo "BoardConfig*.mk    -switch to specified board config"
 	echo "lunch              -list current SDK boards and switch to specified board config"
+	echo "wifibt             -build wifibt"
 	echo "uboot              -build uboot"
 	echo "uefi		 -build uefi"
 	echo "spl                -build spl"
 	echo "loader             -build loader"
+	echo "kernel-4.4         -build kernel 4.4"
+	echo "kernel-4.19        -build kernel 4.19"
+	echo "kernel-5.10        -build kernel 5.10"
 	echo "kernel             -build kernel"
 	echo "modules            -build kernel modules"
-	echo "toolchain          -build toolchain"
-	echo "rootfs             -build default rootfs, currently build buildroot as default"
+	echo "rootfs             -build rootfs (default is buildroot)"
 	echo "buildroot          -build buildroot rootfs"
-	echo "ramboot            -build ramboot image"
-	echo "multi-npu_boot     -build boot image for multi-npu board"
 	echo "yocto              -build yocto rootfs"
 	echo "debian             -build debian rootfs"
 	echo "pcba               -build pcba"
@@ -306,10 +160,7 @@ function usage()
 	echo "sdpackage          -pack update sdcard package image (update_sdcard.img)"
 	echo "save               -save images, patches, commands used to debug"
 	echo "allsave            -build all & firmware & updateimg & save"
-	echo "check              -check the environment of building"
 	echo "info               -see the current board building information"
-	echo "app/<pkg>          -build packages in the dir of app/*"
-	echo "external/<pkg>     -build packages in the dir of external/*"
 	echo ""
 	echo "createkeys         -create secureboot root keys"
 	echo "security_rootfs    -build rootfs and some relevant images with security paramter (just for dm-v)"
@@ -321,9 +172,10 @@ function usage()
 	echo "Default option is 'allsave'."
 }
 
-function build_info(){
-	if [ ! -L $TARGET_PRODUCT_DIR ];then
-		echo "No found target product!!!"
+build_info()
+{
+	if [ ! -L $CHIP_DIR ];then
+		echo "No found target chip!!!"
 	fi
 	if [ ! -L $BOARD_CONFIG ];then
 		echo "No found target board config!!!"
@@ -339,50 +191,47 @@ function build_info(){
 	fi
 
 	echo "Current Building Information:"
-	echo "Target Product: $TARGET_PRODUCT_DIR"
+	echo "Target Chip: $CHIP_DIR"
 	echo "Target BoardConfig: `realpath $BOARD_CONFIG`"
 	echo "Target Misc config:"
 	echo "`env |grep "^RK_" | grep -v "=$" | sort`"
 
-	local kernel_file_dtb
-
-	if [ "$RK_ARCH" == "arm" ]; then
-		kernel_file_dtb="${TOP_DIR}/kernel/arch/arm/boot/dts/${RK_KERNEL_DTS}.dtb"
+	if [ "$RK_KERNEL_ARCH" == "arm" ]; then
+		dtb="kernel/arch/arm/boot/dts/${RK_KERNEL_DTS}.dtb"
 	else
-		kernel_file_dtb="${TOP_DIR}/kernel/arch/arm64/boot/dts/rockchip/${RK_KERNEL_DTS}.dtb"
+		dtb="kernel/arch/arm64/boot/dts/rockchip/${RK_KERNEL_DTS}.dtb"
 	fi
 
-	rm -f $kernel_file_dtb
+	rm -f $dtb
 
-	cd kernel
-	make ARCH=$RK_ARCH dtbs -j$RK_JOBS
+	$KMAKE dtbs
 
 	build_check_power_domain
 }
 
-function build_check_power_domain(){
+build_check_power_domain()
+{
 	local dump_kernel_dtb_file
 	local tmp_phandle_file
 	local tmp_io_domain_file
 	local tmp_regulator_microvolt_file
 	local tmp_final_target
 	local tmp_none_item
-	local kernel_file_dtb_dts
 
-	if [ "$RK_ARCH" == "arm" ]; then
-		kernel_file_dtb_dts="${TOP_DIR}/kernel/arch/arm/boot/dts/$RK_KERNEL_DTS"
+	if [ "$RK_KERNEL_ARCH" == "arm" ]; then
+		dts="kernel/arch/arm/boot/dts/$RK_KERNEL_DTS"
 	else
-		kernel_file_dtb_dts="${TOP_DIR}/kernel/arch/arm64/boot/dts/rockchip/$RK_KERNEL_DTS"
+		dts="kernel/arch/arm64/boot/dts/rockchip/$RK_KERNEL_DTS"
 	fi
 
-	dump_kernel_dtb_file=${kernel_file_dtb_dts}.dump.dts
+	dump_kernel_dtb_file=${dts}.dump.dts
 	tmp_phandle_file=`mktemp`
 	tmp_io_domain_file=`mktemp`
 	tmp_regulator_microvolt_file=`mktemp`
 	tmp_final_target=`mktemp`
 	tmp_grep_file=`mktemp`
 
-	dtc -I dtb -O dts -o ${dump_kernel_dtb_file} ${kernel_file_dtb_dts}.dtb 2>/dev/null
+	dtc -I dtb -O dts -o ${dump_kernel_dtb_file} ${dts}.dtb 2>/dev/null
 
 	if [ "$RK_SYSTEM_CHECK_METHOD" = "DM-E" ] ; then
 		if ! grep "compatible = \"linaro,optee-tz\";" $dump_kernel_dtb_file > /dev/null 2>&1 ; then
@@ -398,7 +247,7 @@ function build_check_power_domain(){
 	fi
 
 	if ! grep -Pzo "io-domains\s*{(\n|\w|-|;|=|<|>|\"|_|\s|,)*};" $dump_kernel_dtb_file 1>$tmp_grep_file 2>/dev/null; then
-		echo "Not Found io-domains in ${kernel_file_dtb_dts}.dts"
+		echo "Not Found io-domains in ${dts}.dts"
 		rm -f $tmp_grep_file
 		return 0
 	fi
@@ -432,11 +281,11 @@ function build_check_power_domain(){
 
 	echo -e "\e[41;1;30m PLEASE CHECK BOARD GPIO POWER DOMAIN CONFIGURATION !!!!!\e[0m"
 	echo -e "\e[41;1;30m <<< ESPECIALLY Wi-Fi/Flash/Ethernet IO power domain >>> !!!!!\e[0m"
-	echo -e "\e[41;1;30m Check Node [pmu_io_domains] in the file: ${kernel_file_dtb_dts}.dts \e[0m"
+	echo -e "\e[41;1;30m Check Node [pmu_io_domains] in the file: ${dts}.dts \e[0m"
 	echo
 	echo -e "\e[41;1;30m 请再次确认板级的电源域配置！！！！！！\e[0m"
 	echo -e "\e[41;1;30m <<< 特别是Wi-Fi，FLASH，以太网这几路IO电源的配置 >>> ！！！！！\e[0m"
-	echo -e "\e[41;1;30m 检查内核文件 ${kernel_file_dtb_dts}.dts 的节点 [pmu_io_domains] \e[0m"
+	echo -e "\e[41;1;30m 检查内核文件 ${dts}.dts 的节点 [pmu_io_domains] \e[0m"
 	cat $tmp_final_target
 
 	rm -f $tmp_phandle_file
@@ -446,126 +295,59 @@ function build_check_power_domain(){
 	rm -f $dump_kernel_dtb_file
 }
 
-function build_check_cross_compile(){
+setup_cross_compile()
+{
+	if [ "$RK_CHIP" = "rv1126_rv1109" ]; then
+		TOOLCHAIN_OS=rockchip
+	else
+		TOOLCHAIN_OS=none
+	fi
 
-	case $RK_ARCH in
-	arm|armhf)
-		if [ -d "$TOP_DIR/prebuilts/gcc/linux-x86/arm/gcc-arm-10.3-2021.07-x86_64-arm-none-linux-gnueabihf" ]; then
-			CROSS_COMPILE=$(realpath $TOP_DIR)/prebuilts/gcc/linux-x86/arm/gcc-arm-10.3-2021.07-x86_64-arm-none-linux-gnueabihf/bin/arm-linux-gnueabihf-
-		export CROSS_COMPILE=$CROSS_COMPILE
-		fi
-		;;
-	arm64|aarch64)
-		if [ -d "$TOP_DIR/prebuilts/gcc/linux-x86/aarch64/gcc-arm-10.3-2021.07-x86_64-aarch64-none-linux-gnu" ]; then
-			CROSS_COMPILE=$(realpath $TOP_DIR)/prebuilts/gcc/linux-x86/aarch64/gcc-arm-10.3-2021.07-x86_64-aarch64-none-linux-gnu/bin/aarch64-none-linux-gnu-
-		export CROSS_COMPILE=$CROSS_COMPILE
-		fi
-		;;
-	*)
-		echo "the $RK_ARCH not supported for now, please check it again\n"
-		;;
-	esac
-}
-
-function build_check(){
-	local build_depend_cfg="build-depend-tools.txt"
-	common_product_build_tools="device/rockchip/common/$build_depend_cfg"
-	target_product_build_tools="device/rockchip/$RK_TARGET_PRODUCT/$build_depend_cfg"
-	cat $common_product_build_tools $target_product_build_tools 2>/dev/null | while read chk_item
-		do
-			chk_item=${chk_item###*}
-			if [ -z "$chk_item" ]; then
-				continue
-			fi
-
-			dst=${chk_item%%,*}
-			src=${chk_item##*,}
-			echo "**************************************"
-			if eval $dst &>/dev/null;then
-				echo "Check [OK]: $dst"
-			else
-				echo "Please install ${dst%% *} first"
-				echo "    sudo apt-get install $src"
-			fi
-		done
-}
-
-function build_pkg() {
-	check_config RK_CFG_BUILDROOT || check_config RK_CFG_RAMBOOT || check_config RK_CFG_RECOVERY || check_config RK_CFG_PCBA || return 0
-
-	local target_pkg=$1
-	target_pkg=${target_pkg%*/}
-
-	if [ ! -d $target_pkg ];then
-		echo "build pkg: error: not found package $target_pkg"
+	TOOLCHAIN_ARCH=${RK_KERNEL_ARCH/arm64/aarch64}
+	TOOLCHAIN_DIR="$(realpath prebuilts/gcc/*/$TOOLCHAIN_ARCH/gcc-arm-*)"
+	GCC="$(find "$TOOLCHAIN_DIR" -name "*$TOOLCHAIN_OS*-gcc")"
+	if [ ! -x "$GCC" ]; then
+		echo "No prebuilt GCC toolchain!"
 		return 1
 	fi
 
-	if ! eval [ $rk_package_mk_arrry ];then
-		rk_package_mk_arrry=( $(find buildroot/package/rockchip/ -name "*.mk" | sort) )
-	fi
+	export CROSS_COMPILE="${GCC%gcc}"
+	echo "Using prebuilt GCC toolchain: $CROSS_COMPILE"
 
-	local pkg_mk pkg_config_in pkg_br pkg_final_target pkg_final_target_upper pkg_cfg
-
-	for it in ${rk_package_mk_arrry[@]}
-	do
-		pkg_final_target=$(basename $it)
-		pkg_final_target=${pkg_final_target%%.mk*}
-		pkg_final_target_upper=${pkg_final_target^^}
-		pkg_final_target_upper=${pkg_final_target_upper//-/_}
-		if grep "${pkg_final_target_upper}_SITE.*$target_pkg" $it &>/dev/null; then
-			pkg_mk=$it
-			pkg_config_in=$(dirname $pkg_mk)/Config.in
-			pkg_br=BR2_PACKAGE_$pkg_final_target_upper
-
-			for cfg in RK_CFG_BUILDROOT RK_CFG_RAMBOOT RK_CFG_RECOVERY RK_CFG_PCBA
-			do
-				if eval [ \$$cfg ] ;then
-					pkg_cfg=$( eval "echo \$$cfg" )
-					if grep -wq ${pkg_br}=y buildroot/output/$pkg_cfg/.config; then
-						echo "Found $pkg_br in buildroot/output/$pkg_cfg/.config "
-						make -C buildroot/output/$pkg_cfg ${pkg_final_target}-dirclean O=buildroot/output/$pkg_cfg
-						make -C buildroot/output/$pkg_cfg ${pkg_final_target}-rebuild O=buildroot/output/$pkg_cfg
-					else
-						echo "[SKIP BUILD $target_pkg] NOT Found ${pkg_br}=y in buildroot/output/$pkg_cfg/.config"
-					fi
-				fi
-			done
-		fi
-	done
-
-	finish_build
+	NUM_CPUS=$(getconf _NPROCESSORS_ONLN 2>/dev/null || echo 1)
+	JLEVEL=${RK_JOBS:-$(( $NUM_CPUS + 1 ))}
+	KMAKE="make -C kernel/ ARCH=$RK_KERNEL_ARCH -j$JLEVEL"
 }
 
-function build_uefi(){
-	build_check_cross_compile
-	local kernel_file_dtb
+build_uefi()
+{
+	setup_cross_compile
 
-	if [ "$RK_ARCH" == "arm" ]; then
-		kernel_file_dtb="${TOP_DIR}/kernel/arch/arm/boot/dts/${RK_KERNEL_DTS}.dtb"
+	if [ "$RK_KERNEL_ARCH" == "arm" ]; then
+		dtb="kernel/arch/arm/boot/dts/${RK_KERNEL_DTS}.dtb"
 	else
-		kernel_file_dtb="${TOP_DIR}/kernel/arch/arm64/boot/dts/rockchip/${RK_KERNEL_DTS}.dtb"
+		dtb="kernel/arch/arm64/boot/dts/rockchip/${RK_KERNEL_DTS}.dtb"
 	fi
 
 	echo "============Start building uefi============"
-	echo "Copy kernel dtb $kernel_file_dtb to uefi/edk2-platforms/Platform/Rockchip/DeviceTree/rk3588.dtb"
+	echo "Copy kernel dtb $dtb to uefi/edk2-platforms/Platform/Rockchip/DeviceTree/rk3588.dtb"
 	echo "========================================="
-	if [ ! -f $kernel_file_dtb ]; then
+	if [ ! -f $dtb ]; then
 		echo "Please compile the kernel before"
 		return -1
 	fi
 
-	cp $kernel_file_dtb uefi/edk2-platforms/Platform/Rockchip/DeviceTree/rk3588.dtb
+	cp $dtb uefi/edk2-platforms/Platform/Rockchip/DeviceTree/rk3588.dtb
 	cd uefi
 	./make.sh $RK_UBOOT_DEFCONFIG
-	cd -
 
 	finish_build
 }
 
-function build_uboot(){
+build_uboot()
+{
 	check_config RK_UBOOT_DEFCONFIG || return 0
-	build_check_cross_compile
+	setup_cross_compile
 	prebuild_uboot
 	prebuild_security_uboot $@
 
@@ -575,43 +357,47 @@ function build_uboot(){
 
 	cd u-boot
 	rm -f *_loader_*.bin
-	if [ "$RK_LOADER_UPDATE_SPL" = "true" ]; then
-		rm -f *spl.bin
-	fi
 
 	if [ -n "$RK_UBOOT_DEFCONFIG_FRAGMENT" ]; then
 		if [ -f "configs/${RK_UBOOT_DEFCONFIG}_defconfig" ]; then
-			make ${RK_UBOOT_DEFCONFIG}_defconfig $RK_UBOOT_DEFCONFIG_FRAGMENT
+			UBOOT_CONFIGS="${RK_UBOOT_DEFCONFIG}_defconfig"
 		else
-			make ${RK_UBOOT_DEFCONFIG}.config $RK_UBOOT_DEFCONFIG_FRAGMENT
+			UBOOT_CONFIGS="${RK_UBOOT_DEFCONFIG}.config"
 		fi
-		./make.sh $UBOOT_COMPILE_COMMANDS
-	elif [ -d "$TOP_DIR/prebuilts/gcc/linux-x86/arm/gcc-arm-10.3-2021.07-x86_64-arm-none-linux-gnueabihf" ]; then
-		./make.sh $RK_UBOOT_DEFCONFIG \
-			$UBOOT_COMPILE_COMMANDS CROSS_COMPILE=$CROSS_COMPILE
-	elif [ -d "$TOP_DIR/prebuilts/gcc/linux-x86/aarch64/gcc-arm-10.3-2021.07-x86_64-aarch64-none-linux-gnu" ]; then
-		./make.sh $RK_UBOOT_DEFCONFIG \
-			$UBOOT_COMPILE_COMMANDS CROSS_COMPILE=$CROSS_COMPILE
+		UBOOT_CONFIGS="$UBOOT_CONFIGS $RK_UBOOT_DEFCONFIG_FRAGMENT"
 	else
-		./make.sh $RK_UBOOT_DEFCONFIG \
-			$UBOOT_COMPILE_COMMANDS
+		UBOOT_CONFIGS="$RK_UBOOT_DEFCONFIG"
 	fi
+	./make.sh $UBOOT_CONFIGS $UBOOT_COMPILE_COMMANDS \
+		CROSS_COMPILE=$CROSS_COMPILE
 
 	if [ "$RK_IDBLOCK_UPDATE_SPL" = "true" ]; then
 		./make.sh --idblock --spl
 	fi
 
+	cd ..
+
 	if [ "$RK_RAMDISK_SECURITY_BOOTUP" = "true" ];then
-		ln -rsf $TOP_DIR/u-boot/boot.img $TOP_DIR/rockdev/
+		ln -rsf u-boot/boot.img rockdev/
 		test -z "${RK_PACKAGE_FILE_AB}" && \
-			ln -rsf $TOP_DIR/u-boot/recovery.img $TOP_DIR/rockdev/ || true
+			ln -rsf u-boot/recovery.img rockdev/ || true
+	fi
+
+	LOADER="$(echo u-boot/*_loader_*v*.bin | head -1)"
+	SPL="$(echo u-boot/*_loader_spl.bin | head -1)"
+	ln -rsf "${LOADER:-$SPL}" rockdev/MiniLoaderAll.bin
+
+	ln -rsf u-boot/uboot.img rockdev/
+
+	if [ "$RK_UBOOT_FORMAT_TYPE" != "fit" ]; then
+		ln -rsf u-boot/trust.img rockdev/
 	fi
 
 	finish_build
 }
 
-# TODO: build_spl can be replaced by build_uboot with define RK_LOADER_UPDATE_SPL
-function build_spl(){
+build_spl()
+{
 	check_config RK_SPL_DEFCONFIG || return 0
 
 	echo "============Start building spl============"
@@ -622,11 +408,16 @@ function build_spl(){
 	rm -f *spl.bin
 	./make.sh $RK_SPL_DEFCONFIG
 	./make.sh --spl
+	cd ..
+
+	SPL="$(echo u-boot/*_loader_spl.bin | head -1)"
+	ln -rsf "$SPL" rockdev/MiniLoaderAll.bin
 
 	finish_build
 }
 
-function build_loader(){
+build_loader()
+{
 	check_config RK_LOADER_BUILD_TARGET || return 0
 
 	echo "============Start building loader============"
@@ -639,118 +430,500 @@ function build_loader(){
 	finish_build
 }
 
-function build_kernel(){
+build_kernel()
+{
 	check_config RK_KERNEL_DTS RK_KERNEL_DEFCONFIG || return 0
 
 	echo "============Start building kernel============"
-	echo "TARGET_ARCH          =$RK_ARCH"
+	echo "TARGET_KERNEL_ARCH   =$RK_KERNEL_ARCH"
 	echo "TARGET_KERNEL_CONFIG =$RK_KERNEL_DEFCONFIG"
 	echo "TARGET_KERNEL_DTS    =$RK_KERNEL_DTS"
 	echo "TARGET_KERNEL_CONFIG_FRAGMENT =$RK_KERNEL_DEFCONFIG_FRAGMENT"
 	echo "=========================================="
 
-	build_check_cross_compile
+	setup_cross_compile
 
-	cd kernel
-	make ARCH=$RK_ARCH $RK_KERNEL_DEFCONFIG $RK_KERNEL_DEFCONFIG_FRAGMENT
-	make ARCH=$RK_ARCH $RK_KERNEL_DTS.img -j$RK_JOBS
-	if [ -f "$TOP_DIR/device/rockchip/$RK_TARGET_PRODUCT/$RK_KERNEL_FIT_ITS" ]; then
-		$COMMON_DIR/mk-fitimage.sh $TOP_DIR/kernel/$RK_BOOT_IMG \
-			$TOP_DIR/device/rockchip/$RK_TARGET_PRODUCT/$RK_KERNEL_FIT_ITS
+	$KMAKE $RK_KERNEL_DEFCONFIG $RK_KERNEL_DEFCONFIG_FRAGMENT
+	$KMAKE $RK_KERNEL_DTS.img
+
+	ITS="$CHIP_DIR/$RK_KERNEL_FIT_ITS"
+	if [ -f "$ITS" ]; then
+		$COMMON_DIR/mk-fitimage.sh kernel/$RK_BOOT_IMG \
+			"$ITS" $RK_KERNEL_IMG
 	fi
 
-	if [ -f "$TOP_DIR/kernel/$RK_BOOT_IMG" ]; then
-		mkdir -p $TOP_DIR/rockdev
-		ln -sf  $TOP_DIR/kernel/$RK_BOOT_IMG $TOP_DIR/rockdev/boot.img
-	fi
+	ln -rsf kernel/$RK_BOOT_IMG rockdev/boot.img
 
-	if [ "$RK_RAMDISK_SECURITY_BOOTUP" = "true" ];then
-		cp $TOP_DIR/kernel/$RK_BOOT_IMG \
-			$TOP_DIR/u-boot/boot.img
-	fi
+	# For security
+	cp rockdev/boot.img u-boot/
 
 	build_check_power_domain
 
 	finish_build
 }
 
-function build_modules(){
+build_wifibt()
+{
+	setup_cross_compile
+
+	BUILDROOT_OUTDIR=$TOP_DIR/buildroot/output/$RK_CFG_BUILDROOT/
+	BUILDROOT_HOST_DIR=$BUILDROOT_OUTDIR/host/
+
+	if grep -wq aarch64 "$BUILDROOT_OUTDIR/.config" 2>/dev/null; then
+		BUILDROOT_ARCH=arm64
+	else
+		BUILDROOT_ARCH=arm
+	fi
+
+	BUILDROOT_GCC="$(echo $BUILDROOT_HOST_DIR/bin/*buildroot*-gcc)"
+	BUILDROOT_SYSROOT="$(echo $BUILDROOT_HOST_DIR/*/sysroot/)"
+	if [ ! -x "$BUILDROOT_GCC" -o ! -d "$BUILDROOT_SYSROOT" ]; then
+		echo "ERROR: Buildroot not ready!"
+		exit -1
+	fi
+
+	if [ -n "$1" ]; then
+		WIFI_CHIP=$1
+	elif [ -n "$RK_WIFIBT_CHIP" ]; then
+		WIFI_CHIP=$RK_WIFIBT_CHIP
+	else
+		# defile ALL_AP
+		echo "=== WARNNING WIFI_CHIP is NULL so default to ALL_AP ==="
+		WIFI_CHIP=ALL_AP
+	fi
+
+	if [ -n "$2" ]; then
+		BT_TTY_DEV=$2
+	elif [ -n "$RK_WIFIBT_TTY" ]; then
+		BT_TTY_DEV=$RK_WIFIBT_TTY
+	else
+		echo "=== WARNNING BT_TTY is NULL so default to ttyS0 ==="
+		BT_TTY_DEV=ttyS0
+	fi
+
+	#check kernel .config
+	WIFI_USB=`grep "CONFIG_USB=y" $TOP_DIR/kernel/.config` || true
+	WIFI_SDIO=`grep "CONFIG_MMC=y" $TOP_DIR/kernel/.config` || true
+	WIFI_PCIE=`grep "CONFIG_PCIE_DW_ROCKCHIP=y" $TOP_DIR/kernel/.config` || true
+	WIFI_RFKILL=`grep "CONFIG_RFKILL=y" $TOP_DIR/kernel/.config` || true
+	if [ -z "WIFI_SDIO" ]; then
+		echo "=== WARNNING CONFIG_MMC not set !!! ==="
+	fi
+	if [ -z "WIFI_RFKILL" ]; then
+		echo "=== WARNNING CONFIG_USB not set !!! ==="
+	fi
+	if [[ "$WIFI_CHIP" =~ "U" ]];then
+		if [ -z "$WIFI_USB" ]; then
+			echo "=== WARNNING CONFIG_USB not set so ABORT!!! ==="
+			exit 0
+		fi
+	fi
+	echo "kernel config: $WIFI_USB $WIFI_SDIO $WIFI_RFKILL"
+
+	TARGET_CC=${CROSS_COMPILE}gcc
+	RKWIFIBT=$TOP_DIR/external/rkwifibt
+	RKWIFIBT_APP=$TOP_DIR/external/rkwifibt-app
+	TARGET_ROOTFS_DIR=$TOP_DIR/buildroot/output/$RK_CFG_BUILDROOT/target
+
+	echo "========build wifibt info======="
+	echo CROSS_COMPILE=$CROSS_COMPILE
+	echo WIFI_CHIP=$WIFI_CHIP
+	echo BT_TTY_DEV=$BT_TTY_DEV
+	echo TARGET_ROOTFS_DIR=$TARGET_ROOTFS_DIR
+	echo BUILDROOT_GCC=$BUILDROOT_GCC
+	echo BUILDROOT_SYSROOT=$BUILDROOT_SYSROOT
+
+	if [[ "$WIFI_CHIP" =~ "ALL_AP" ]];then
+		echo "building bcmdhd sdio"
+		$KMAKE M=$RKWIFIBT/drivers/bcmdhd CONFIG_BCMDHD=m CONFIG_BCMDHD_SDIO=y CONFIG_BCMDHD_PCIE=
+		if [ -n "$WIFI_PCIE" ]; then
+			echo "building bcmdhd pcie"
+			$KMAKE M=$RKWIFIBT/drivers/bcmdhd CONFIG_BCMDHD=m CONFIG_BCMDHD_PCIE=y CONFIG_BCMDHD_SDIO=
+		fi
+		if [ -n "$WIFI_USB" ]; then
+			echo "building rtl8188fu usb"
+			$KMAKE M=$RKWIFIBT/drivers/rtl8188fu modules
+		fi
+		echo "building rtl8189fs sdio"
+		$KMAKE M=$RKWIFIBT/drivers/rtl8189fs modules
+		echo "building rtl8723ds sdio"
+		$KMAKE M=$RKWIFIBT/drivers/rtl8723ds modules
+		echo "building rtl8821cs sdio"
+		$KMAKE M=$RKWIFIBT/drivers/rtl8821cs modules
+		echo "building rtl8822cs sdio"
+		$KMAKE M=$RKWIFIBT/drivers/rtl8822cs modules
+		echo "building rtl8852bs sdio"
+		$KMAKE M=$RKWIFIBT/drivers/rtl8852bs modules DRV_PATH=$RKWIFIBT/drivers/rtl8852bs
+		if [ -n "$WIFI_PCIE" ]; then
+			echo "building rtl8852be pcie"
+			$KMAKE M=$RKWIFIBT/drivers/rtl8852be modules DRV_PATH=$RKWIFIBT/drivers/rtl8852be
+		fi
+	fi
+
+	if [[ "$WIFI_CHIP" =~ "ALL_CY" ]];then
+		echo "building CYW4354"
+		cp $RKWIFIBT/drivers/infineon/chips/CYW4354_Makefile $RKWIFIBT/drivers/infineon/Makefile -r
+		$KMAKE M=$RKWIFIBT/drivers/infineon
+		echo "building CYW4373"
+		cp $RKWIFIBT/drivers/infineon/chips/CYW4373_Makefile $RKWIFIBT/drivers/infineon/Makefile -r
+		$KMAKE M=$RKWIFIBT/drivers/infineon
+		echo "building CYW43438"
+		cp $RKWIFIBT/drivers/infineon/chips/CYW43438_Makefile $RKWIFIBT/drivers/infineon/Makefile -r
+		$KMAKE M=$RKWIFIBT/drivers/infineon
+		echo "building CYW43455"
+		cp $RKWIFIBT/drivers/infineon/chips/CYW43455_Makefile $RKWIFIBT/drivers/infineon/Makefile -r
+		$KMAKE M=$RKWIFIBT/drivers/infineon
+		echo "building CYW5557X"
+		cp $RKWIFIBT/drivers/infineon/chips/CYW5557X_Makefile $RKWIFIBT/drivers/infineon/Makefile -r
+		$KMAKE M=$RKWIFIBT/drivers/infineon
+		if [ -n "$WIFI_PCIE" ]; then
+			echo "building CYW5557X_PCIE"
+			cp $RKWIFIBT/drivers/infineon/chips/CYW5557X_PCIE_Makefile $RKWIFIBT/drivers/infineon/Makefile -r
+			$KMAKE M=$RKWIFIBT/drivers/infineon
+			echo "building CYW54591_PCIE"
+			cp $RKWIFIBT/drivers/infineon/chips/CYW54591_PCIE_Makefile $RKWIFIBT/drivers/infineon/Makefile -r
+			$KMAKE M=$RKWIFIBT/drivers/infineon
+		fi
+		echo "building CYW54591"
+		cp $RKWIFIBT/drivers/infineon/chips/CYW54591_Makefile $RKWIFIBT/drivers/infineon/Makefile -r
+		$KMAKE M=$RKWIFIBT/drivers/infineon
+
+		if [ -n "$WIFI_USB" ]; then
+			echo "building rtl8188fu usb"
+			$KMAKE M=$RKWIFIBT/drivers/rtl8188fu modules
+		fi
+		echo "building rtl8189fs sdio"
+		$KMAKE M=$RKWIFIBT/drivers/rtl8189fs modules
+		echo "building rtl8723ds sdio"
+		$KMAKE M=$RKWIFIBT/drivers/rtl8723ds modules
+		echo "building rtl8821cs sdio"
+		$KMAKE M=$RKWIFIBT/drivers/rtl8821cs modules
+		echo "building rtl8822cs sdio"
+		$KMAKE M=$RKWIFIBT/drivers/rtl8822cs modules
+		echo "building rtl8852bs sdio"
+		$KMAKE M=$RKWIFIBT/drivers/rtl8852bs modules DRV_PATH=$RKWIFIBT/drivers/rtl8852bs
+		if [ -n "$WIFI_PCIE" ]; then
+			echo "building rtl8852be pcie"
+			$KMAKE M=$RKWIFIBT/drivers/rtl8852be modules DRV_PATH=$RKWIFIBT/drivers/rtl8852be
+		fi
+	fi
+
+	if [[ "$WIFI_CHIP" =~ "AP6" ]];then
+		if [[ "$WIFI_CHIP" = "AP6275_PCIE" ]];then
+			echo "building bcmdhd pcie driver"
+			$KMAKE M=$RKWIFIBT/drivers/bcmdhd CONFIG_BCMDHD=m CONFIG_BCMDHD_PCIE=y CONFIG_BCMDHD_SDIO=
+		else
+			echo "building bcmdhd sdio driver"
+			$KMAKE M=$RKWIFIBT/drivers/bcmdhd CONFIG_BCMDHD=m CONFIG_BCMDHD_SDIO=y CONFIG_BCMDHD_PCIE=
+		fi
+	fi
+
+	if [[ "$WIFI_CHIP" = "CYW4354" ]];then
+		echo "building CYW4354"
+		cp $RKWIFIBT/drivers/infineon/chips/CYW4354_Makefile $RKWIFIBT/drivers/infineon/Makefile -r
+		$KMAKE M=$RKWIFIBT/drivers/infineon
+	fi
+
+	if [[ "$WIFI_CHIP" = "CYW4373" ]];then
+		echo "building CYW4373"
+		cp $RKWIFIBT/drivers/infineon/chips/CYW4373_Makefile $RKWIFIBT/drivers/infineon/Makefile -r
+		$KMAKE M=$RKWIFIBT/drivers/infineon
+	fi
+
+	if [[ "$WIFI_CHIP" = "CYW43438" ]];then
+		echo "building CYW43438"
+		cp $RKWIFIBT/drivers/infineon/chips/CYW43438_Makefile $RKWIFIBT/drivers/infineon/Makefile -r
+		$KMAKE M=$RKWIFIBT/drivers/infineon
+	fi
+
+	if [[ "$WIFI_CHIP" = "CYW43455" ]];then
+		echo "building CYW43455"
+		cp $RKWIFIBT/drivers/infineon/chips/CYW43455_Makefile $RKWIFIBT/drivers/infineon/Makefile -r
+		$KMAKE M=$RKWIFIBT/drivers/infineon
+	fi
+
+	if [[ "$WIFI_CHIP" = "CYW5557X" ]];then
+		echo "building CYW5557X"
+		cp $RKWIFIBT/drivers/infineon/chips/CYW5557X_Makefile $RKWIFIBT/drivers/infineon/Makefile -r
+		$KMAKE M=$RKWIFIBT/drivers/infineon
+	fi
+
+	if [[ "$WIFI_CHIP" = "CYW5557X_PCIE" ]];then
+		echo "building CYW5557X_PCIE"
+		cp $RKWIFIBT/drivers/infineon/chips/CYW5557X_PCIE_Makefile $RKWIFIBT/drivers/infineon/Makefile -r
+		$KMAKE M=$RKWIFIBT/drivers/infineon
+	fi
+
+	if [[ "$WIFI_CHIP" = "CYW54591" ]];then
+		echo "building CYW54591"
+		cp $RKWIFIBT/drivers/infineon/chips/CYW54591_Makefile $RKWIFIBT/drivers/infineon/Makefile -r
+		$KMAKE M=$RKWIFIBT/drivers/infineon
+	fi
+
+	if [[ "$WIFI_CHIP" = "CYW54591_PCIE" ]];then
+		echo "building CYW54591_PCIE"
+		cp $RKWIFIBT/drivers/infineon/chips/CYW54591_PCIE_Makefile $RKWIFIBT/drivers/infineon/Makefile -r
+		$KMAKE M=$RKWIFIBT/drivers/infineon
+	fi
+
+	if [[ "$WIFI_CHIP" = "RTL8188FU" ]];then
+		echo "building rtl8188fu driver"
+		$KMAKE M=$RKWIFIBT/drivers/rtl8188fu modules
+	fi
+
+	if [[ "$WIFI_CHIP" = "RTL8189FS" ]];then
+		echo "building rtl8189fs driver"
+		$KMAKE M=$RKWIFIBT/drivers/rtl8189fs modules
+	fi
+
+	if [[ "$WIFI_CHIP" = "RTL8723DS" ]];then
+		$KMAKE M=$RKWIFIBT/drivers/rtl8723ds modules
+	fi
+
+	if [[ "$WIFI_CHIP" = "RTL8821CS" ]];then
+		$KMAKE M=$RKWIFIBT/drivers/rtl8821cs modules
+	fi
+
+	if [[ "$WIFI_CHIP" = "RTL8822CS" ]];then
+		$KMAKE M=$RKWIFIBT/drivers/rtl8822cs modules
+	fi
+
+	if [[ "$WIFI_CHIP" = "RTL8852BS" ]];then
+		$KMAKE M=$RKWIFIBT/drivers/rtl8852bs modules
+	fi
+
+	if [[ "$WIFI_CHIP" = "RTL8852BE" ]];then
+		$KMAKE M=$RKWIFIBT/drivers/rtl8852be modules
+	fi
+
+	echo "building brcm_tools"
+	$TARGET_CC -o $RKWIFIBT/tools/brcm_tools/brcm_patchram_plus1 $RKWIFIBT/tools/brcm_tools/brcm_patchram_plus1.c
+	$TARGET_CC -o $RKWIFIBT/tools/brcm_tools/dhd_priv $RKWIFIBT/tools/brcm_tools/dhd_priv.c
+
+	echo "building rk_wifibt_init"
+	$TARGET_CC -o $RKWIFIBT/src/rk_wifibt_init $RKWIFIBT/src/rk_wifi_init.c
+
+	echo "building realtek_tools"
+	make -C $RKWIFIBT/tools/rtk_hciattach/ CC=$TARGET_CC
+
+	echo "building realtek bt drivers"
+	$KMAKE M=$RKWIFIBT/drivers/bluetooth_uart_driver
+	if [ -n "$WIFI_USB" ]; then
+		$KMAKE M=$RKWIFIBT/drivers/bluetooth_usb_driver
+	fi
+
+	if [ "$RK_CHIP" = "rv1126_rv1109" ];then
+		echo "target is rv1126_rv1109, skip $RKWIFIBT_APP"
+	else
+		echo "building rkwifibt-app"
+		make -C $RKWIFIBT_APP CC=$BUILDROOT_GCC \
+			SYSROOT=$BUILDROOT_SYSROOT ARCH=$BUILDROOT_ARCH
+	fi
+
+	echo "chmod +x tools"
+	chmod 755 $RKWIFIBT/tools/brcm_tools/brcm_patchram_plus1
+	chmod 755 $RKWIFIBT/tools/brcm_tools/dhd_priv
+	chmod 755 $RKWIFIBT/src/rk_wifibt_init
+	chmod 755 $RKWIFIBT/tools/rtk_hciattach/rtk_hciattach
+
+	echo "mkdir rootfs dir" $TARGET_ROOTFS_DIR
+	rm -rf $TARGET_ROOTFS_DIR/system/lib/modules/
+	rm -rf $TARGET_ROOTFS_DIR/system/etc/firmware/
+	rm -rf $TARGET_ROOTFS_DIR/vendor/
+	rm -rf $TARGET_ROOTFS_DIR/usr/lib/modules/
+	mkdir -p $TARGET_ROOTFS_DIR/usr/lib/modules/
+	mkdir -p $TARGET_ROOTFS_DIR/system/lib/modules/
+	mkdir -p $TARGET_ROOTFS_DIR/system/etc/firmware/
+	mkdir -p $TARGET_ROOTFS_DIR/lib/firmware/rtlbt/
+
+	echo "create link system->vendor"
+	cd $TARGET_ROOTFS_DIR/
+	rm -rf $TARGET_ROOTFS_DIR/vendor
+	ln -rsf system $TARGET_ROOTFS_DIR/vendor
+	cd -
+
+	echo "copy tools/sh to rootfs"
+	cp $RKWIFIBT/bin/$BUILDROOT_ARCH/* $TARGET_ROOTFS_DIR/usr/bin/
+	cp $RKWIFIBT/sh/wifi_start.sh $TARGET_ROOTFS_DIR/usr/bin/
+	cp $RKWIFIBT/sh/wifi_ap6xxx_rftest.sh $TARGET_ROOTFS_DIR/usr/bin/
+	cp $RKWIFIBT/conf/wpa_supplicant.conf $TARGET_ROOTFS_DIR/etc/
+	cp $RKWIFIBT/conf/dnsmasq.conf $TARGET_ROOTFS_DIR/etc/
+	cp $RKWIFIBT/tools/brcm_tools/dhd_priv $TARGET_ROOTFS_DIR/usr/bin/
+	cp $RKWIFIBT/tools/brcm_tools/brcm_patchram_plus1 $TARGET_ROOTFS_DIR/usr/bin/
+	cp $RKWIFIBT/src/rk_wifibt_init $TARGET_ROOTFS_DIR/usr/bin/
+
+	if [[ "$WIFI_CHIP" = "ALL_CY" ]];then
+		echo "copy infineon/realtek firmware/nvram to rootfs"
+		cp $RKWIFIBT/drivers/infineon/*.ko $TARGET_ROOTFS_DIR/system/lib/modules/ || true
+		cp $RKWIFIBT/firmware/infineon/*/* $TARGET_ROOTFS_DIR/system/etc/firmware/ || true
+
+		#todo rockchip
+		#cp $RKWIFIBT/firmware/rockchip/* $TARGET_ROOTFS_DIR/system/etc/firmware/
+		cp $RKWIFIBT/sh/bt_load_broadcom_firmware $TARGET_ROOTFS_DIR/usr/bin/
+		cp $TARGET_ROOTFS_DIR/usr/bin/bt_load_broadcom_firmware $TARGET_ROOTFS_DIR/usr/bin/bt_init.sh
+		cp $TARGET_ROOTFS_DIR/usr/bin/bt_load_broadcom_firmware $TARGET_ROOTFS_DIR/usr/bin/bt_pcba_test
+
+		#reatek
+		cp $RKWIFIBT/firmware/realtek/*/* $TARGET_ROOTFS_DIR/lib/firmware/
+		cp $RKWIFIBT/firmware/realtek/*/* $TARGET_ROOTFS_DIR/lib/firmware/rtlbt/
+		cp $RKWIFIBT/tools/rtk_hciattach/rtk_hciattach $TARGET_ROOTFS_DIR/usr/bin/
+		cp $RKWIFIBT/drivers/bluetooth_uart_driver/hci_uart.ko $TARGET_ROOTFS_DIR/usr/lib/modules/
+		if [ -n "$WIFI_USB" ]; then
+			cp $RKWIFIBT/drivers/bluetooth_usb_driver/rtk_btusb.ko $TARGET_ROOTFS_DIR/usr/lib/modules/
+		fi
+
+		rm -rf $TARGET_ROOTFS_DIR/etc/init.d/S36load_wifi_modules
+		cp $RKWIFIBT/S36load_all_wifi_modules $TARGET_ROOTFS_DIR/etc/init.d/
+		sed -i "s/BT_TTY_DEV/\/dev\/${BT_TTY_DEV}/g" $TARGET_ROOTFS_DIR/etc/init.d/S36load_all_wifi_modules
+	fi
+
+	if [[ "$WIFI_CHIP" = "ALL_AP" ]];then
+		echo "copy ap6xxx/realtek firmware/nvram to rootfs"
+		cp $RKWIFIBT/drivers/bcmdhd/*.ko $TARGET_ROOTFS_DIR/system/lib/modules/
+		cp $RKWIFIBT/firmware/broadcom/*/wifi/* $TARGET_ROOTFS_DIR/system/etc/firmware/ || true
+		cp $RKWIFIBT/firmware/broadcom/*/bt/* $TARGET_ROOTFS_DIR/system/etc/firmware/ || true
+
+		#todo rockchip
+		#cp $RKWIFIBT/firmware/rockchip/* $TARGET_ROOTFS_DIR/system/etc/firmware/
+		cp $RKWIFIBT/sh/bt_load_broadcom_firmware $TARGET_ROOTFS_DIR/usr/bin/
+		cp $TARGET_ROOTFS_DIR/usr/bin/bt_load_broadcom_firmware $TARGET_ROOTFS_DIR/usr/bin/bt_init.sh
+		cp $TARGET_ROOTFS_DIR/usr/bin/bt_load_broadcom_firmware $TARGET_ROOTFS_DIR/usr/bin/bt_pcba_test
+
+		#reatek
+		cp -rf $RKWIFIBT/firmware/realtek/*/* $TARGET_ROOTFS_DIR/lib/firmware/
+		cp -rf $RKWIFIBT/firmware/realtek/*/* $TARGET_ROOTFS_DIR/lib/firmware/rtlbt/
+		cp $RKWIFIBT/tools/rtk_hciattach/rtk_hciattach $TARGET_ROOTFS_DIR/usr/bin/
+		cp $RKWIFIBT/drivers/bluetooth_uart_driver/hci_uart.ko $TARGET_ROOTFS_DIR/usr/lib/modules/
+		if [ -n "$WIFI_USB" ]; then
+			cp $RKWIFIBT/drivers/bluetooth_usb_driver/rtk_btusb.ko $TARGET_ROOTFS_DIR/usr/lib/modules/
+		fi
+
+		rm -rf $TARGET_ROOTFS_DIR/etc/init.d/S36load_wifi_modules
+		cp $RKWIFIBT/S36load_all_wifi_modules $TARGET_ROOTFS_DIR/etc/init.d/
+		sed -i "s/BT_TTY_DEV/\/dev\/${BT_TTY_DEV}/g" $TARGET_ROOTFS_DIR/etc/init.d/S36load_all_wifi_modules
+	fi
+
+	if [[ "$WIFI_CHIP" =~ "RTL" ]];then
+		echo "Copy RTL file to rootfs"
+		if [ -d "$RKWIFIBT/firmware/realtek/$WIFI_CHIP" ]; then
+			cp $RKWIFIBT/firmware/realtek/$WIFI_CHIP/* $TARGET_ROOTFS_DIR/lib/firmware/rtlbt/
+			cp $RKWIFIBT/firmware/realtek/$WIFI_CHIP/* $TARGET_ROOTFS_DIR/lib/firmware/
+		else
+			echo "INFO: $WIFI_CHIP isn't bluetooth?"
+		fi
+
+		WIFI_KO_DIR=$(echo $WIFI_CHIP | tr '[A-Z]' '[a-z]')
+
+		cp $RKWIFIBT/drivers/$WIFI_KO_DIR/*.ko $TARGET_ROOTFS_DIR/system/lib/modules/
+
+		cp $RKWIFIBT/sh/bt_load_rtk_firmware $TARGET_ROOTFS_DIR/usr/bin/
+		sed -i "s/BT_TTY_DEV/\/dev\/${BT_TTY_DEV}/g" $TARGET_ROOTFS_DIR/usr/bin/bt_load_rtk_firmware
+		if [ -n "$WIFI_USB" ]; then
+			cp $RKWIFIBT/drivers/bluetooth_usb_driver/rtk_btusb.ko $TARGET_ROOTFS_DIR/usr/lib/modules/
+			sed -i "s/BT_DRV/rtk_btusb/g" $TARGET_ROOTFS_DIR/usr/bin/bt_load_rtk_firmware
+		else
+			cp $RKWIFIBT/drivers/bluetooth_uart_driver/hci_uart.ko $TARGET_ROOTFS_DIR/usr/lib/modules/
+			sed -i "s/BT_DRV/hci_uart/g" $TARGET_ROOTFS_DIR/usr/bin/bt_load_rtk_firmware
+		fi
+		cp $TARGET_ROOTFS_DIR/usr/bin/bt_load_rtk_firmware $TARGET_ROOTFS_DIR/usr/bin/bt_init.sh
+		cp $TARGET_ROOTFS_DIR/usr/bin/bt_load_rtk_firmware $TARGET_ROOTFS_DIR/usr/bin/bt_pcba_test
+		cp $RKWIFIBT/tools/rtk_hciattach/rtk_hciattach $TARGET_ROOTFS_DIR/usr/bin/
+		rm -rf $TARGET_ROOTFS_DIR/etc/init.d/S36load_all_wifi_modules
+		cp $RKWIFIBT/S36load_wifi_modules $TARGET_ROOTFS_DIR/etc/init.d/
+		sed -i "s/WIFI_KO/\/system\/lib\/modules\/$WIFI_CHIP.ko/g" $TARGET_ROOTFS_DIR/etc/init.d/S36load_wifi_modules
+	fi
+
+	if [[ "$WIFI_CHIP" =~ "CYW" ]];then
+		echo "Copy CYW file to rootfs"
+		#tools
+		cp $RKWIFIBT/tools/brcm_tools/dhd_priv $TARGET_ROOTFS_DIR/usr/bin/
+		cp $RKWIFIBT/tools/brcm_tools/brcm_patchram_plus1 $TARGET_ROOTFS_DIR/usr/bin/
+		#firmware
+		cp $RKWIFIBT/firmware/infineon/$WIFI_CHIP/* $TARGET_ROOTFS_DIR/system/etc/firmware/
+		cp $RKWIFIBT/drivers/infineon/*.ko $TARGET_ROOTFS_DIR/system/lib/modules/
+		#bt
+		cp $RKWIFIBT/sh/bt_load_broadcom_firmware $TARGET_ROOTFS_DIR/usr/bin/
+		sed -i "s/BT_TTY_DEV/\/dev\/${BT_TTY_DEV}/g" $TARGET_ROOTFS_DIR/usr/bin/bt_load_broadcom_firmware
+		sed -i "s/BTFIRMWARE_PATH/\/system\/etc\/firmware\//g" $TARGET_ROOTFS_DIR/usr/bin/bt_load_broadcom_firmware
+		cp $TARGET_ROOTFS_DIR/usr/bin/bt_load_broadcom_firmware $TARGET_ROOTFS_DIR/usr/bin/bt_init.sh
+		cp $TARGET_ROOTFS_DIR/usr/bin/bt_load_broadcom_firmware $TARGET_ROOTFS_DIR/usr/bin/bt_pcba_test
+		#wifi
+		rm -rf $TARGET_ROOTFS_DIR/etc/init.d/S36load_all_wifi_modules
+		cp $RKWIFIBT/S36load_wifi_modules $TARGET_ROOTFS_DIR/etc/init.d/
+		sed -i "s/WIFI_KO/\/system\/lib\/modules\/$WIFI_CHIP.ko/g" $TARGET_ROOTFS_DIR/etc/init.d/S36load_wifi_modules
+	fi
+
+	if [[ "$WIFI_CHIP" =~ "AP6" ]];then
+		echo "Copy AP file to rootfs"
+		#tools
+		cp $RKWIFIBT/tools/brcm_tools/dhd_priv $TARGET_ROOTFS_DIR/usr/bin/
+		cp $RKWIFIBT/tools/brcm_tools/brcm_patchram_plus1 $TARGET_ROOTFS_DIR/usr/bin/
+		#firmware
+		cp $RKWIFIBT/firmware/broadcom/$WIFI_CHIP/wifi/* $TARGET_ROOTFS_DIR/system/etc/firmware/
+		cp $RKWIFIBT/firmware/broadcom/$WIFI_CHIP/bt/* $TARGET_ROOTFS_DIR/system/etc/firmware/
+		cp $RKWIFIBT/drivers/bcmdhd/*.ko $TARGET_ROOTFS_DIR/system/lib/modules/
+		#bt
+		cp $RKWIFIBT/sh/bt_load_broadcom_firmware $TARGET_ROOTFS_DIR/usr/bin/
+		sed -i "s/BT_TTY_DEV/\/dev\/${BT_TTY_DEV}/g" $TARGET_ROOTFS_DIR/usr/bin/bt_load_broadcom_firmware
+		sed -i "s/BTFIRMWARE_PATH/\/system\/etc\/firmware\//g" $TARGET_ROOTFS_DIR/usr/bin/bt_load_broadcom_firmware
+		cp $TARGET_ROOTFS_DIR/usr/bin/bt_load_broadcom_firmware $TARGET_ROOTFS_DIR/usr/bin/bt_init.sh
+		cp $TARGET_ROOTFS_DIR/usr/bin/bt_load_broadcom_firmware $TARGET_ROOTFS_DIR/usr/bin/bt_pcba_test
+		#wifi
+		rm -rf $TARGET_ROOTFS_DIR/etc/init.d/S36load_all_wifi_modules
+		cp $RKWIFIBT/S36load_wifi_modules $TARGET_ROOTFS_DIR/etc/init.d/
+		if [[ "$WIFI_CHIP" =~ "AP" ]];then
+			sed -i "s/WIFI_KO/\/system\/lib\/modules\/bcmdhd.ko/g" $TARGET_ROOTFS_DIR/etc/init.d/S36load_wifi_modules
+		else
+			sed -i "s/WIFI_KO/\/system\/lib\/modules\/bcmdhd_pcie.ko/g" $TARGET_ROOTFS_DIR/etc/init.d/S36load_wifi_modules
+		fi
+	fi
+	finish_build
+	#exit 0
+}
+
+build_modules()
+{
 	check_config RK_KERNEL_DEFCONFIG || return 0
 
 	echo "============Start building kernel modules============"
-	echo "TARGET_ARCH          =$RK_ARCH"
+	echo "TARGET_KERNEL_ARCH   =$RK_KERNEL_ARCH"
 	echo "TARGET_KERNEL_CONFIG =$RK_KERNEL_DEFCONFIG"
 	echo "TARGET_KERNEL_CONFIG_FRAGMENT =$RK_KERNEL_DEFCONFIG_FRAGMENT"
 	echo "=================================================="
 
-	build_check_cross_compile
+	setup_cross_compile
 
-	cd kernel
-	make ARCH=$RK_ARCH $RK_KERNEL_DEFCONFIG $RK_KERNEL_DEFCONFIG_FRAGMENT
-	make ARCH=$RK_ARCH modules -j$RK_JOBS
-
-	finish_build
-}
-
-function build_toolchain(){
-	check_config RK_CFG_TOOLCHAIN || return 0
-
-	echo "==========Start building toolchain =========="
-	echo "TARGET_TOOLCHAIN_CONFIG=$RK_CFG_TOOLCHAIN"
-	echo "========================================="
-
-	/usr/bin/time -f "you take %E to build toolchain" \
-		$COMMON_DIR/mk-toolchain.sh $BOARD_CONFIG
+	$KMAKE $RK_KERNEL_DEFCONFIG $RK_KERNEL_DEFCONFIG_FRAGMENT
+	$KMAKE modules
 
 	finish_build
 }
 
-function build_buildroot(){
+build_buildroot()
+{
 	check_config RK_CFG_BUILDROOT || return 0
 
-	echo "==========Start building buildroot=========="
+	ROOTFS_DIR=$1
+
+	echo "==========Start building buildroot rootfs =========="
 	echo "TARGET_BUILDROOT_CONFIG=$RK_CFG_BUILDROOT"
 	echo "========================================="
 
-	/usr/bin/time -f "you take %E to build builroot" \
-		$COMMON_DIR/mk-buildroot.sh $BOARD_CONFIG
+	DST_DIR=.buildroot
+
+	/usr/bin/time -f "you take %E to build buildroot" \
+		$COMMON_DIR/mk-buildroot.sh $RK_CFG_BUILDROOT $DST_DIR
+
+	rm -rf $ROOTFS_DIR
+	ln -rsf $DST_DIR $ROOTFS_DIR
 
 	finish_build
 }
 
-function build_ramboot(){
-	check_config RK_CFG_RAMBOOT || return 0
+kernel_version()
+{
+	[ -d "$1" ] || return 0
 
-	echo "=========Start building ramboot========="
-	echo "TARGET_RAMBOOT_CONFIG=$RK_CFG_RAMBOOT"
-	echo "====================================="
-
-	/usr/bin/time -f "you take %E to build ramboot" \
-		$COMMON_DIR/mk-ramdisk.sh ramboot.img $RK_CFG_RAMBOOT
-
-	ln -rsf buildroot/output/$RK_CFG_RAMBOOT/images/ramboot.img \
-		rockdev/boot.img
-
-	cp buildroot/output/$RK_CFG_RAMBOOT/images/ramboot.img \
-		u-boot/boot.img
-
-	finish_build
-}
-
-function build_multi-npu_boot(){
-	check_config RK_MULTINPU_BOOT || return 0
-
-	echo "=========Start building multi-npu boot========="
-	echo "TARGET_RAMBOOT_CONFIG=$RK_CFG_RAMBOOT"
-	echo "====================================="
-
-	/usr/bin/time -f "you take %E to build multi-npu boot" \
-		$COMMON_DIR/mk-multi-npu_boot.sh
-
-	finish_build
-}
-
-function kernel_version(){
 	VERSION_KEYS="VERSION PATCHLEVEL"
 	VERSION=""
 
@@ -761,17 +934,18 @@ function kernel_version(){
 	echo $VERSION
 }
 
-function build_yocto(){
+build_yocto()
+{
 	check_config RK_YOCTO_MACHINE || return 0
 
-	echo "=========Start building ramboot========="
+	echo "=========Start building yocto rootfs========="
 	echo "TARGET_MACHINE=$RK_YOCTO_MACHINE"
 	echo "====================================="
 
 	KERNEL_VERSION=$(kernel_version kernel/)
 
 	cd yocto
-	ln -sf $RK_YOCTO_MACHINE.conf build/conf/local.conf
+	ln -rsf $RK_YOCTO_MACHINE.conf build/conf/local.conf
 	source oe-init-build-env
 	LANG=en_US.UTF-8 LANGUAGE=en_US.en LC_ALL=en_US.UTF-8 \
 		bitbake core-image-minimal -r conf/include/rksdk.conf \
@@ -780,17 +954,18 @@ function build_yocto(){
 	finish_build
 }
 
-function build_debian(){
-	ARCH=${RK_DEBIAN_ARCH:-${RK_ARCH}}
+build_debian()
+{
+	ARCH=${RK_DEBIAN_ARCH:-${RK_KERNEL_ARCH}}
 	case $ARCH in
 		arm|armhf) ARCH=armhf ;;
 		*) ARCH=arm64 ;;
 	esac
 
-	echo "=========Start building debian for $ARCH========="
+	echo "=========Start building debian ($ARCH) rootfs========="
 
 	cd debian
-	if [ ! -e linaro-$RK_DEBIAN_VERSION-alip-*.tar.gz ]; then
+	if [ ! -f linaro-$RK_DEBIAN_VERSION-alip-*.tar.gz ]; then
 		RELEASE=$RK_DEBIAN_VERSION TARGET=desktop ARCH=$ARCH ./mk-base-debian.sh
 		ln -rsf linaro-$RK_DEBIAN_VERSION-alip-*.tar.gz linaro-$RK_DEBIAN_VERSION-$ARCH.tar.gz
 	fi
@@ -801,45 +976,85 @@ function build_debian(){
 	finish_build
 }
 
-function build_rootfs(){
-	check_config RK_ROOTFS_IMG || return 0
+build_rootfs()
+{
+	check_config RK_ROOTFS_TYPE || return 0
 
-	RK_ROOTFS_DIR=.rootfs
-	ROOTFS_IMG=${RK_ROOTFS_IMG##*/}
+	ROOTFS=${1:-${RK_ROOTFS_SYSTEM:-buildroot}}
+	ROOTFS_IMG=rootfs.${RK_ROOTFS_TYPE}
+	ROOTFS_DIR=.rootfs
 
-	rm -rf $RK_ROOTFS_IMG $RK_ROOTFS_DIR
-	mkdir -p ${RK_ROOTFS_IMG%/*} $RK_ROOTFS_DIR
+	echo "==========Start building rootfs($ROOTFS) to $ROOTFS_DIR=========="
 
-	case "$1" in
+	rm -rf $ROOTFS_DIR
+	mkdir -p $ROOTFS_DIR
+
+	case "$ROOTFS" in
 		yocto)
 			build_yocto
 			ln -rsf yocto/build/latest/rootfs.img \
-				$RK_ROOTFS_DIR/rootfs.ext4
+				$ROOTFS_DIR/rootfs.ext4
 			;;
 		debian)
 			build_debian
 			ln -rsf debian/linaro-rootfs.img \
-				$RK_ROOTFS_DIR/rootfs.ext4
+				$ROOTFS_DIR/rootfs.ext4
+			;;
+		buildroot)
+			build_buildroot $ROOTFS_DIR
+			build_wifibt
+
+			# Recompile for wifibt
+			build_buildroot $ROOTFS_DIR
 			;;
 		*)
-			build_buildroot
-			for f in $(ls buildroot/output/$RK_CFG_BUILDROOT/images/rootfs.*);do
-				ln -rsf $f $RK_ROOTFS_DIR/
-			done
+			echo "$ROOTFS not supported!"
+			exit 1
 			;;
 	esac
 
-	if [ ! -f "$RK_ROOTFS_DIR/$ROOTFS_IMG" ]; then
+	if [ ! -f "$ROOTFS_DIR/$ROOTFS_IMG" ]; then
 		echo "There's no $ROOTFS_IMG generated..."
 		exit 1
 	fi
 
-	ln -rsf $RK_ROOTFS_DIR/$ROOTFS_IMG $RK_ROOTFS_IMG
+	ln -rsf $ROOTFS_DIR/$ROOTFS_IMG rockdev/rootfs.img
+
+	[ ! -f $ROOTFS_DIR/oem.img ] || ln -rsf $ROOTFS_DIR/oem.img rockdev/
+
+	if [ "$RK_RAMBOOT" ]; then
+		/usr/bin/time -f "you take %E to pack ramboot image" \
+			$COMMON_DIR/mk-ramdisk.sh rockdev/rootfs.img \
+			$ROOTFS_DIR/ramboot.img \
+		ln -rsf $ROOTFS_DIR/ramboot.img rockdev/boot.img
+
+		# For security
+		cp rockdev/boot.img u-boot/
+	fi
+
+	if [ "$RK_RAMDISK_SECURITY_BOOTUP" = "true" ]; then
+		echo "Try to build init for $RK_SYSTEM_CHECK_METHOD"
+
+		if [ "$RK_SYSTEM_CHECK_METHOD" = "DM-V" ]; then
+			SYSTEM_IMG=rootfs.squashfs
+		else
+			SYSTEM_IMG=$ROOTFS_IMG
+		fi
+		if [ ! -f "$ROOTFS_DIR/$SYSTEM_IMG" ]; then
+			echo "There's no $SYSTEM_IMG generated..."
+			exit -1
+		fi
+
+		$COMMON_DIR/mk-dm.sh $RK_SYSTEM_CHECK_METHOD \
+			$ROOTFS_DIR/$SYSTEM_IMG
+		ln -rsf $ROOTFS_DIR/security-system.img rockdev/rootfs.img
+	fi
 
 	finish_build
 }
 
-function build_recovery(){
+build_recovery()
+{
 
 	if [ "$RK_UPDATE_SDCARD_ENABLE_FOR_AB" = "true" ] ;then
 		RK_CFG_RECOVERY=$RK_UPDATE_SDCARD_CFG_RECOVERY
@@ -851,31 +1066,44 @@ function build_recovery(){
 
 	check_config RK_CFG_RECOVERY || return 0
 
-	echo "==========Start building recovery=========="
+	echo "==========Start building recovery(buildroot)=========="
 	echo "TARGET_RECOVERY_CONFIG=$RK_CFG_RECOVERY"
 	echo "========================================"
 
-	/usr/bin/time -f "you take %E to build recovery" \
-		$COMMON_DIR/mk-ramdisk.sh recovery.img $RK_CFG_RECOVERY
+	DST_DIR=.recovery
 
-	ln -rsf buildroot/output/$RK_CFG_RECOVERY/images/recovery.img \
-		rockdev/recovery.img
+	/usr/bin/time -f "you take %E to build recovery(buildroot)" \
+		$COMMON_DIR/mk-buildroot.sh $RK_CFG_RECOVERY $DST_DIR
 
-	cp buildroot/output/$RK_CFG_RECOVERY/images/recovery.img \
-		u-boot/recovery.img
+	/usr/bin/time -f "you take %E to pack recovery image" \
+		$COMMON_DIR/mk-ramdisk.sh $DST_DIR/rootfs.cpio.gz \
+		$DST_DIR/recovery.img \
+		"$CHIP_DIR/$RK_RECOVERY_FIT_ITS"
+	ln -rsf $DST_DIR/recovery.img rockdev/
+
+	# For security
+	cp rockdev/recovery.img u-boot/
 
 	finish_build
 }
 
-function build_pcba(){
+build_pcba()
+{
 	check_config RK_CFG_PCBA || return 0
 
-	echo "==========Start building pcba=========="
+	echo "==========Start building pcba(buildroot)=========="
 	echo "TARGET_PCBA_CONFIG=$RK_CFG_PCBA"
 	echo "===================================="
 
-	/usr/bin/time -f "you take %E to build pcba" \
-		$COMMON_DIR/mk-ramdisk.sh pcba.img $RK_CFG_PCBA
+	DST_DIR=.pcba
+
+	/usr/bin/time -f "you take %E to build pcba(buildroot)" \
+		$COMMON_DIR/mk-buildroot.sh $RK_CFG_PCBA $DST_DIR
+
+	/usr/bin/time -f "you take %E to pack pcba image" \
+		$COMMON_DIR/mk-ramdisk.sh $DST_DIR/rootfs.cpio.gz \
+		$DST_DIR/pcba.img
+	ln -rsf $DST_DIR/pcba.img rockdev/
 
 	finish_build
 }
@@ -905,7 +1133,8 @@ ROOTFS_AB_FIXED_CONFIGS="
 	$ROOTFS_UPDATE_ENGINEBIN_CONFIGS
 	BR2_PACKAGE_RECOVERY_BOOTCONTROL"
 
-function defconfig_check() {
+defconfig_check()
+{
 	# 1. defconfig 2. fixed config
 	echo debug-$1
 	for i in $2
@@ -924,7 +1153,8 @@ function defconfig_check() {
 	return 0
 }
 
-function find_string_in_config(){
+find_string_in_config()
+{
 	result=$(cat "$2" | grep "$1" || echo "No found")
 	if [ "$result" = "No found" ]; then
 		echo "Security: No found string $1 in $2"
@@ -933,7 +1163,8 @@ function find_string_in_config(){
 	return 0;
 }
 
-function check_security_condition(){
+check_security_condition()
+{
 	# check security enabled
 	test -z "$RK_SYSTEM_CHECK_METHOD" && return 0
 
@@ -944,14 +1175,14 @@ function check_security_condition(){
 	fi
 
 	if [ "$RK_SYSTEM_CHECK_METHOD" = "DM-E" ]; then
-		if [ ! -e u-boot/keys/root_passwd ]; then
+		if [ ! -f u-boot/keys/root_passwd ]; then
 			echo "ERROR: No root passwd(u-boot/keys/root_passwd) found in u-boot"
 			echo "       echo your root key for sudo to u-boot/keys/root_passwd"
 			echo "       some operations need supper user permission when create encrypt image"
 			return -1
 		fi
 
-		if [ ! -e u-boot/keys/system_enc_key ]; then
+		if [ ! -f u-boot/keys/system_enc_key ]; then
 			echo "ERROR: No enc key(u-boot/keys/system_enc_key) found in u-boot"
 			echo "       Create it by ./build.sh createkeys or move your key to it"
 			return -1
@@ -962,7 +1193,9 @@ function check_security_condition(){
 	fi
 
 	echo "check kernel defconfig"
-	defconfig_check kernel/arch/$RK_ARCH/configs/$RK_KERNEL_DEFCONFIG "$BOOT_FIXED_CONFIGS"
+	defconfig_check \
+		kernel/arch/$RK_KERNEL_ARCH/configs/$RK_KERNEL_DEFCONFIG \
+		"$BOOT_FIXED_CONFIGS"
 
 	if [ ! -z "${RK_PACKAGE_FILE_AB}" ]; then
 		UBOOT_FIXED_CONFIGS="${UBOOT_FIXED_CONFIGS}
@@ -975,7 +1208,7 @@ function check_security_condition(){
 
 	if [ "$RK_SYSTEM_CHECK_METHOD" = "DM-E" ]; then
 		echo "check ramdisk defconfig"
-		defconfig_check buildroot/configs/${RK_CFG_RAMBOOT}_defconfig "$ROOTFS_UPDATE_ENGINEBIN_CONFIGS"
+		defconfig_check buildroot/configs/${RK_CFG_BUILDROOT}_defconfig "$ROOTFS_UPDATE_ENGINEBIN_CONFIGS"
 	fi
 
 	echo "check rootfs defconfig"
@@ -984,19 +1217,19 @@ function check_security_condition(){
 	echo "Security: finish check"
 }
 
-function build_all(){
+build_all()
+{
 	echo "============================================"
-	echo "TARGET_ARCH=$RK_ARCH"
-	echo "TARGET_PLATFORM=$RK_TARGET_PRODUCT"
+	echo "TARGET_KERNEL_ARCH=$RK_KERNEL_ARCH"
+	echo "TARGET_PLATFORM=$RK_CHIP"
 	echo "TARGET_UBOOT_CONFIG=$RK_UBOOT_DEFCONFIG"
 	echo "TARGET_SPL_CONFIG=$RK_SPL_DEFCONFIG"
 	echo "TARGET_KERNEL_CONFIG=$RK_KERNEL_DEFCONFIG"
 	echo "TARGET_KERNEL_DTS=$RK_KERNEL_DTS"
-	echo "TARGET_TOOLCHAIN_CONFIG=$RK_CFG_TOOLCHAIN"
 	echo "TARGET_BUILDROOT_CONFIG=$RK_CFG_BUILDROOT"
 	echo "TARGET_RECOVERY_CONFIG=$RK_CFG_RECOVERY"
 	echo "TARGET_PCBA_CONFIG=$RK_CFG_PCBA"
-	echo "TARGET_RAMBOOT_CONFIG=$RK_CFG_RAMBOOT"
+	echo "TARGET_RAMBOOT=$RK_RAMBOOT"
 	echo "============================================"
 
 	# NOTE: On secure boot-up world, if the images build with fit(flattened image tree)
@@ -1015,10 +1248,8 @@ function build_all(){
 	check_security_condition
 	build_loader
 	build_kernel
-	build_toolchain
-	build_rootfs ${RK_ROOTFS_SYSTEM:-buildroot}
+	build_rootfs
 	build_recovery
-	build_ramboot
 
 	if [ "$RK_RAMDISK_SECURITY_BOOTUP" = "true" ];then
 		#note: if build spl, it will delete loader.bin in uboot directory,
@@ -1033,29 +1264,28 @@ function build_all(){
 	finish_build
 }
 
-function build_cleanall(){
+build_cleanall()
+{
 	echo "clean uboot, kernel, rootfs, recovery"
 
-	cd u-boot
-	make distclean
-	cd -
-	cd kernel
-	make distclean
-	cd -
+	make -C u-boot distclean
+	make -C kernel distclean
 	rm -rf buildroot/output
-	rm -rf yocto/build/tmp
+	rm -rf yocto/build/tmp yocto/build/*cache
 	rm -rf debian/binary
 
 	finish_build
 }
 
-function build_firmware(){
+build_firmware()
+{
 	./mkfirmware.sh $BOARD_CONFIG
 
 	finish_build
 }
 
-function build_updateimg(){
+build_updateimg()
+{
 	IMAGE_PATH=$TOP_DIR/rockdev
 	PACK_TOOL_DIR=$TOP_DIR/tools/linux/Linux_Pack_Firmware
 
@@ -1089,7 +1319,8 @@ function build_updateimg(){
 	finish_build
 }
 
-function build_otapackage(){
+build_otapackage()
+{
 	IMAGE_PATH=$TOP_DIR/rockdev
 	PACK_TOOL_DIR=$TOP_DIR/tools/linux/Linux_Pack_Firmware
 
@@ -1106,7 +1337,8 @@ function build_otapackage(){
 	finish_build
 }
 
-function build_sdcard_package(){
+build_sdcard_package()
+{
 
 	check_config RK_UPDATE_SDCARD_ENABLE_FOR_AB || return 0
 
@@ -1115,8 +1347,8 @@ function build_sdcard_package(){
 	local rk_sdupdate_ab_misc=${RK_SDUPDATE_AB_MISC:=sdupdate-ab-misc.img}
 	local rk_parameter_sdupdate=${RK_PARAMETER_SDUPDATE:=parameter-sdupdate.txt}
 	local rk_package_file_sdcard_update=${RK_PACKAGE_FILE_SDCARD_UPDATE:=sdcard-update-package-file}
-	local sdupdate_ab_misc_img=$TOP_DIR/device/rockchip/rockimg/$rk_sdupdate_ab_misc
-	local parameter_sdupdate=$TOP_DIR/device/rockchip/rockimg/$rk_parameter_sdupdate
+	local sdupdate_ab_misc_img=$TOP_DIR/device/rockchip/common/images/$rk_sdupdate_ab_misc
+	local parameter_sdupdate=$TOP_DIR/device/rockchip/common/images/$rk_parameter_sdupdate
 	local recovery_img=$TOP_DIR/buildroot/output/$RK_UPDATE_SDCARD_CFG_RECOVERY/images/recovery.img
 
 	if [ $RK_UPDATE_SDCARD_CFG_RECOVERY ]; then
@@ -1159,7 +1391,8 @@ function build_sdcard_package(){
 	finish_build
 }
 
-function build_save(){
+build_save()
+{
 	IMAGE_PATH=$TOP_DIR/rockdev
 	DATE=$(date  +%Y%m%d.%H%M)
 	STUB_PATH=Image/"$RK_KERNEL_DTS"_"$DATE"_RELEASE_TEST
@@ -1173,7 +1406,7 @@ function build_save(){
 		"$TOP_DIR/device/rockchip/common/gen_patches_body.sh"
 
 	#Copy stubs
-	.repo/repo/repo manifest -r -o $STUB_PATH/manifest_${DATE}.xml
+	yes | .repo/repo/repo manifest -r -o $STUB_PATH/manifest_${DATE}.xml
 	mkdir -p $STUB_PATCH_PATH/kernel
 	cp kernel/.config $STUB_PATCH_PATH/kernel
 	cp kernel/vmlinux $STUB_PATCH_PATH/kernel
@@ -1188,8 +1421,10 @@ function build_save(){
 	finish_build
 }
 
-function build_allsave(){
+build_allsave()
+{
 	rm -fr $TOP_DIR/rockdev
+	mkdir -p $TOP_DIR/rockdev
 	build_all
 	build_firmware
 	build_updateimg
@@ -1200,14 +1435,12 @@ function build_allsave(){
 	finish_build
 }
 
-function create_keys() {
+create_keys()
+{
 	test -d u-boot/keys && echo "ERROR: u-boot/keys has existed" && return -1
 
 	mkdir u-boot/keys -p
-	cd u-boot/keys
-	$TOP_DIR/rkbin/tools/rk_sign_tool kk --bits 2048
-	cd -
-
+	./rkbin/tools/rk_sign_tool kk --bits 2048 --out u-boot/keys
 	ln -s private_key.pem u-boot/keys/dev.key
 	ln -s public_key.pem u-boot/keys/dev.pubkey
 	openssl req -batch -new -x509 -key u-boot/keys/dev.key -out u-boot/keys/dev.crt
@@ -1215,10 +1448,10 @@ function create_keys() {
 	openssl rand -out u-boot/keys/system_enc_key -hex 32
 }
 
-function security_is_enabled()
+security_is_enabled()
 {
 	if [ "$RK_RAMDISK_SECURITY_BOOTUP" != "true" ]; then
-		echo "No security paramter found in .BoardConfig.mk"
+		echo "No security paramter found in $BOARD_CONFIG"
 		exit -1
 	fi
 }
@@ -1228,26 +1461,14 @@ function security_is_enabled()
 # build targets
 #=========================
 
-if echo $@|grep -wqE "help|-h"; then
-	if [ -n "$2" -a "$(type -t usage$2)" == function ]; then
-		echo "###Current SDK Default [ $2 ] Build Command###"
-		eval usage$2
-	else
-		usage
-	fi
-	exit 0
-fi
-
 OPTIONS="${@:-allsave}"
 
-[ -f "device/rockchip/$RK_TARGET_PRODUCT/$RK_BOARD_PRE_BUILD_SCRIPT" ] \
-	&& source "device/rockchip/$RK_TARGET_PRODUCT/$RK_BOARD_PRE_BUILD_SCRIPT"  # board hooks
-
-for option in ${OPTIONS}; do
-	echo "processing option: $option"
+# Pre options
+unset POST_OPTIONS
+for option in $OPTIONS; do
 	case $option in
 		BoardConfig*.mk)
-			option=device/rockchip/$RK_TARGET_PRODUCT/$option
+			option="$CHIP_DIR/$option"
 			;&
 		*.mk)
 			CONF=$(realpath $option)
@@ -1259,39 +1480,75 @@ for option in ${OPTIONS}; do
 
 			ln -rsf $CONF $BOARD_CONFIG
 			;;
-		lunch) build_select_board ;;
+		lunch) choose_board ;;
+		kernel-4.4|kernel-4.19|kernel-5.10)
+			RK_KERNEL_VERSION=${option#kernel-}
+			;;
+		*) POST_OPTIONS="$POST_OPTIONS $option";;
+	esac
+done
+
+[ -r "$BOARD_CONFIG" ] || choose_board
+source $BOARD_CONFIG
+
+if [ -d "$CHIP_DIR/build-hooks/" ]; then
+	for hook in $(find "$CHIP_DIR/build-hooks" -name "*.sh"); do
+		source "$hook"
+	done
+fi
+
+# Fallback to current kernel
+RK_KERNEL_VERSION=${RK_KERNEL_VERSION:-$(kernel_version kernel/)}
+
+# Fallback to 5.10 kernel
+RK_KERNEL_VERSION=${RK_KERNEL_VERSION:-5.10)}
+
+# Update kernel
+if [ "$(kernel_version kernel/)" != "$RK_KERNEL_VERSION" ]; then
+	KERNEL_DIR=kernel-$RK_KERNEL_VERSION
+	echo "switching to $KERNEL_DIR"
+	if [ ! -d "$KERNEL_DIR" ]; then
+		echo "not exist!"
+		exit 1
+	fi
+	rm -rf kernel
+	ln -rsf $KERNEL_DIR kernel
+fi
+
+# Post options
+for option in $POST_OPTIONS; do
+	echo "processing option: $option"
+	case $option in
 		all) build_all ;;
 		save) build_save ;;
 		allsave) build_allsave ;;
-		check) build_check ;;
 		cleanall) build_cleanall ;;
 		firmware) build_firmware ;;
 		updateimg) build_updateimg ;;
 		otapackage) build_otapackage ;;
 		sdpackage) build_sdcard_package ;;
-		toolchain) build_toolchain ;;
 		spl) build_spl ;;
 		uboot) build_uboot ;;
 		uefi) build_uefi ;;
 		loader) build_loader ;;
 		kernel) build_kernel ;;
+		wifibt)
+			build_wifibt $2 $3
+			exit 1 ;;
 		modules) build_modules ;;
-		rootfs|buildroot|debian|yocto) build_rootfs $option ;;
+		rootfs) build_rootfs ;;
+		buildroot|debian|yocto) build_rootfs $option ;;
 		pcba) build_pcba ;;
-		ramboot) build_ramboot ;;
 		recovery) build_recovery ;;
-		multi-npu_boot) build_multi-npu_boot ;;
 		info) build_info ;;
-		app/*|external/*) build_pkg $option ;;
 		createkeys) create_keys ;;
-		security_boot) security_is_enabled; build_ramboot; build_uboot boot ;;
+		security_boot) security_is_enabled; build_rootfs; build_uboot boot ;;
 		security_uboot) security_is_enabled; build_uboot uboot ;;
 		security_recovery) security_is_enabled; build_recovery; build_uboot recovery ;;
 		security_check) check_security_condition ;;
 		security_rootfs)
 			security_is_enabled
 			build_rootfs
-			build_ramboot
 			build_uboot
 			echo "please update rootfs.img / boot.img"
 			;;

@@ -1,15 +1,11 @@
 #!/bin/bash
 
-# Target chip
-export RK_CHIP=RV1126
 # Target arch
-export RK_ARCH=arm
+export RK_KERNEL_ARCH=arm
 # Uboot defconfig
 export RK_UBOOT_DEFCONFIG=rv1126
 # Uboot defconfig fragment, config rk-nand.config if sdcard upgrade
 export RK_UBOOT_DEFCONFIG_FRAGMENT=rk-nand.config
-# Loader update spl from Uboot
-export RK_LOADER_UPDATE_SPL=true
 # Uboot image format type: fit(flattened image tree)
 export RK_UBOOT_FORMAT_TYPE=fit
 # Kernel defconfig
@@ -32,28 +28,10 @@ export RK_CFG_BUILDROOT=rockchip_rv1126_rv1109_spi_nand
 export RK_CFG_RECOVERY=rockchip_rv1126_rv1109_spi_nand_recovery
 # Recovery image format type: fit(flattened image tree)
 export RK_RECOVERY_FIT_ITS=boot4recovery.its
-# ramboot config
-export RK_CFG_RAMBOOT=
-# Pcba config
-export RK_CFG_PCBA=
-# Build jobs
-export RK_JOBS=12
 # target chip
-export RK_TARGET_PRODUCT=rv1126_rv1109
+export RK_CHIP=rv1126_rv1109
 # Set rootfs type, including ext2 ext4 squashfs ubi
 export RK_ROOTFS_TYPE=ubi
-# rootfs image path
-export RK_ROOTFS_IMG=rockdev/rootfs.${RK_ROOTFS_TYPE}
-# Set ramboot image type
-export RK_RAMBOOT_TYPE=
-# Set oem partition type, including ext2 squashfs
-export RK_OEM_FS_TYPE=ubi
-# Set userdata partition type, including ext2, fat
-export RK_USERDATA_FS_TYPE=ubi
-#OEM config
-export RK_OEM_DIR=
-#userdata config, if not define this, system will format by RK_USERDATA_FS_TYPE
-export RK_USERDATA_DIR=
 #
 # Set ubifs page size, 2048(2KB) or 4096(4KB)
 # Option.
@@ -63,17 +41,14 @@ export RK_USERDATA_DIR=
 # Option.
 # export RK_UBI_BLOCK_SIZE=0x20000
 #
-# Set userdata partition size (byte) if define RK_USERDATA_DIR
-# MUST, if userdata partition is grow partition.
-# export RK_USERDATA_PARTITION_SIZE=0x02760000
-#
-# Set oem partition size (byte)
-# Option. if not set, it will get from parameter auto.
-# export RK_OEM_PARTITION_SIZE=0x6400000
-#
 #misc image
 export RK_MISC=blank-misc.img
-# Define pre-build script for this board
-export RK_BOARD_PRE_BUILD_SCRIPT=app-build.sh
 # Define package-file for update.img
 export RK_PACKAGE_FILE=rv1126-package-file-spi-nand
+# Define WiFi BT chip
+# Compatible with Realtek and AP6XXX WiFi : RK_WIFIBT_CHIP=ALL_AP
+# Compatible with Realtek and CYWXXX WiFi : RK_WIFIBT_CHIP=ALL_CY
+# Single WiFi configuration: AP6256 or CYW43455: RK_WIFIBT_CHIP=AP6256
+export RK_WIFIBT_CHIP=ALL_AP
+# Define BT ttySX
+export RK_WIFIBT_TTY=ttyS0

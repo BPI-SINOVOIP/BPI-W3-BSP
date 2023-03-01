@@ -10,7 +10,7 @@
 
     images {
         fdt {
-            data = /incbin/("kernel/arch/arm/boot/dts/rv1126-evb-ddr3-v10.dtb");
+            data = /incbin/("@KERNEL_DTB@");
             type = "flat_dt";
             arch = "arm";
             compression = "none";
@@ -22,7 +22,7 @@
         };
 
         kernel {
-            data = /incbin/("kernel/arch/arm/boot/zImage");
+            data = /incbin/("@KERNEL_IMG@");
             type = "kernel";
             arch = "arm";
             os = "linux";
@@ -36,7 +36,7 @@
         };
 
 		ramdisk {
-			data = /incbin/("out/ramdisk");
+			data = /incbin/("@RAMDISK_IMG@");
 			type = "ramdisk";
 			arch = "arm";
 			os = "linux";
@@ -49,7 +49,7 @@
 		};
 
         resource {
-            data = /incbin/("kernel/resource.img");
+            data = /incbin/("@RESOURCE_IMG@");
             type = "multi";
             arch = "arm";
             compression = "none";

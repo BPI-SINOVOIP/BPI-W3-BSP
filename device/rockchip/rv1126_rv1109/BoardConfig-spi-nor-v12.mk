@@ -1,15 +1,13 @@
 #!/bin/bash
 
 # Target arch
-export RK_ARCH=arm
+export RK_KERNEL_ARCH=arm
 # build idblock.bin and update SPL
 export RK_IDBLOCK_UPDATE_SPL=true
 # Uboot defconfig
 export RK_UBOOT_DEFCONFIG=rv1126-spi-nor-tiny
 # Uboot defconfig fragment, config rk-sfc.config if sdcard upgrade
 export RK_UBOOT_DEFCONFIG_FRAGMENT=rk-sfc.config
-# Loader update spl from Uboot
-export RK_LOADER_UPDATE_SPL=true
 # Uboot image format type: fit(flattened image tree)
 export RK_UBOOT_FORMAT_TYPE=fit
 # Kernel defconfig
@@ -28,33 +26,16 @@ export RK_KERNEL_IMG=kernel/arch/arm/boot/zImage
 export RK_PARAMETER=parameter-spi-nor-32M.txt
 # Buildroot config
 export RK_CFG_BUILDROOT=rockchip_rv1126_rv1109_tiny
-# Recovery config
-export RK_CFG_RECOVERY=
-# ramboot config
-export RK_CFG_RAMBOOT=
-# Pcba config
-export RK_CFG_PCBA=
-# Build jobs
-export RK_JOBS=12
 # target chip
-export RK_TARGET_PRODUCT=rv1126_rv1109
+export RK_CHIP=rv1126_rv1109
 # Set rootfs type, including squashfs jffs2
 export RK_ROOTFS_TYPE=squashfs
-# rootfs image path
-export RK_ROOTFS_IMG=rockdev/rootfs.${RK_ROOTFS_TYPE}
-# Set ramboot image type
-# export RK_RAMBOOT_TYPE=
-# Set oem partition type, including jffs2 squashfs
-export RK_OEM_FS_TYPE=
-# Set userdata partition type, including jffs2, fat, squashfs
-export RK_USERDATA_FS_TYPE=
-#OEM config
-export RK_OEM_DIR=
-#userdata config, if not define this, system will format by RK_USERDATA_FS_TYPE
-export RK_USERDATA_DIR=
-#misc image
-export RK_MISC=
-#choose enable distro module
-export RK_DISTRO_MODULE=
 # Define package-file for update.img
 export RK_PACKAGE_FILE=rv1126-package-file-spi-nor-tiny
+# Define WiFi BT chip
+# Compatible with Realtek and AP6XXX WiFi : RK_WIFIBT_CHIP=ALL_AP
+# Compatible with Realtek and CYWXXX WiFi : RK_WIFIBT_CHIP=ALL_CY
+# Single WiFi configuration: AP6256 or CYW43455: RK_WIFIBT_CHIP=AP6256
+export RK_WIFIBT_CHIP=AP6256
+# Define BT ttySX
+export RK_WIFIBT_TTY=ttyS0
