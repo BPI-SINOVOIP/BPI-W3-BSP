@@ -44,21 +44,21 @@
 		 */
 		pmic-reset-func = <1>;
 
-		vcc1-supply = <&vcc4v0_sys>;
-		vcc2-supply = <&vcc4v0_sys>;
-		vcc3-supply = <&vcc4v0_sys>;
-		vcc4-supply = <&vcc4v0_sys>;
-		vcc5-supply = <&vcc4v0_sys>;
-		vcc6-supply = <&vcc4v0_sys>;
-		vcc7-supply = <&vcc4v0_sys>;
-		vcc8-supply = <&vcc4v0_sys>;
-		vcc9-supply = <&vcc4v0_sys>;
-		vcc10-supply = <&vcc4v0_sys>;
+		vcc1-supply = <&vcc5v0_sys>;
+		vcc2-supply = <&vcc5v0_sys>;
+		vcc3-supply = <&vcc5v0_sys>;
+		vcc4-supply = <&vcc5v0_sys>;
+		vcc5-supply = <&vcc5v0_sys>;
+		vcc6-supply = <&vcc5v0_sys>;
+		vcc7-supply = <&vcc5v0_sys>;
+		vcc8-supply = <&vcc5v0_sys>;
+		vcc9-supply = <&vcc5v0_sys>;
+		vcc10-supply = <&vcc5v0_sys>;
 		vcc11-supply = <&vcc_2v0_pldo_s3>;
-		vcc12-supply = <&vcc4v0_sys>;
+		vcc12-supply = <&vcc5v0_sys>;
 		vcc13-supply = <&vcc_1v1_nldo_s3>;
 		vcc14-supply = <&vcc_1v1_nldo_s3>;
-		vcca-supply = <&vcc4v0_sys>;
+		vcca-supply = <&vcc5v0_sys>;
 
 		pwrkey {
 			status = "okay";
