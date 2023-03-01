@@ -2,6 +2,8 @@
 
 URI=/oem/SampleVideo_1280x720_5mb.mp4
 
+export mpp_syslog_perror=1
+
 if [ "$1" != "" ]
 then
     URI=$1
@@ -16,4 +18,4 @@ then
     URI=file://$URI
 fi
 
-gst-launch-1.0 uridecodebin uri=$URI ! xvimagesink
+gst-launch-1.0 uridecodebin uri=$URI ! waylandsink fullscreen=true

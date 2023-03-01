@@ -1,1 +1,0 @@
-rk3588/BoardConfig-rk3588-bpi-w3.mk

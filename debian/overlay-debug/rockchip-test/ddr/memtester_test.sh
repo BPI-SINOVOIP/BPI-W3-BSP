@@ -1,19 +1,17 @@
 #!/bin/bash
 
-DDR_DIR=/rockchip-test/ddr
-
-RESULT_DIR=/data/cfg/rockchip-test
+RESULT_DIR=/userdata/rockchip-test
 RESULT_LOG=${RESULT_DIR}/memtester.log
 
-if [ ! -e "/data/cfg/rockchip-test" ]; then
-	echo "no /data/cfg/rockchip-test"
-	mkdir -p /data/cfg/rockchip-test
-fi
+mkdir -p ${RESULT_DIR}
+
+#get free memory size
+mem_avail_size=$(cat /proc/meminfo | grep MemAvailable | awk '{print $2}')
+mem_test_size=$((mem_avail_size/1024/2))M
 
 #run memtester test
-echo "**********************DDR MEMTESTER TEST****************************"
-echo "**********************run: memtester 128M***************************"
-echo "**********************DDR MEMTESTER TEST****************************"
-memtester 128M 2>&1 | tee $RESULT_LOG &
+echo "******************* DDR MEMTESTER TEST ******************************"
+echo "**************** run: memtester $mem_test_size **********************"
+memtester $mem_test_size 2>&1 | tee $RESULT_LOG &
 
-echo "***DDR MEMTESTER TEST START: you can see the log at $RESULT_LOG*****"
+echo "*********** DDR MEMTESTER TEST START, LOG AT $RESULT_LOG ************"

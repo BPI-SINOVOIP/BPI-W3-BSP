@@ -48,7 +48,7 @@ if [ "$VERSION" == "debug" ]; then
 	sudo cp -rf overlay-debug/* $TARGET_ROOTFS_DIR/
 fi
 ## hack the serial
-sudo cp -f overlay/usr/lib/systemd/system/serial-getty@.service $TARGET_ROOTFS_DIR/lib/systemd/system/serial-getty@.service
+sudo cp -f overlay/usr/lib/systemd/system/serial-getty@.service $TARGET_ROOTFS_DIR/usr/lib/systemd/system/serial-getty@.service
 
 # adb
 if [[ "$ARCH" == "armhf" && "$VERSION" == "debug" ]]; then
@@ -60,6 +60,7 @@ fi
 # bt/wifi firmware
 sudo mkdir -p $TARGET_ROOTFS_DIR/system/lib/modules/
 sudo mkdir -p $TARGET_ROOTFS_DIR/vendor/etc
+
 sudo find ../kernel/drivers/net/wireless/rockchip_wlan/*  -name "*.ko" | \
     xargs -n1 -i sudo cp {} $TARGET_ROOTFS_DIR/system/lib/modules/
 
@@ -84,15 +85,12 @@ chmod +x /etc/rc.local
 
 export APT_INSTALL="apt-get install -fy --allow-downgrades"
 
-apt remove -fy firefox-esr chromium*
-
 #---------------power management --------------
-#\${APT_INSTALL} pm-utils triggerhappy bsdmainutils
-#cp /etc/Powermanager/triggerhappy.service  /lib/systemd/system/triggerhappy.service
-rm /etc/Powermanager -rf
+\${APT_INSTALL} pm-utils triggerhappy bsdmainutils
+cp /etc/Powermanager/triggerhappy.service  /lib/systemd/system/triggerhappy.service
 
 #---------------Rga--------------
-\${APT_INSTALL} /packages/rga/*.deb
+\${APT_INSTALL} /packages/rga2/*.deb
 
 echo -e "\033[36m Setup Video.................... \033[0m"
 \${APT_INSTALL} gstreamer1.0-plugins-bad gstreamer1.0-plugins-base gstreamer1.0-plugins-ugly gstreamer1.0-tools gstreamer1.0-alsa \
@@ -110,8 +108,6 @@ gstreamer1.0-plugins-base-apps qtmultimedia5-examples
 #---------Camera---------
 echo -e "\033[36m Install camera.................... \033[0m"
 \${APT_INSTALL} cheese v4l-utils
-#\${APT_INSTALL} /packages/rkisp/*.deb
-\${APT_INSTALL} /packages/rkaiq/*.deb
 \${APT_INSTALL} /packages/libv4l/*.deb
 
 #---------Xserver---------
@@ -135,14 +131,6 @@ echo -e "\033[36m Install libdrm.................... \033[0m"
 echo -e "\033[36m Install libdrm-cursor.................... \033[0m"
 \${APT_INSTALL} /packages/libdrm-cursor/*.deb
 
-# Only preload libdrm-cursor for X
-sed -i "/libdrm-cursor.so/d" /etc/ld.so.preload
-sed -i "1aexport LD_PRELOAD=libdrm-cursor.so.1" /usr/bin/X
-
-#------------------pcmanfm------------
-echo -e "\033[36m Install pcmanfm.................... \033[0m"
-\${APT_INSTALL} /packages/pcmanfm/*.deb
-
 #------------------blueman------------
 echo -e "\033[36m Install blueman.................... \033[0m"
 \${APT_INSTALL} blueman
@@ -150,11 +138,9 @@ echo exit 101 > /usr/sbin/policy-rc.d
 chmod +x /usr/sbin/policy-rc.d
 \${APT_INSTALL} blueman
 rm -f /usr/sbin/policy-rc.d
-sed -i "/exit 0/i \ rm /dev/rfkill" /etc/rc.local
 
 #------------------rkwifibt------------
 echo -e "\033[36m Install rkwifibt.................... \033[0m"
-rm -rf /usr/lib/firmware
 \${APT_INSTALL} /packages/rkwifibt/*.deb
 ln -s /system/etc/firmware /vendor/etc/
 
@@ -164,9 +150,12 @@ echo -e "\033[36m Install glmark2.................... \033[0m"
 \${APT_INSTALL} /packages/glmark2/*.deb
 fi
 
+if [ -e "/usr/lib/aarch64-linux-gnu" ] ;
+then
 #------------------rknpu2------------
-echo -e "\033[36m Install rknpu2.................... \033[0m"
-tar xvf /packages/rknpu2/*.tar -C /
+echo -e "\033[36m move rknpu2.................... \033[0m"
+mv /packages/rknpu2/*.tar  /
+fi
 
 #------------------rktoolkit------------
 echo -e "\033[36m Install rktoolkit.................... \033[0m"
@@ -200,14 +189,18 @@ source ~/.bashrc
 #sed -i "/exit 0/i \ echo 3 > /sys/class/graphics/fb0/blank" /etc/rc.local
 
 cp /packages/libmali/libmali-*-x11*.deb /
-cp -rf /packages/rga/ /
-cp -rf /packages/rga2/ /
+cp -rf /packages/rkisp/*.deb /
+cp -rf /packages/rkaiq/*.deb /
+cp -rf /usr/lib/firmware/rockchip/ /
+
+# reduce 500M size for rootfs
+rm -rf /usr/lib/firmware
+mkdir -p /usr/lib/firmware/
+mv /rockchip /usr/lib/firmware/
 
 # mark package to hold
 apt list --installed | grep -v oldstable | cut -d/ -f1 | xargs apt-mark hold
 
-# mark rga package to unhold
-apt-mark unhold librga2 librga-dev librga2-dbgsym
 #---------------Custom Script--------------
 systemctl mask systemd-networkd-wait-online.service
 systemctl mask NetworkManager-wait-online.service
@@ -219,12 +212,16 @@ apt remove --purge -fy linux-firmware*
 #---------------Clean--------------
 if [ -e "/usr/lib/arm-linux-gnueabihf/dri" ] ;
 then
+        # Only preload libdrm-cursor for X
+        sed -i "1aexport LD_PRELOAD=/usr/lib/arm-linux-gnueabihf/libdrm-cursor.so.1" /usr/bin/X
         cd /usr/lib/arm-linux-gnueabihf/dri/
         cp kms_swrast_dri.so swrast_dri.so rockchip_dri.so /
         rm /usr/lib/arm-linux-gnueabihf/dri/*.so
         mv /*.so /usr/lib/arm-linux-gnueabihf/dri/
 elif [ -e "/usr/lib/aarch64-linux-gnu/dri" ];
 then
+        # Only preload libdrm-cursor for X
+        sed -i "1aexport LD_PRELOAD=/usr/lib/aarch64-linux-gnu/libdrm-cursor.so.1" /usr/bin/X
         cd /usr/lib/aarch64-linux-gnu/dri/
         cp kms_swrast_dri.so swrast_dri.so rockchip_dri.so /
         rm /usr/lib/aarch64-linux-gnu/dri/*.so

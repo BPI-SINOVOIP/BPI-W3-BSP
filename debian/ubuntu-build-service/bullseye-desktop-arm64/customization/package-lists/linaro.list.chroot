@@ -83,6 +83,7 @@ iw
 #kbd
 kmod
 less
+libc++1
 #libxatracker2
 #libreoffice
 libgtk-3-dev

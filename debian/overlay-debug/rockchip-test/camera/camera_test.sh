@@ -1,6 +1,6 @@
 #!/bin/bash
 
-DIR_CAMERA=/rockchip-test/camera
+DIR_CAMERA=`dirname $0`
 
 info_view()
 {
@@ -55,6 +55,6 @@ case ${CAMERA_CHOICE} in
 		camera_stresstest
 		;;
 	*)
-		echo "not fount your input."
+		echo "not found your input."
 		;;
 esac

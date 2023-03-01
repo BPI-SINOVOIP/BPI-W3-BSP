@@ -1,18 +1,19 @@
 #!/bin/bash
-
-export DISPLAY=:0.0
 #export GST_DEBUG=*:5
-#test_camera-uvc.sh > /tmp/1.txt 2>&1
-#export GST_DEBUG_FILE=/tmp/2.txt
-#echo 600000000 > /sys/kernel/debug/clk/aclk_vcodec/clk_rate
-#export GST_MPP_JPEGDEC_DEFAULT_FORMAT=NV12
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/lib/gstreamer-1.0
 
-echo "Start UVC Camera M-JPEG Preview!"
-gst-launch-1.0 v4l2src device=/dev/video17 ! image/jpeg, width=1280, height=720, framerate=30/1 ! jpegparse ! mppjpegdec ! xvimagesink sync=false
+# grep '' /sys/class/video4linux/video*/name
+COMPATIBLE=$(cat /proc/device-tree/compatible)
+if [[ $(expr $COMPATIBLE : ".*rk3588") -ne 0 ]]; then
+	gst-launch-1.0 v4l2src device=/dev/video20 ! image/jpeg, width=1280, height=720, framerate=30/1 ! jpegparse ! mppjpegdec ! waylandsink sync=false
+elif [[ $(expr $COMPATIBLE : ".*rk3568") -ne 0 ]]; then
+	gst-launch-1.0 v4l2src device=/dev/video9 ! image/jpeg, width=1280, height=720, framerate=30/1 ! jpegparse ! mppjpegdec ! waylandsink sync=false
+elif [[ $(expr $COMPATIBLE : ".*rk3566") -ne 0 ]]; then
+	gst-launch-1.0 v4l2src device=/dev/video9 ! image/jpeg, width=1280, height=720, framerate=30/1 ! jpegparse ! mppjpegdec ! waylandsink sync=false
+elif [[ $(expr $COMPATIBLE : ".*rk3399") -ne 0 ]]; then
+	gst-launch-1.0 v4l2src device=/dev/video5 ! image/jpeg, width=1280, height=720, framerate=30/1 ! jpegparse ! mppjpegdec ! waylandsink sync=false
+else
+	gst-launch-1.0 v4l2src device=/dev/video10 ! image/jpeg, width=1280, height=720, framerate=30/1 ! jpegparse ! mppjpegdec ! waylandsink sync=false
+fi
 
-#     gst-launch-1.0 v4l2src device=/dev/video17 ! video/x-raw,format=YUY2,width=640,height=480, framerate=30/1 ! videoconvert ! autovideosink
-#"
-# Fpr spefic size :
-
-# v4l2-ctl --list-formats-ext -d /dev/video17
-
+# v4l2-ctl --list-formats-ext -d /dev/video9

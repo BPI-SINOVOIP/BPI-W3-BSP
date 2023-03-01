@@ -6,6 +6,6 @@ while [ true ]
 do
 	aplay $1 -r 44100 &
 	sleep 2
-	/data/stop_aplay.sh
+	/userdata/stop_aplay.sh
 	sleep 2
 done;

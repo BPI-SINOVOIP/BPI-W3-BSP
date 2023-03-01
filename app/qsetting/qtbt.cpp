@@ -112,7 +112,7 @@ void qtBT::source_connect_cb(void *userdata, const char *bd_addr, const char *na
 }
 
 
-void qtBT::scan_cb(const char *address,const char *name, unsigned int bt_class, int rssi)
+void qtBT::scan_cb(const char *address,const char *name, unsigned int bt_class, int rssi, int change)
 {
     struct bt_dev_info *dev = new bt_dev_info;
     qtBT *btlist = getInstance();

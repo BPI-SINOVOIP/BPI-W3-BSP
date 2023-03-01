@@ -1,6 +1,6 @@
 #!/bin/bash
 
-DIR_GPU=/rockchip-test/gpu
+DIR_GPU=`dirname $0`
 
 info_view()
 {
@@ -46,6 +46,6 @@ case ${GPU_CHOICE} in
 		glmark2_stress_test
 		;;
 	*)
-		echo "not fount your input."
+		echo "not found your input."
 		;;
 esac

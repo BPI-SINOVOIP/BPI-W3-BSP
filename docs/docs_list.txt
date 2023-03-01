@@ -1,14 +1,18 @@
 ├── Common
 │   ├── AUDIO
+│   │   ├── Algorithms
+│   │   │   ├── Rockchip_Developer_Guide_Microphone_Array_Tuning.pdf
+│   │   │   └── Rockchip_Developer_Guide_Sound_Event_Detection.pdf
 │   │   ├── Rockchip_Developer_Guide_Audio_CN.pdf
 │   │   └── Rockchip_Developer_Guide_PulseAudio_CN.pdf
 │   ├── AVL
 │   │   ├── Latest-Release-AVL-Link.txt
-│   │   ├── RKeMMCSupportList_Ver1.66_20220610.pdf
+│   │   ├── RKeMMCSupportList_Ver1.69_20220915.pdf
 │   │   ├── RKNandFlashSupportList_Ver2.73_20180615.pdf
 │   │   ├── RK_SpiNor_and_SLC_Nand_SupportList_Ver1.37_20220513.pdf
-│   │   ├── Rockchip_Support_List_DDR_Ver2.53.pdf
-│   │   └── Rockchip_Support_List_Linux_WiFi_BT_20220605.pdf
+│   │   ├── Rockchip_Support_List_DDR_Ver2.54.pdf
+│   │   ├── Rockchip_Support_List_Linux_WiFi_BT_20220605.pdf
+│   │   └── Rockchip_Support_List_Linux_WiFi_BT_20220828.pdf
 │   ├── CAMERA
 │   │   ├── ISP2X
 │   │   │   ├── Rockchip_Color_Optimization_Guide_ISP20_CN_v1.2.8.pdf
@@ -63,6 +67,7 @@
 │   ├── DISPLAY
 │   │   ├── Rockchip_BT656_TX_AND_BT1120_TX_Developer_Guide_CN.pdf
 │   │   ├── Rockchip_Developer_Guide_Baseparameter_Format_Define_And_Use_CN.pdf
+│   │   ├── Rockchip_Developer_Guide_Buildroot_Weston_EN.pdf
 │   │   ├── Rockchip_Developer_Guide_DRM_Display_Driver_CN.pdf
 │   │   ├── Rockchip_Developer_Guide_HDMI-CEC_CN.pdf
 │   │   ├── Rockchip_Developer_Guide_HDMI_CN.pdf
@@ -73,6 +78,8 @@
 │   │   ├── Rockchip_DRM_RK628_Porting_Guide_CN.pdf
 │   │   ├── Rockchip_MCU_RK628D_Porting_Guide_CN.pdf
 │   │   ├── Rockchip_RK3588_Developer_Guide_DisplayPort_CN.pdf
+│   │   ├── Rockchip_RK3588_Developer_Guide_MIPI_DSI2_CN.pdf
+│   │   ├── Rockchip_RK3588_Developer_Guide_Vsync_Adjust_CN.pdf
 │   │   ├── Rockchip_RK628D_Application_Notes_CN.pdf
 │   │   ├── Rockchip_RK628D_For_All_Porting_Guide_CN.pdf
 │   │   └── Rockchip_VOP2_Plane_Assign.pdf
@@ -89,6 +96,9 @@
 │   │   ├── Rockchip_Developer_Guide_Linux_GMAC_RGMII_Delayline_CN.pdf
 │   │   ├── Rockchip_Developer_Guide_Linux_GMAC_RGMII_Delayline_EN.pdf
 │   │   └── Rockchip_Developer_Guide_Linux_MAC_TO_MAC_CN.pdf
+│   ├── HDMI-IN
+│   │   ├── Rockchip_Developer_Guide_HDMI_IN_Based_On_CameraHal3_CN.pdf
+│   │   └── Rockchip_Developer_Guide_HDMI_RX_CN.pdf
 │   ├── I2C
 │   │   ├── Rockchip_Developer_Guide_I2C_CN.pdf
 │   │   └── Rockchip_Developer_Guide_I2C_EN.pdf
@@ -102,7 +112,8 @@
 │   ├── MEMORY
 │   │   ├── Rockchip_Developer_Guide_Linux_CMA_CN.pdf
 │   │   ├── Rockchip_Developer_Guide_Linux_DMABUF_CN.pdf
-│   │   └── Rockchip_Developer_Guide_Linux_Meminfo_CN.pdf
+│   │   ├── Rockchip_Developer_Guide_Linux_Meminfo_CN.pdf
+│   │   └── Rockchip_Developer_Guide_Linux_Memory_Allocator_CN.pdf
 │   ├── MMC
 │   │   ├── Rockchip_Developer_Guide_SD_Boot_CN.pdf
 │   │   └── Rockchip_Developer_Guide_SDMMC_SDIO_eMMC_CN.pdf
@@ -126,6 +137,7 @@
 │   ├── NVM
 │   │   ├── Rockchip_Application_Notes_Storage_CN.pdf
 │   │   ├── Rockchip_Developer_FAQ_Storage_CN.pdf
+│   │   ├── Rockchip_Developer_Guide_Dual_Storage_CN.pdf
 │   │   ├── Rockchip_Developer_Guide_OTP_CN.pdf
 │   │   ├── Rockchip_Developer_Guide_SATA_CN.pdf
 │   │   ├── Rockchip_Developer_Guide_Secure_Boot_Application_Note_EN.pdf
@@ -206,6 +218,7 @@
 │   │   ├── Rockchip_Developer_Guide_USB_Gadget_UAC_CN.pdf
 │   │   ├── Rockchip_Developer_Guide_USB_SQ_Test_CN.pdf
 │   │   ├── Rockchip_Introduction_USB_SQ_Tool_CN.pdf
+│   │   ├── Rockchip_RK3399_Developer_Guide_USB_CN.pdf
 │   │   ├── Rockchip_RK3399_Developer_Guide_USB_DTS_CN.pdf
 │   │   ├── Rockchip_RK356x_Developer_Guide_USB_CN.pdf
 │   │   ├── Rockchip_RK3588_Developer_Guide_USB_CN.pdf
@@ -226,6 +239,7 @@
 │   │   ├── Rockchip_Developer_Guide_Linux_PCBA_EN.pdf
 │   │   ├── Rockchip_Developer_Guide_Third_Party_System_Adaptation_CN.pdf
 │   │   ├── Rockchip_Developer_Guide_Third_Party_System_Adaptation_EN.pdf
+│   │   ├── Rockchip_Developer_Guide_UEFI_CN.pdf
 │   │   ├── Rockchip_Instruction_Linux_ROS2_CN.pdf
 │   │   ├── Rockchip_Instruction_Linux_ROS_CN.pdf
 │   │   ├── Rockchip_Instruction_Linux_ROS_EN.pdf
@@ -247,15 +261,18 @@
 │   │   ├── Rockchip_Developer_Guide_Linux_Graphics_CN.pdf
 │   │   └── Rockchip_Developer_Guide_Linux_Graphics_EN.pdf
 │   ├── Multimedia
-│   │   ├── Rockchip_Developer_Guide_Linux_RGA_CN.pdf
-│   │   ├── Rockchip_Developer_Guide_Linux_RGA_FAQ_CN.pdf
 │   │   ├── Rockchip_Developer_Guide_Linux_RKADK_CN.pdf
 │   │   ├── Rockchip_Developer_Guide_MPP_CN.pdf
 │   │   ├── Rockchip_Developer_Guide_MPP_EN.pdf
+│   │   ├── Rockchip_Developer_Guide_RGA_CN.pdf
+│   │   ├── Rockchip_Developer_Guide_RGA_EN.pdf
+│   │   ├── Rockchip_FAQ_RGA_CN.pdf
+│   │   ├── Rockchip_FAQ_RGA_EN.pdf
 │   │   ├── Rockchip_Introduction_Linux_Audio_3A_Algorithm_CN.pdf
 │   │   ├── Rockchip_Introduction_Linux_Audio_3A_Algorithm_EN.pdf
 │   │   ├── Rockchip_User_Guide_Linux_Gstreamer_CN.pdf
-│   │   └── Rockchip_User_Guide_Linux_Gstreamer_EN.pdf
+│   │   ├── Rockchip_User_Guide_Linux_Gstreamer_EN.pdf
+│   │   └── Rockchip_User_Guide_Linux_Rockit_CN.pdf
 │   ├── Profile
 │   │   ├── Rockchip_Introduction_Linux_Benchmark_KPI_EN.pdf
 │   │   ├── Rockchip_Introduction_Linux_PLT_CN.pdf
@@ -282,19 +299,26 @@
 │       │   ├── 00014010-WS-170731-RTL8723D_COB_MP_FLOW_R04.pdf
 │       │   ├── MP tool user guide for linux20180319.pdf
 │       │   └── Quick_Start_Guide_V6.txt
-│       ├── RK平台_RTL8723DS_AIRKISS配网说明.pdf
-│       ├── Rockchip_Developer_Guide_DeviceIo_Bluetooth_CN.pdf
-│       ├── Rockchip_Developer_Guide_DeviceIo_Bluetooth_EN.pdf
 │       ├── Rockchip_Developer_Guide_Linux_WIFI_BT_CN.pdf
 │       ├── Rockchip_Developer_Guide_Linux_WIFI_BT_EN.pdf
-│       ├── Rockchip_Developer_Guide_Network_Config_CN.pdf
-│       ├── Rockchip_Developer_Guide_Network_Config_EN.pdf
-│       ├── Rockchip_Introduction_RK3308_DeviceIo_WIFI_CN.pdf
-│       ├── Rockchip_Introduction_RK3308_DeviceIo_WIFI_EN.pdf
-│       └── WIFI性能测试PC工具
-│           └── iperf-2.0.5-2-win32.zip
+│       ├── WIFI性能测试PC工具
+│       │   └── iperf-2.0.5-2-win32.zip
+│       └── WIFIBT编程接口
+│           ├── 0001-fix-bluezalsa-redefine.patch
+│           ├── 最新蓝牙接口说明.txt
+│           ├── 最新WIFI接口说明.txt
+│           ├── README.txt
+│           ├── RK平台_RTL8723DS_AIRKISS配网说明.pdf
+│           ├── RKWIFIBT_APP_V1.1.7z
+│           ├── Rockchip_Developer_Guide_DeviceIo_Bluetooth_CN.pdf
+│           ├── Rockchip_Developer_Guide_DeviceIo_Bluetooth_EN.pdf
+│           ├── Rockchip_Developer_Guide_Network_Config_CN.pdf
+│           ├── Rockchip_Developer_Guide_Network_Config_EN.pdf
+│           ├── Rockchip_Introduction_RK3308_DeviceIo_WIFI_CN.pdf
+│           └── Rockchip_Introduction_RK3308_DeviceIo_WIFI_EN.pdf
 ├── Others
 │   ├── Rockchip_User_Guide_Bug_System_CN.pdf
 │   └── Rockchip_User_Guide_SDK_Application_And_Synchronization_CN.pdf
 ├── RK_Linux_SDK_Supported_System_Kernel_Version_and_ISP_Version_List.png
 ├── Rockchip_Developer_Guide_Linux_Software_CN.pdf
+
